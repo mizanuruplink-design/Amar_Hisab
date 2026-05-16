@@ -1,0 +1,2146 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/database_service.dart';
+import '../services/auth_service.dart';
+import '../models/transaction_model.dart';
+import 'daily_stats_screen.dart';
+import 'monthly_stats_screen.dart';
+import 'yearly_stats_screen.dart';
+import 'recurring_screen.dart';
+import 'export_screen.dart';
+import 'security_screen.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
+import 'budget_screen.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../services/offline_service.dart';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+
+
+// ==================== Helper Classes (unchanged) ====================
+
+class HijriCalendar {
+  static Map<int, String> hijriMonths = {
+    1: 'মুহাররম', 2: 'সফর', 3: 'রবিউল আউয়াল', 4: 'রবিউস সানি',
+    5: 'জমাদিউল আউয়াল', 6: 'জমাদিউস সানি', 7: 'রজব', 8: 'শাবান',
+    9: 'রমজান', 10: 'শাওয়াল', 11: 'জিলকদ', 12: 'জিলহজ',
+  };
+  static String getHijriDate(DateTime date) {
+    double hijriYear = date.year - 622 + (date.month - 1) / 12;
+    int hijriYearInt = hijriYear.floor();
+    int hijriMonth = ((hijriYear - hijriYearInt) * 12).floor() + 1;
+    int hijriDay = date.day;
+    if (hijriMonth > 12) { hijriMonth = 1; hijriYearInt++; }
+    return '${hijriDay} ${hijriMonths[hijriMonth]} $hijriYearInt হিজরি';
+  }
+}
+
+class BengaliCalendar {
+  static Map<int, String> bengaliMonths = {
+    1: 'বৈশাখ', 2: 'জ্যৈষ্ঠ', 3: 'আষাঢ়', 4: 'শ্রাবণ',
+    5: 'ভাদ্র', 6: 'আশ্বিন', 7: 'কার্তিক', 8: 'অগ্রহায়ণ',
+    9: 'পৌষ', 10: 'মাঘ', 11: 'ফাল্গুন', 12: 'চৈত্র',
+  };
+  static String getBengaliDate(DateTime date) {
+    int bengaliYear = date.year - 593;
+    int bengaliMonth = date.month;
+    int bengaliDay = date.day;
+    if (date.month <= 3) { bengaliYear--; bengaliMonth += 9; }
+    else { bengaliMonth -= 3; }
+    if (bengaliMonth > 12) { bengaliMonth -= 12; }
+    return '${bengaliDay} ${bengaliMonths[bengaliMonth]} $bengaliYear';
+  }
+  static String getBengaliDay(int weekday) {
+    Map<int, String> days = {1: 'সোমবার', 2: 'মঙ্গলবার', 3: 'বুধবার', 4: 'বৃহস্পতিবার', 5: 'শুক্রবার', 6: 'শনিবার', 7: 'রবিবার'};
+    return days[weekday] ?? '';
+  }
+}
+
+class BDHolidays {
+  static Map<String, String> holidays = {
+    '21/02': 'শহীদ দিবস', '17/03': 'বঙ্গবন্ধুর জন্মদিন', '26/03': 'স্বাধীনতা দিবস',
+    '14/04': 'পহেলা বৈশাখ', '01/05': 'মে দিবস', '15/08': 'শোক দিবস', '16/12': 'বিজয় দিবস', '25/12': 'বড়দিন',
+  };
+  static String? getHoliday(DateTime date) {
+    String key = DateFormat('dd/MM').format(date);
+    return holidays[key];
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  // ==================== Main HomeScreen ====================
+  const HomeScreen({super.key});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+class _HomeScreenState extends State<HomeScreen> {
+  // ==================== NOTEBOOK SEPARATION ====================
+  List<Map<String, dynamic>> _textNotes = [];
+  List<Map<String, dynamic>> _drawingNotes = [];
+  int _notebookMode = 0; // 0 = text, 1 = drawing
+  bool _isNoteEditorOpen = false; // এই ফ্ল্যাগটি ডাবল ওপেনিং এবং রিমাইন্ডার পপআপ লক করবে
+  bool _isReminderDialogOpen = false;
+  bool _isDrawingEditorOpen = false;
+  String? _localProfilePicPath;
+
+  // ==================== EXISTING VARIABLES ====================
+  int _currentIndex = 0;
+  String _selectedLanguage = 'bn';
+  String _selectedCurrency = 'BDT';
+  bool _showHijriDate = true;
+  bool _showBengaliDate = true;
+  bool _isDarkMode = false;
+  String _userName = '';
+  String? _profileImagePath;
+  final ImagePicker _imagePicker = ImagePicker();
+  late final FlutterLocalNotificationsPlugin _notificationsPlugin;
+  late final Stream<DatabaseEvent> _transactionsStream;
+  late final Stream<bool> _connectionStream;
+
+  Map<String, String> _currencySymbols = {'BDT': '৳', 'USD': '\$', 'EUR': '€', 'GBP': '£', 'INR': '₹'};
+
+  Map<String, Map<String, String>> _localizedText = {
+    'bn': {
+      'app_title': 'আমার হিসাব',
+      'income': 'আয়',
+      'expense': 'ব্যয়',
+      'savings': 'সঞ্চয়',
+      'debt': 'দেনা',
+      'credit': 'পাওনা',
+      'balance': 'ব্যালেন্স',
+      'income_expense_stats': 'আয়-ব্যয় পরিসংখ্যান',
+      'other_accounts': 'অন্যান্য হিসাব',
+      'recent_transactions': 'সাম্প্রতিক লেনদেন',
+      'daily': 'দৈনিক',
+      'monthly': 'মাসিক',
+      'yearly': 'বাৎসরিক',
+      'no_transactions': 'কোনো লেনদেন নেই',
+      'add_income': 'আয় যোগ করুন',
+      'add_expense': 'ব্যয় যোগ করুন',
+      'add_reminder': 'রিমাইন্ডার যোগ করুন',
+      'no_reminders': 'কোনো রিমাইন্ডার নেই',
+      'no_notices': 'কোনো নোটিশ নেই',
+      'no_notes': 'কোনো নোট নেই',
+      'add_note': 'নতুন নোট',
+      'archive': 'আর্কাইভ',
+      'yes': 'হ্যাঁ',
+      'no': 'না',
+      'save': 'সেভ',
+      'cancel': 'বাতিল',
+      'amount': 'টাকা',
+      'description': 'বিবরণ',
+      'title': 'শিরোনাম',
+      'date': 'তারিখ',
+      'time': 'সময়',
+      'logout': 'লগ আউট',
+      'settings': 'সেটিংস',
+      'language': 'ভাষা',
+      'currency': 'কারেন্সি',
+      'dark_mode': 'ডার্ক মোড',
+      'user_name': 'নাম',
+      'change_photo': 'ছবি পরিবর্তন',
+      'take_photo': 'ক্যামেরা',
+      'choose_gallery': 'গ্যালারি',
+      'edit': 'এডিট',
+      'delete': 'ডিলিট',
+      'ok': 'ঠিক আছে',
+      'select_category': 'ক্যাটাগরি',
+      'amount_error': 'টাকা লিখুন',
+      'salary': 'বেতন',
+      'business': 'ব্যবসা',
+      'house_rent': 'বাড়ি ভাড়া',
+      'other': 'অন্যান্য',
+      'gas_bill': 'গ্যাস বিল',
+      'internet_bill': 'ইন্টারনেট',
+      'water_bill': 'পানি বিল',
+      'transport': 'যাতায়াত',
+      'grocery': 'বাজার',
+      'education': 'শিক্ষা',
+      'medical': 'চিকিৎসা',
+      'food': 'খাবার',
+      'mobile_bill': 'মোবাইল',
+      'entertainment': 'বিনোদন',
+      'government_holiday': 'সরকারি ছুটি',
+      'holidays': 'ছুটি',
+      'notification_scheduled': 'নোটিফিকেশন সেট',
+      'budget_management': 'বাজেট',
+      'monthly_budget': 'মাসিক বাজেট',
+      'budget_spent': 'খরচ',
+      'total_budget': 'মোট বাজেট',
+      'used': 'ব্যবহৃত',
+      'remaining': 'বাকি',
+      'budget_exceeded': 'বাজেট অতিক্রম',
+      'recurring_transactions': 'রিকারিং',
+      'export_report': 'এক্সপোর্ট',
+      'security_settings': 'সিকিউরিটি',
+      'change_settings': 'সেটিংস পরিবর্তন',
+      'delete_confirm': 'আপনি কি নিশ্চিত?',
+      'show_hijri': 'হিজরি দেখান',
+      'show_bengali': 'বাংলা দেখান',
+      'calendar_settings': 'পঞ্জিকা সেটিংস',
+      // Security keys
+      'set_pin': 'পিন সেট করুন',
+      'new_pin': 'নতুন পিন',
+      'confirm_pin': 'পিন নিশ্চিত করুন',
+      'disable_lock': 'লক বন্ধ করুন',
+      'disable_lock_confirm': 'আপনি কি লক সিস্টেম বন্ধ করতে চান?',
+      'app_lock_desc': 'অ্যাপ খুলতে পিন/বায়োমেট্রিক লাগবে',
+      'lock_type': 'লক টাইপ',
+      'pin_only': 'শুধুমাত্র পিন',
+      'biometric_only': 'শুধুমাত্র বায়োমেট্রিক',
+      'pin_and_biometric': 'পিন ও বায়োমেট্রিক',
+      'change_pin': 'পিন পরিবর্তন করুন',
+      // About / Privacy keys
+      'about_app': 'অ্যাপ সম্পর্কে',
+      'app_description': 'আপনার দৈনন্দিন আয়-ব্যয় এবং লেনদেনের হিসাব রাখার সহজ অ্যাপ। অফলাইন, ব্যাকআপ ও সুরক্ষা সুবিধা সহ।',
+      'privacy_policy': 'গোপনীয়তা নীতি',
+      'terms_of_service': 'সেবার শর্তাবলী',
+      'pin_set_success': 'পিন সফলভাবে সেট করা হয়েছে',
+      'pin_mismatch': 'পিন মেলেনি, আবার চেষ্টা করুন',
+      'lock_disabled': 'লক বন্ধ করা হয়েছে',
+      // FAQ keys
+      'faq_title': '🙋‍♂️ সাধারণ জিজ্ঞাসা',
+      'faq_q1': 'অ্যাপটি মূলত কী কী কাজে ব্যবহার করা যাবে?',
+      'faq_a1': 'এই অ্যাপটি আপনার দৈনন্দিন জীবনের অল-ইন-ওয়ান অ্যাসিস্ট্যান্ট। আপনি এখানে ৪টি প্রধান সুবিধা পাবেন:\n\n📊 হিসাব-নিকাশ: আয়-ব্যয়ের হিসাব রাখতে পারেন।\n📓 নোটবুক ও ড্রয়িং: গুরুত্বপূর্ণ তথ্য লিখতে ও আঁকতে পারেন।\n⏰ রিমাইন্ডার: কাজ বা বিলের তারিখ মনে করিয়ে দেবে।\n💰 বাজেট: মাসিক বা সাপ্তাহিক বাজেট সেট করে খরচ নিয়ন্ত্রণ করতে পারেন।',
+      'faq_q2': 'অ্যাপটি ব্যবহার করতে কি ইন্টারনেট লাগবে?',
+      'faq_a2': 'অ্যাপটি অনলাইন ও অফলাইন দুভাবেই কাজ করে। ইন্টারনেট না থাকলেও লেনদেন, নোট ও রিমাইন্ডার যোগ করতে পারবেন। পরে ইন্টারনেট এলে স্বয়ংক্রিয়ভাবে ক্লাউডে ব্যাকআপ হবে।',
+      'faq_q3': 'আমার ফোনের ডাটা হারিয়ে যাওয়ার ভয় আছে কি?',
+      'faq_a3': 'না। আপনার ডাটা অনলাইন সিঙ্ক সুবিধায় সুরক্ষিত থাকে। ফোন পরিবর্তন বা অ্যাপ আনইনস্টল করলেও একই অ্যাকাউন্টে লগইন করে সব ডাটা ফিরে পাবেন।',
+      'faq_q4': 'রিমাইন্ডার ফিচারটি কীভাবে কাজ করে?',
+      'faq_a4': 'আপনি নির্দিষ্ট দিন ও সময়ে কাজের রিমাইন্ডার সেট করতে পারেন। সেই সময় পুশ নোটিফিকেশনের মাধ্যমে অ্যাপ আপনাকে মনে করিয়ে দেবে।',
+      'faq_q5': 'বাজেট ফিচারটির সুবিধা কী?',
+      'faq_a5': 'ক্যাটাগরি ভিত্তিক সর্বোচ্চ খরচের সীমা নির্ধারণ করে আপনি অতিরিক্ত খরচ নিয়ন্ত্রণ করতে পারবেন। এটি সঞ্চয় করতে সাহায্য করে।',
+      'faq_q6': 'নোটবুকে কি ছবি বা ড্রয়িং যোগ করা যায়?',
+      'faq_a6': 'হ্যাঁ। আপনি টেক্সট নোটের সাথে ক্যামেরা বা গ্যালারি থেকে ছবি যোগ করতে পারেন এবং আঙ্গুল দিয়ে স্কেচ বা ড্রয়িং করতে পারেন।',
+    },
+    'en': {
+      'app_title': 'My Accounting',
+      'income': 'Income',
+      'expense': 'Expense',
+      'savings': 'Savings',
+      'debt': 'Debt',
+      'credit': 'Credit',
+      'balance': 'Balance',
+      'income_expense_stats': 'Stats',
+      'other_accounts': 'Other',
+      'recent_transactions': 'Recent',
+      'daily': 'Daily',
+      'monthly': 'Monthly',
+      'yearly': 'Yearly',
+      'no_transactions': 'No transactions',
+      'add_income': 'Add Income',
+      'add_expense': 'Add Expense',
+      'add_reminder': 'Add Reminder',
+      'no_reminders': 'No reminders',
+      'no_notices': 'No notices',
+      'no_notes': 'No notes',
+      'add_note': 'New Note',
+      'archive': 'Archive',
+      'yes': 'Yes',
+      'no': 'No',
+      'save': 'Save',
+      'cancel': 'Cancel',
+      'amount': 'Amount',
+      'description': 'Description',
+      'title': 'Title',
+      'date': 'Date',
+      'time': 'Time',
+      'logout': 'Logout',
+      'settings': 'Settings',
+      'language': 'Language',
+      'currency': 'Currency',
+      'dark_mode': 'Dark Mode',
+      'user_name': 'Name',
+      'change_photo': 'Change Photo',
+      'take_photo': 'Camera',
+      'choose_gallery': 'Gallery',
+      'edit': 'Edit',
+      'delete': 'Delete',
+      'ok': 'OK',
+      'select_category': 'Category',
+      'amount_error': 'Enter amount',
+      'salary': 'Salary',
+      'business': 'Business',
+      'house_rent': 'House Rent',
+      'other': 'Other',
+      'gas_bill': 'Gas Bill',
+      'internet_bill': 'Internet',
+      'water_bill': 'Water',
+      'transport': 'Transport',
+      'grocery': 'Grocery',
+      'education': 'Education',
+      'medical': 'Medical',
+      'food': 'Food',
+      'mobile_bill': 'Mobile',
+      'entertainment': 'Entertainment',
+      'government_holiday': 'Holiday',
+      'holidays': 'Holidays',
+      'notification_scheduled': 'Notification',
+      'budget_management': 'Budget',
+      'monthly_budget': 'Monthly Budget',
+      'budget_spent': 'Spent',
+      'total_budget': 'Total Budget',
+      'used': 'Used',
+      'remaining': 'Remaining',
+      'budget_exceeded': 'Exceeded',
+      'recurring_transactions': 'Recurring',
+      'export_report': 'Export',
+      'security_settings': 'Security',
+      'change_settings': 'Change Settings',
+      'delete_confirm': 'Are you sure?',
+      'show_hijri': 'Show Hijri',
+      'show_bengali': 'Show Bengali',
+      'calendar_settings': 'Calendar Settings',
+      // Security keys
+      'set_pin': 'Set PIN',
+      'new_pin': 'New PIN',
+      'confirm_pin': 'Confirm PIN',
+      'disable_lock': 'Disable Lock',
+      'disable_lock_confirm': 'Do you want to disable the lock system?',
+      'app_lock_desc': 'Require PIN/Biometric to open the app',
+      'lock_type': 'Lock Type',
+      'pin_only': 'PIN only',
+      'biometric_only': 'Biometric only',
+      'pin_and_biometric': 'PIN & Biometric',
+      'change_pin': 'Change PIN',
+      // About / Privacy keys
+      'about_app': 'About App',
+      'app_description': 'A simple app to track your daily income, expenses and transactions with offline support, backup and security features.',
+      'privacy_policy': 'Privacy Policy',
+      'terms_of_service': 'Terms of Service',
+      'pin_set_success': 'PIN set successfully',
+      'pin_mismatch': 'PIN mismatch, try again',
+      'lock_disabled': 'Lock disabled',
+      // FAQ keys
+      'faq_title': '🙋‍♂️ Frequently Asked Questions',
+      'faq_q1': 'What are the main features of this app?',
+      'faq_a1': 'This app is your all-in-one assistant. It offers 4 main features:\n\n📊 Income/Expense Tracking\n📓 Notebook & Drawing\n⏰ Reminders\n💰 Budget Planning',
+      'faq_q2': 'Do I need internet to use the app?',
+      'faq_a2': 'The app works online and offline. Without internet, you can still add transactions, notes and reminders. When you go online, everything syncs automatically to the cloud.',
+      'faq_q3': 'Will I lose my data if I change my phone?',
+      'faq_a3': 'No. Your data is safely stored in your account. After logging in on a new device, all your records will be restored.',
+      'faq_q4': 'How does the reminder feature work?',
+      'faq_a4': 'You can set a reminder for any task with a specific date and time. At the scheduled time, the app will notify you via push notification.',
+      'faq_q5': 'What is the benefit of the budget feature?',
+      'faq_a5': 'You can set spending limits per category to control your expenses. This helps you save money.',
+      'faq_q6': 'Can I add images or drawings to my notes?',
+      'faq_a6': 'Yes. You can attach images from camera/gallery and also draw or sketch on the canvas inside the notebook.',
+    },
+    'ar': {
+      'app_title': 'محاسبتي',
+      'income': 'دخل',
+      'expense': 'مصروف',
+      'savings': 'مدخرات',
+      'debt': 'دين',
+      'credit': 'ائتمان',
+      'balance': 'رصيد',
+      'income_expense_stats': 'إحصائيات',
+      'other_accounts': 'أخرى',
+      'recent_transactions': 'الأخيرة',
+      'daily': 'يومي',
+      'monthly': 'شهري',
+      'yearly': 'سنوي',
+      'no_transactions': 'لا معاملات',
+      'add_income': 'إضافة دخل',
+      'add_expense': 'إضافة مصروف',
+      'add_reminder': 'إضافة تذكير',
+      'no_reminders': 'لا تذكيرات',
+      'no_notices': 'لا إشعارات',
+      'no_notes': 'لا ملاحظات',
+      'add_note': 'ملاحظة جديدة',
+      'archive': 'أرشفة',
+      'yes': 'نعم',
+      'no': 'لا',
+      'save': 'حفظ',
+      'cancel': 'إلغاء',
+      'amount': 'المبلغ',
+      'description': 'الوصف',
+      'title': 'العنوان',
+      'date': 'التاريخ',
+      'time': 'الوقت',
+      'logout': 'خروج',
+      'settings': 'إعدادات',
+      'language': 'اللغة',
+      'currency': 'العملة',
+      'dark_mode': 'داكن',
+      'user_name': 'الاسم',
+      'change_photo': 'تغيير الصورة',
+      'take_photo': 'كاميرا',
+      'choose_gallery': 'معرض',
+      'edit': 'تعديل',
+      'delete': 'حذف',
+      'ok': 'حسنا',
+      'select_category': 'الفئة',
+      'amount_error': 'أدخل المبلغ',
+      'salary': 'راتب',
+      'business': 'عمل',
+      'house_rent': 'إيجار',
+      'other': 'آخر',
+      'gas_bill': 'غاز',
+      'internet_bill': 'إنترنت',
+      'water_bill': 'ماء',
+      'transport': 'نقل',
+      'grocery': 'بقالة',
+      'education': 'تعليم',
+      'medical': 'طبي',
+      'food': 'طعام',
+      'mobile_bill': 'جوال',
+      'entertainment': 'ترفيه',
+      'government_holiday': 'عطلة',
+      'holidays': 'عطل',
+      'notification_scheduled': 'إشعار',
+      'budget_management': 'ميزانية',
+      'monthly_budget': 'شهري',
+      'budget_spent': 'أنفق',
+      'total_budget': 'الإجمالي',
+      'used': 'مستخدم',
+      'remaining': 'متبقي',
+      'budget_exceeded': 'تجاوز',
+      'recurring_transactions': 'متكرر',
+      'export_report': 'تصدير',
+      'security_settings': 'أمان',
+      'change_settings': 'تغيير',
+      'delete_confirm': 'هل أنت متأكد؟',
+      'show_hijri': 'إظهار الهجري',
+      'show_bengali': 'إظهار البنغالي',
+      'calendar_settings': 'إعدادات التقويم',
+      // Security keys (Arabic)
+      'set_pin': 'تعيين الرمز',
+      'new_pin': 'رمز جديد',
+      'confirm_pin': 'تأكيد الرمز',
+      'disable_lock': 'تعطيل القفل',
+      'disable_lock_confirm': 'هل تريد تعطيل نظام القفل؟',
+      'app_lock_desc': 'مطلوب رمز أو بصمة لفتح التطبيق',
+      'lock_type': 'نوع القفل',
+      'pin_only': 'رمز فقط',
+      'biometric_only': 'بصمة فقط',
+      'pin_and_biometric': 'الرمز والبصمة',
+      'change_pin': 'تغيير الرمز',
+      // About / Privacy keys (Arabic)
+      'about_app': 'عن التطبيق',
+      'app_description': 'تطبيق بسيط لتتبع دخلك ونفقاتك اليومية مع دعم غير متصل بالإنترنت والنسخ الاحتياطي وميزات الأمان.',
+      'privacy_policy': 'سياسة الخصوصية',
+      'terms_of_service': 'شروط الخدمة',
+      'pin_set_success': 'تم تعيين الرمز بنجاح',
+      'pin_mismatch': 'الرمز غير متطابق، حاول مرة أخرى',
+      'lock_disabled': 'تم تعطيل القفل',
+      // FAQ keys (Arabic)
+      'faq_title': '🙋‍♂️ الأسئلة الشائعة',
+      'faq_q1': 'ما هي الميزات الرئيسية لهذا التطبيق؟',
+      'faq_a1': 'هذا التطبيق هو مساعد شامل. يوفر 4 ميزات رئيسية:\n\n📊 تتبع الدخل والمصروفات\n📓 دفتر الملاحظات والرسم\n⏰ تذكيرات\n💰 تخطيط الميزانية',
+      'faq_q2': 'هل أحتاج إلى الإنترنت لاستخدام التطبيق؟',
+      'faq_a2': 'التطبيق يعمل عبر الإنترنت وغير متصل. بدون إنترنت، لا يزال بإمكانك إضافة المعاملات والملاحظات والتذكيرات. عندما تتصل بالإنترنت، تتم مزامنة كل شيء تلقائياً مع السحابة.',
+      'faq_q3': 'هل سأفقد بياناتي إذا غيرت هاتفي؟',
+      'faq_a3': 'لا. يتم تخزين بياناتك بأمان في حسابك. بعد تسجيل الدخول على جهاز جديد، سيتم استعادة جميع سجلاتك.',
+      'faq_q4': 'كيف تعمل ميزة التذكير؟',
+      'faq_a4': 'يمكنك تعيين تذكير لأي مهمة بتاريخ ووقت محددين. في الوقت المحدد، سيقوم التطبيق بإعلامك عبر إشعار.',
+      'faq_q5': 'ما فائدة ميزة الميزانية؟',
+      'faq_a5': 'يمكنك تعيين حدود الإنفاق لكل فئة للتحكم في نفقاتك. هذا يساعدك على توفير المال.',
+      'faq_q6': 'هل يمكنني إضافة صور أو رسومات إلى ملاحظاتي؟',
+      'faq_a6': 'نعم. يمكنك إرفاق صور من الكاميرا / المعرض وكذلك الرسم أو التخطيط على اللوحة داخل دفتر الملاحظات.',
+    },
+  };
+  String getText(String key) =>
+      _localizedText[_selectedLanguage]?[key] ?? _localizedText['bn']?[key] ?? key;
+
+  List<Map<String, dynamic>> incomeCategories = [
+    {'key': 'salary', 'icon': Icons.work, 'color': Colors.green},
+    {'key': 'business', 'icon': Icons.store, 'color': Colors.blue},
+    {'key': 'house_rent', 'icon': Icons.house, 'color': Colors.orange},
+    {'key': 'other', 'icon': Icons.more_horiz, 'color': Colors.grey},
+  ];
+
+  List<Map<String, dynamic>> expenseCategories = [
+    {'key': 'gas_bill', 'icon': Icons.electric_bolt, 'color': Colors.red},
+    {'key': 'house_rent', 'icon': Icons.house, 'color': Colors.orange},
+    {'key': 'internet_bill', 'icon': Icons.wifi, 'color': Colors.blue},
+    {'key': 'water_bill', 'icon': Icons.water_drop, 'color': Colors.cyan},
+    {'key': 'transport', 'icon': Icons.directions_bus, 'color': Colors.green},
+    {'key': 'grocery', 'icon': Icons.shopping_cart, 'color': Colors.deepOrange},
+    {'key': 'education', 'icon': Icons.school, 'color': Colors.purple},
+    {'key': 'medical', 'icon': Icons.medical_services, 'color': Colors.redAccent},
+    {'key': 'food', 'icon': Icons.restaurant, 'color': Colors.amber},
+    {'key': 'mobile_bill', 'icon': Icons.phone_android, 'color': Colors.indigo},
+    {'key': 'entertainment', 'icon': Icons.tv, 'color': Colors.pink},
+    {'key': 'other', 'icon': Icons.more_horiz, 'color': Colors.grey},
+  ];
+
+  String getCategoryName(String key) => getText(key);
+
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay = DateTime.now();
+  Map<DateTime, List<Map<String, dynamic>>> _events = {};
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  List<Map<String, dynamic>> _allReminders = [];
+  String _display = "0";
+  double? _firstValue;
+  String? _operator;
+  bool _shouldResetDisplay = false;
+  bool _isNewNumber = true;
+  // bool _isOnline = false;
+  //late Timer _internetCheckTimer;
+
+// ==================== LIFECYCLE ====================
+  @override
+  void initState() {
+    super.initState();
+    _connectionStream = DatabaseService().connectionStatus;
+    _transactionsStream = DatabaseService().getTransactions();
+    _listenToConnection();
+    _notificationsPlugin = FlutterLocalNotificationsPlugin();
+    _initializeNotifications();
+    _loadUserSettings();
+    _loadCurrentUserProfilePic();
+  }
+
+  void _listenToConnection() {
+    _connectionStream.listen((isOnline) {
+      if (mounted && isOnline) _syncOfflineData();
+    });
+  }
+
+  void _loadCurrentUserProfilePic() async {
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      final prefs = await SharedPreferences.getInstance();
+
+      if (user != null) {
+        // 🟢 মেইল আইডি অনুযায়ী ইউনিক ছবি লোড হবে
+        String? path = prefs.getString('profile_pic_${user.uid}');
+
+        if (mounted) {
+          setState(() {
+            _localProfilePicPath = path;
+          });
+        }
+      } else {
+        // 🔴 লগআউট করার সাথে সাথে আগের মেইলের ছবি মেমোরি থেকে মুছে যাবে
+        if (mounted) {
+          setState(() {
+            _localProfilePicPath = null;
+          });
+        }
+      }
+    });
+  }
+  void _deleteProfilePic() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 🔴 লোকাল স্টোরেজ (SharedPreferences) থেকে ছবি ডিলিট করা হলো
+      await prefs.remove('profile_pic_${user.uid}');
+
+      // 🔄 স্টেট আপডেট করা হলো যেন অ্যাপ বারে সাথে সাথে ডিফল্ট আইকন চলে আসে
+      if (mounted) {
+        setState(() {
+          _localProfilePicPath = null;
+        });
+      }
+
+      _showSnackBar("প্রোফাইল পিকচার রিমুভ করা হয়েছে", Colors.red);
+    }
+  }
+
+  Future<void> _syncOfflineData() async {
+    final count = await DatabaseService().syncOfflineToOnline();
+    if (count > 0 && mounted) {
+      _showSnackBar('$count টি অফলাইন ডাটা সিঙ্ক হয়েছে', Colors.green);
+      setState(() {});
+    }
+  }
+  @override
+  void dispose() {
+    // _internetCheckTimer.cancel();
+    super.dispose();
+  }
+// ==================== USER SETTINGS ====================
+  void _loadUserSettings() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() {
+      _isDarkMode = prefs.getBool('darkMode') ?? false;
+      _userName = prefs.getString('userName') ?? '';
+      _profileImagePath = prefs.getString('profileImagePath');
+      _selectedLanguage = prefs.getString('language') ?? 'bn';
+      _selectedCurrency = prefs.getString('currency') ?? 'BDT';
+    });
+  }
+
+  void _saveUserSettings() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', _isDarkMode);
+    await prefs.setString('userName', _userName);
+    if (_profileImagePath != null) await prefs.setString('profileImagePath', _profileImagePath!);
+    await prefs.setString('language', _selectedLanguage);
+    await prefs.setString('currency', _selectedCurrency);
+  }
+// ==================== NOTIFICATIONS ====================
+  void _initializeNotifications() async {
+    tz.initializeTimeZones();
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iOSSettings = DarwinInitializationSettings(
+      requestAlertPermission: true, requestBadgePermission: true, requestSoundPermission: true,
+    );
+    const settings = InitializationSettings(android: androidSettings, iOS: iOSSettings);
+    await _notificationsPlugin.initialize(settings, onDidReceiveNotificationResponse: (r) {
+      if (mounted) setState(() => _currentIndex = 2);
+    });
+    if (Platform.isAndroid) {
+      final p = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await p?.requestNotificationsPermission();
+    }
+  }
+
+  void _scheduleNotification(String title, DateTime dateTime, String id) async {
+    try {
+      final scheduledDate = tz.TZDateTime.from(dateTime, tz.local);
+      if (scheduledDate.isAfter(tz.TZDateTime.now(tz.local))) {
+        await _notificationsPlugin.zonedSchedule(
+          id.hashCode.abs() % 100000, 'আমার হিসাব', title, scheduledDate,
+          const NotificationDetails(
+            android: AndroidNotificationDetails('r', 'রিমাইন্ডার', importance: Importance.max, priority: Priority.high),
+            iOS: DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.dateAndTime,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+    } catch (e) {}
+  }
+  // ==================== REMINDERS ====================
+  void _showTodayReminders() {
+    String today = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    var todayList = _allReminders.where((r) => r['date'] == today).toList();
+    if (todayList.isNotEmpty) {
+      print("📅 Today's reminders: ${todayList.length}");
+    }
+  }
+
+  void _showNotificationDialog(List<Map<String, dynamic>> reminders) {
+    showDialog(context: context, builder: (c) => AlertDialog(
+      title: Row(children: [Icon(Icons.notifications_active, color: Colors.orange), const SizedBox(width: 10), Text(getText('add_reminder'))]),
+      content: SizedBox(width: double.maxFinite, child: ListView.builder(shrinkWrap: true, itemCount: reminders.length, itemBuilder: (c, i) => ListTile(leading: CircleAvatar(child: Icon(Icons.event_note)), title: Text(reminders[i]['note'] ?? ''), subtitle: Text('${getText('time')}: ${reminders[i]['time'] ?? ''}')))),
+      actions: [TextButton(onPressed: () => Navigator.pop(c), child: Text(getText('ok')))],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ));
+  }
+
+  // ==================== TRANSACTION HELPERS (shortened) ====================
+  void _showSnackBar(String m, Color c) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), backgroundColor: c, duration: const Duration(seconds: 2), behavior: SnackBarBehavior.floating)); }
+
+  void _confirmDelete(String id) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(getText('delete')),
+        content: Text(getText('delete_confirm') ?? 'ডিলিট?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(getText('no')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              // ১. ডাটাবেজ ডিলিট শুরু হওয়ার আগেই ডায়ালগটি বন্ধ করুন (c কনটেক্সট দিয়ে)
+              Navigator.pop(c);
+
+              // ২. আন্ডারস্কোর (_) সহ সঠিক ভ্যারিয়েবল থেকে আইটেম রিমুভ করুন
+              if (mounted) {
+                setState(() {
+                  _textNotes.removeWhere((note) => note['key'] == id);
+                  _drawingNotes.removeWhere((note) => note['key'] == id);
+                });
+              }
+
+              // ৩. ব্যাকগ্রাউন্ডে ডাটাবেজ অপারেশন
+              await DatabaseService().deleteTransaction(id);
+
+              _showSnackBar(getText('delete'), Colors.red);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(getText('yes'), style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmArchive(String id) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(getText('archive')),
+        content: const Text("আর্কাইভ?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(getText('no')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              // ১. আগে ডায়ালগটি বন্ধ করুন
+              Navigator.pop(c);
+
+              // ২. আন্ডারস্কোর (_) সহ সঠিক ভ্যারিয়েবল থেকে আইটেম রিমুভ করুন
+              if (mounted) {
+                setState(() {
+                  _textNotes.removeWhere((note) => note['key'] == id);
+                  _drawingNotes.removeWhere((note) => note['key'] == id);
+                });
+              }
+
+              // ৩. ব্যাকগ্রাউন্ডে আর্কাইভ করুন
+              await DatabaseService().archiveTransaction(id);
+
+              _showSnackBar(getText('archive'), Colors.orange);
+            },
+            child: Text(getText('yes')),
+          ),
+        ],
+      ),
+    );
+  }
+  void _showTransactionOptions(Map<String, dynamic> tx) {
+    showModalBottomSheet(context: context, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(height: 4, width: 40, margin: const EdgeInsets.only(top: 12), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
+      ListTile(leading: CircleAvatar(backgroundColor: Colors.blue.withOpacity(0.1), child: Icon(Icons.edit, color: Colors.blue)), title: Text(getText('edit'), style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () { Navigator.pop(c); _showEditDialog(tx); }),
+      ListTile(leading: CircleAvatar(backgroundColor: Colors.orange.withOpacity(0.1), child: Icon(Icons.archive, color: Colors.orange)), title: Text(getText('archive'), style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () { Navigator.pop(c); _confirmArchive(tx['key']); }),
+      ListTile(leading: CircleAvatar(backgroundColor: Colors.red.withOpacity(0.1), child: Icon(Icons.delete, color: Colors.red)), title: Text(getText('delete'), style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () { Navigator.pop(c); _confirmDelete(tx['key']); }),
+      const SizedBox(height: 20),
+    ])));
+  }
+  void _showEditDialog(Map<String, dynamic> tx) {
+    final amtCtrl = TextEditingController(text: (tx['amount'] ?? '').toString());
+    final noteCtrl = TextEditingController(text: tx['note'] ?? '');
+    String type = tx['type'] ?? 'Income', catKey = tx['category'] ?? (type == 'Income' ? 'salary' : 'gas_bill');
+    List<Map<String, dynamic>> cats = type == 'Income' ? incomeCategories : expenseCategories;
+    if (!cats.any((c) => c['key'] == catKey)) catKey = type == 'Income' ? 'salary' : 'gas_bill';
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => SingleChildScrollView(child: Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
+      Text(getText('edit'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
+      TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)), autofocus: true), const SizedBox(height: 12),
+      TextField(controller: noteCtrl, decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note))), const SizedBox(height: 12),
+      Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 8),
+      Container(height: 50, padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)), child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: catKey, isExpanded: true, icon: const Icon(Icons.arrow_drop_down), items: cats.map((cat) => DropdownMenuItem<String>(value: cat['key'], child: Row(children: [Icon(cat['icon'], size: 20, color: cat['color']), const SizedBox(width: 10), Text(getCategoryName(cat['key']))]))).toList(), onChanged: (v) { if (v != null) s(() => catKey = v); }))),
+      const SizedBox(height: 20),
+      ElevatedButton(onPressed: () { if (amtCtrl.text.isNotEmpty) { double? amt = double.tryParse(amtCtrl.text); if (amt != null) { DatabaseService().updateTransaction(tx['key'], {'amount': amt, 'note': noteCtrl.text.isEmpty ? getCategoryName(catKey) : noteCtrl.text, 'category': catKey}); Navigator.pop(c); _showSnackBar('${getText('edit')} ${getText('save')}', Colors.green); if (mounted) setState(() {}); } } else { _showSnackBar(getText('amount_error'), Colors.red); } }, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white))),
+      const SizedBox(height: 20),
+    ])))));
+  }
+
+  void _showIncomeDialog() {
+    final amtCtrl = TextEditingController(), noteCtrl = TextEditingController(); String selCat = 'salary';
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => SingleChildScrollView(child: Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
+      Text(getText('add_income'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
+      TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)), autofocus: true), const SizedBox(height: 12),
+      TextField(controller: noteCtrl, decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note))), const SizedBox(height: 12),
+      Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 8),
+      Container(height: 50, padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)), child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: selCat, isExpanded: true, icon: const Icon(Icons.arrow_drop_down), items: incomeCategories.map((cat) => DropdownMenuItem<String>(value: cat['key'], child: Row(children: [Icon(cat['icon'], size: 20, color: cat['color']), const SizedBox(width: 10), Text(getCategoryName(cat['key']))]))).toList(), onChanged: (v) { if (v != null) s(() => selCat = v); }))),
+      const SizedBox(height: 20),
+      ElevatedButton(onPressed: () { if (amtCtrl.text.isNotEmpty) { double? amt = double.tryParse(amtCtrl.text); if (amt != null) { DatabaseService().addTransaction(TransactionModel(id: DateTime.now().millisecondsSinceEpoch.toString(), amount: amt, note: noteCtrl.text.isEmpty ? getCategoryName(selCat) : noteCtrl.text, type: 'Income', date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()), category: selCat, isArchived: false)); Navigator.pop(c); _showSnackBar('${getText('income')} ${getText('save')}', Colors.green); if (mounted) setState(() {}); } } else { _showSnackBar(getText('amount_error'), Colors.red); } }, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white))),
+      const SizedBox(height: 20),
+    ])))));
+  }
+  void _showExpenseDialog() {
+    final amtCtrl = TextEditingController(), noteCtrl = TextEditingController(); String selCat = 'gas_bill';
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => SingleChildScrollView(child: Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
+      Text(getText('add_expense'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
+      TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)), autofocus: true), const SizedBox(height: 12),
+      TextField(controller: noteCtrl, decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note))), const SizedBox(height: 12),
+      Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 8),
+      Container(height: 50, padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)), child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: selCat, isExpanded: true, icon: const Icon(Icons.arrow_drop_down), items: expenseCategories.map((cat) => DropdownMenuItem<String>(value: cat['key'], child: Row(children: [Icon(cat['icon'], size: 20, color: cat['color']), const SizedBox(width: 10), Text(getCategoryName(cat['key']))]))).toList(), onChanged: (v) { if (v != null) s(() => selCat = v); }))),
+      const SizedBox(height: 20),
+      ElevatedButton(onPressed: () { if (amtCtrl.text.isNotEmpty) { double? amt = double.tryParse(amtCtrl.text); if (amt != null) { DatabaseService().addTransaction(TransactionModel(id: DateTime.now().millisecondsSinceEpoch.toString(), amount: amt, note: noteCtrl.text.isEmpty ? getCategoryName(selCat) : noteCtrl.text, type: 'Expense', date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()), category: selCat, isArchived: false)); Navigator.pop(c); _showSnackBar('${getText('expense')} ${getText('save')}', Colors.red); if (mounted) setState(() {}); } } else { _showSnackBar(getText('amount_error'), Colors.red); } }, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white))),
+      const SizedBox(height: 20),
+    ])))));
+  }
+
+  void _showDebtCreditDialog(String type) {
+    final amtCtrl = TextEditingController(), noteCtrl = TextEditingController();
+    String title = type == 'দেনা' ? getText('debt') : (type == 'পাওনা' ? getText('credit') : getText('savings'));
+    String engType = type == 'দেনা' ? 'Debt' : (type == 'পাওনা' ? 'Credit' : 'Savings');
+    Color color = type == 'দেনা' ? Colors.orange : (type == 'পাওনা' ? Colors.purple : Colors.blue);
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => SingleChildScrollView(child: Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
+      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
+      TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)), autofocus: true), const SizedBox(height: 12),
+      TextField(controller: noteCtrl, decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note))), const SizedBox(height: 20),
+      ElevatedButton(onPressed: () { if (amtCtrl.text.isNotEmpty) { double? amt = double.tryParse(amtCtrl.text); if (amt != null) { DatabaseService().addTransaction(TransactionModel(id: DateTime.now().millisecondsSinceEpoch.toString(), amount: amt, note: noteCtrl.text.isEmpty ? title : noteCtrl.text, type: engType, date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()), category: "other", isArchived: false)); Navigator.pop(c); _showSnackBar('$title ${getText('save')}', color); if (mounted) setState(() {}); } } else { _showSnackBar(getText('amount_error'), Colors.red); } }, style: ElevatedButton.styleFrom(backgroundColor: color, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white))),
+      const SizedBox(height: 20),
+    ])))));
+  }
+
+  void _showReminderInput() {
+    final titleCtrl = TextEditingController();
+    DateTime selDate = _selectedDay ?? DateTime.now(); TimeOfDay selTime = TimeOfDay.now();
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => SingleChildScrollView(child: Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
+      Text(getText('add_reminder'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
+      TextField(controller: titleCtrl, decoration: InputDecoration(labelText: getText('title'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.title))), const SizedBox(height: 12),
+      InkWell(onTap: () async { DateTime? p = await showDatePicker(context: c, initialDate: selDate, firstDate: DateTime(2020), lastDate: DateTime(2030)); if (p != null) s(() => selDate = p); }, child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)), child: Row(children: [const Icon(Icons.calendar_today), const SizedBox(width: 10), Text('${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}')]))), const SizedBox(height: 12),
+      InkWell(onTap: () async { TimeOfDay? p = await showTimePicker(context: c, initialTime: selTime); if (p != null) s(() => selTime = p); }, child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)), child: Row(children: [const Icon(Icons.access_time), const SizedBox(width: 10), Text('${getText('time')}: ${selTime.format(c)}')]))), const SizedBox(height: 20),
+      ElevatedButton(onPressed: () { if (titleCtrl.text.isNotEmpty) { String rId = DateTime.now().millisecondsSinceEpoch.toString(); DatabaseService().addTransaction(TransactionModel(id: rId, amount: 0, note: titleCtrl.text, type: 'Reminder', date: DateFormat('dd/MM/yyyy').format(selDate), category: '', isArchived: false)); DatabaseService().updateReminderTime(rId, selTime.format(c)); _scheduleNotification(titleCtrl.text, DateTime(selDate.year, selDate.month, selDate.day, selTime.hour, selTime.minute), rId); Navigator.pop(c); _showSnackBar(getText('notification_scheduled'), Colors.green); if (mounted) setState(() {}); } }, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white))),
+      const SizedBox(height: 20),
+    ])))));
+  }
+  void _openSecurityScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SecurityScreen(
+          selectedLanguage: _selectedLanguage,
+          localizedText: _localizedText,
+        ),
+      ),
+    );
+  }
+
+
+// ==================== CALCULATOR (keep existing) ====================
+  void _openCalculator() {
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => Container(height: MediaQuery.of(c).size.height * 0.65, decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), child: Column(children: [
+      Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+      Container(margin: const EdgeInsets.all(20), padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(15)), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: SingleChildScrollView(scrollDirection: Axis.horizontal, reverse: true, child: Text(_display, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w500)))), IconButton(icon: const Icon(Icons.backspace, size: 28), onPressed: () => _onKeyPress("DEL", s))])),
+      Expanded(child: Padding(padding: const EdgeInsets.all(10), child: Column(children: [_buildCalcRow(["C", "±", "%", "÷"], s), _buildCalcRow(["7", "8", "9", "×"], s), _buildCalcRow(["4", "5", "6", "-"], s), _buildCalcRow(["1", "2", "3", "+"], s), _buildCalcRow(["0", ".", "="], s)]))),
+      Padding(padding: const EdgeInsets.all(10), child: SizedBox(width: double.infinity, child: TextButton(onPressed: () => Navigator.pop(c), style: TextButton.styleFrom(backgroundColor: Colors.grey[200], padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))), child: Text(getText('cancel'), style: const TextStyle(fontSize: 16))))),
+    ]))));
+  }
+
+  void _onKeyPress(String v, StateSetter s) {
+    s(() {
+      if (v == "C") { _display = "0"; _firstValue = null; _operator = null; _shouldResetDisplay = false; _isNewNumber = true; }
+      else if (v == "DEL") { _display = _display.length > 1 ? _display.substring(0, _display.length - 1) : "0"; _isNewNumber = _display == "0"; }
+      else if (v == "+" || v == "-" || v == "×" || v == "÷") { if (_operator != null && !_isNewNumber) _calculate(); _firstValue = double.tryParse(_display); _operator = v; _shouldResetDisplay = true; _isNewNumber = true; }
+      else if (v == "=") { _calculate(); _operator = null; _firstValue = null; _shouldResetDisplay = true; _isNewNumber = true; }
+      else if (v == "±") { if (_display != "0") _display = _display.startsWith("-") ? _display.substring(1) : "-$_display"; }
+      else if (v == ".") { if (!_display.contains(".")) { _display += "."; _isNewNumber = false; } }
+      else { if (_shouldResetDisplay || _display == "0" || _isNewNumber) { _display = v; _shouldResetDisplay = false; _isNewNumber = false; } else { _display += v; } }
+    });
+  }
+
+  void _calculate() {
+    if (_firstValue != null && _operator != null) {
+      double sv = double.tryParse(_display) ?? 0, r = 0;
+      switch (_operator) { case "+": r = _firstValue! + sv; break; case "-": r = _firstValue! - sv; break; case "×": r = _firstValue! * sv; break; case "÷": r = sv != 0 ? _firstValue! / sv : 0; break; }
+      _display = r % 1 == 0 ? r.toInt().toString() : r.toStringAsFixed(2);
+      _firstValue = r; _shouldResetDisplay = true;
+    }
+  }
+
+  Widget _buildCalcRow(List<String> k, StateSetter s) => Expanded(child: Row(children: k.map((x) => Expanded(child: _buildCalcButton(x, s))).toList()));
+  Widget _buildCalcButton(String t, StateSetter s) {
+    Color bg = Colors.grey[100]!, tc = Colors.black87;
+    if (t == "C") { bg = Colors.red[400]!; tc = Colors.white; } else if (t == "÷" || t == "×" || t == "-" || t == "+" || t == "=") { bg = Colors.blue.shade700; tc = Colors.white; }
+    return Padding(padding: const EdgeInsets.all(4), child: Material(color: bg, borderRadius: BorderRadius.circular(12), child: InkWell(onTap: () => _onKeyPress(t, s), borderRadius: BorderRadius.circular(12), child: Container(height: double.infinity, alignment: Alignment.center, child: Text(t, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500, color: tc))))));
+  }
+
+
+  // ==================== PROFILE & SETTINGS ====================
+  void _showProfileDialog() {
+    final nameCtrl = TextEditingController(text: _userName);
+    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
+      GestureDetector(onTap: _changeProfilePhoto, child: Stack(children: [CircleAvatar(radius: 50, backgroundColor: Colors.blue.shade100, backgroundImage: _profileImagePath != null && File(_profileImagePath!).existsSync() ? FileImage(File(_profileImagePath!)) : null, child: _profileImagePath == null ? Icon(Icons.person, size: 50, color: Colors.blue) : null), Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 18, backgroundColor: Colors.blue, child: Icon(Icons.camera_alt, size: 18, color: Colors.white)))])),
+      const SizedBox(height: 16),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 30), child: TextField(controller: nameCtrl, decoration: InputDecoration(labelText: getText('user_name'), prefixIcon: Icon(Icons.person), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => _userName = v)),
+      const SizedBox(height: 10), Text(AuthService().currentUser?.email ?? "User", style: TextStyle(fontSize: 14, color: Colors.grey[600])), const SizedBox(height: 20),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Column(children: [
+        _buildSettingsCard(s), const SizedBox(height: 15),
+        GestureDetector(onTap: () { Navigator.pop(c); _openSecurityScreen(); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.red.shade400, Colors.red.shade700]), borderRadius: BorderRadius.circular(15)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.security, color: Colors.white, size: 24), const SizedBox(width: 10), Text(getText('security_settings'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))),
+        const SizedBox(height: 15),
+        ElevatedButton(onPressed: () { _saveUserSettings(); Navigator.pop(c); if (mounted) setState(() {}); }, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white, fontSize: 16))), const SizedBox(height: 20),
+      ])),
+    ])))));
+  }
+
+  Widget _buildSettingsCard(StateSetter s) {
+    return Container(decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey[200]!)), padding: const EdgeInsets.all(15), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Icon(Icons.brightness_6, size: 20, color: Colors.purple), const SizedBox(width: 10), Text(getText('dark_mode'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]),
+      SwitchListTile(value: _isDarkMode, onChanged: (v) => s(() => _isDarkMode = v), activeColor: Colors.purple, dense: true, contentPadding: EdgeInsets.zero), const Divider(),
+      Row(children: [Icon(Icons.language, size: 20, color: Colors.blue), const SizedBox(width: 10), Text(getText('language'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]), const SizedBox(height: 8),
+      Row(children: [_lc('বাংলা', 'bn', s), const SizedBox(width: 8), _lc('English', 'en', s), const SizedBox(width: 8), _lc('العربية', 'ar', s)]), const SizedBox(height: 15),
+      Row(children: [Icon(Icons.currency_exchange, size: 20, color: Colors.green), const SizedBox(width: 10), Text(getText('currency'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]), const SizedBox(height: 8),
+      Wrap(spacing: 8, children: [_cc('BDT', '৳', s), _cc('USD', '\$', s), _cc('EUR', '€', s), _cc('GBP', '£', s), _cc('INR', '₹', s)]), const SizedBox(height: 15),
+      Row(children: [Icon(Icons.calendar_today, size: 20, color: Colors.orange), const SizedBox(width: 10), Text(getText('calendar_settings'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]),
+      SwitchListTile(title: Text(getText('show_hijri')), value: _showHijriDate, onChanged: (v) => s(() => _showHijriDate = v), activeColor: Colors.blue.shade700, dense: true, contentPadding: EdgeInsets.zero),
+      SwitchListTile(title: Text(getText('show_bengali')), value: _showBengaliDate, onChanged: (v) => s(() => _showBengaliDate = v), activeColor: Colors.blue.shade700, dense: true, contentPadding: EdgeInsets.zero),
+    ]));
+  }
+
+  Widget _lc(String l, String code, StateSetter s) {
+    bool sel = _selectedLanguage == code;
+    return Expanded(child: InkWell(onTap: () => s(() => _selectedLanguage = code), child: Container(padding: const EdgeInsets.symmetric(vertical: 10), decoration: BoxDecoration(color: sel ? Colors.blue.shade700 : Colors.white, borderRadius: BorderRadius.circular(25), border: Border.all(color: sel ? Colors.blue.shade700 : Colors.grey[300]!)), child: Center(child: Text(l, style: TextStyle(color: sel ? Colors.white : Colors.black87, fontWeight: FontWeight.w500))))));
+  }
+
+  Widget _cc(String code, String sym, StateSetter s) {
+    bool sel = _selectedCurrency == code;
+    return InkWell(onTap: () => s(() => _selectedCurrency = code), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: sel ? Colors.blue.shade700 : Colors.white, borderRadius: BorderRadius.circular(25), border: Border.all(color: sel ? Colors.blue.shade700 : Colors.grey[300]!)), child: Text('$code ($sym)', style: TextStyle(color: sel ? Colors.white : Colors.black87))));
+  }
+
+  void _changeProfilePhoto() {
+    showModalBottomSheet(context: context, builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(leading: Icon(Icons.camera_alt), title: Text(getText('take_photo')), onTap: () { Navigator.pop(c); _pickImage(ImageSource.camera); }),
+      ListTile(leading: Icon(Icons.photo_library), title: Text(getText('choose_gallery')), onTap: () { Navigator.pop(c); _pickImage(ImageSource.gallery); }),
+    ])));
+  }
+
+  void _pickImage(ImageSource source) async {
+    try { final XFile? f = await _imagePicker.pickImage(source: source, imageQuality: 80); if (f != null && mounted) { setState(() => _profileImagePath = f.path); _saveUserSettings(); } } catch (e) {}
+  }
+
+
+  // ==================== NOTEBOOK UI ====================
+  Widget _buildTextNotesList() {
+    if (_textNotes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.note_add, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 10),
+            Text(getText('no_notes')),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _textNotes.length,
+      itemBuilder: (c, i) {
+        final note = _textNotes[i];
+        String extraRaw = note['category'] ?? '';
+        int bgColorValue = Colors.yellow.shade100.value;
+        List<String> imagePaths = [];
+        try {
+          if (extraRaw.startsWith('{')) {
+            Map<String, dynamic> extra = json.decode(extraRaw);
+            bgColorValue = (extra['bgColor'] as int?) ?? Colors.yellow.shade100.value;
+            imagePaths = List<String>.from(extra['imagePaths'] ?? []);
+          } else {
+            bgColorValue = int.tryParse(extraRaw) ?? Colors.yellow.shade100.value;
+          }
+        } catch (_) {}
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(color: Color(bgColorValue), borderRadius: BorderRadius.circular(20)),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openTextNoteEditor(existingNote: note, key: note['key']),
+              onLongPress: () => _confirmDelete(note['key']),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.note, size: 18, color: Colors.black45),
+                        const Spacer(),
+                        if (imagePaths.isNotEmpty) Icon(Icons.image, size: 18, color: Colors.black45),
+                        const SizedBox(width: 8),
+                        Text(note['date'] ?? "", style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Text(note['note'] ?? "", style: const TextStyle(fontSize: 16), maxLines: 10, overflow: TextOverflow.ellipsis),
+                    if (imagePaths.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: imagePaths.map((path) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(path), height: 80, width: 80, fit: BoxFit.cover)),
+                          )).toList(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDrawingNotesList() {
+    if (_drawingNotes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.brush, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 10),
+            Text("কোনো ড্রয়িং নেই"),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _drawingNotes.length,
+      itemBuilder: (c, i) {
+        final noteData = _drawingNotes[i];
+        String extraRaw = noteData['category']?.toString() ?? '';
+        int bgColorValue = Colors.yellow.shade100.value;
+        List<String> imagePaths = [];
+        bool hasDrawing = false;
+        try {
+          if (extraRaw.startsWith('{')) {
+            Map<String, dynamic> extra = json.decode(extraRaw);
+            bgColorValue = (extra['bgColor'] as int?) ?? Colors.yellow.shade100.value;
+            imagePaths = List<String>.from(extra['imagePaths'] ?? []);
+            hasDrawing = extra['hasDrawing'] == true;
+          } else {
+            bgColorValue = int.tryParse(extraRaw) ?? Colors.yellow.shade100.value;
+          }
+        } catch (_) {}
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(color: Color(bgColorValue), borderRadius: BorderRadius.circular(20)),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openDrawingNotebook(existingNote: noteData, key: noteData['key']),
+              onLongPress: () => _confirmDelete(noteData['key']),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withOpacity(0.3), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.push_pin, size: 18, color: Colors.black45)),
+                        const Spacer(),
+                        if (hasDrawing) Padding(padding: const EdgeInsets.only(right: 8), child: Icon(Icons.brush, size: 18, color: Colors.black45)),
+                        if (imagePaths.isNotEmpty) Icon(Icons.image, size: 18, color: Colors.black45),
+                        const SizedBox(width: 8),
+                        Text(noteData['date'] ?? "", style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Text(noteData['note'] ?? "", style: const TextStyle(fontSize: 16), maxLines: 10, overflow: TextOverflow.ellipsis),
+                    if (imagePaths.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: imagePaths.map((path) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(path), height: 80, width: 80, fit: BoxFit.cover)),
+                          )).toList(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotebookBody() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(value: 0, label: Text("📝 নোট"), icon: Icon(Icons.note)),
+              ButtonSegment(value: 1, label: Text("🎨 ড্রয়িং"), icon: Icon(Icons.brush)),
+            ],
+            selected: {_notebookMode},
+            onSelectionChanged: (Set<int> newSelection) {
+              setState(() => _notebookMode = newSelection.first);
+            },
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) return Colors.blue.shade700;
+                return Colors.grey.shade200;
+              }),
+              foregroundColor: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) return Colors.white;
+                return Colors.black87;
+              }),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ElevatedButton.icon(
+            onPressed: _notebookMode == 0 ? () => _openTextNoteEditor() : () => _openDrawingNotebook(),
+            icon: const Icon(Icons.add_circle, size: 28),
+            label: Text(_notebookMode == 0 ? getText('add_note') : "ড্রয়িং যোগ করুন"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 55),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Expanded(child: _notebookMode == 0 ? _buildTextNotesList() : _buildDrawingNotesList()),
+      ],
+    );
+  }
+
+  // ==================== TEXT NOTE EDITOR ====================
+  void _openTextNoteEditor({Map<String, dynamic>? existingNote, String? key}) {
+    // ১. ডায়ালগ অলরেডি ওপেন থাকলে নতুন করে ওপেন হতে দেবে না
+    if (_isNoteEditorOpen) return;
+
+    setState(() {
+      _isNoteEditorOpen = true;
+    });
+
+    final TextEditingController tc = TextEditingController(text: existingNote?['note'] ?? "");
+    List<Color> bgs = [
+      Colors.yellow.shade100, Colors.green.shade100, Colors.blue.shade100,
+      Colors.pink.shade100, Colors.purple.shade100, Colors.orange.shade100,
+    ];
+    int selectedBg = Colors.yellow.shade100.value;
+    List<String> existingImages = [];
+
+    if (existingNote != null) {
+      String extraRaw = existingNote['category'] ?? '';
+      try {
+        if (extraRaw.startsWith('{')) {
+          Map<String, dynamic> extra = json.decode(extraRaw);
+          selectedBg = (extra['bgColor'] as int?) ?? Colors.yellow.shade100.value;
+          existingImages = List<String>.from(extra['imagePaths'] ?? []);
+        } else {
+          selectedBg = int.tryParse(extraRaw) ?? Colors.yellow.shade100.value;
+        }
+      } catch (_) {}
+    }
+
+    Color selBg = Color(selectedBg);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, s) => Dialog(
+          insetPadding: EdgeInsets.zero,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: selBg,
+            child: Column(
+              children: [
+                // ---------- Top bar with SAVE button ----------
+                Container(
+                  padding: const EdgeInsets.only(top: 40, left: 8, right: 8, bottom: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check, color: Colors.green, size: 32),
+                        onPressed: () async {
+                          if (tc.text.trim().isEmpty) {
+                            _showSnackBar("নোট লিখুন", Colors.red);
+                            return;
+                          }
+
+                          Map<String, dynamic> extra = {
+                            'bgColor': selBg.value,
+                            'imagePaths': existingImages,
+                            'hasDrawing': false,
+                          };
+
+                          final newNote = TransactionModel(
+                            id: key ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                            amount: 0,
+                            note: tc.text,
+                            type: "Note",
+                            category: json.encode(extra),
+                            date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
+                            isArchived: false,
+                          );
+
+                          // ডায়ালগ বন্ধ করার আগে ফ্ল্যাগ ফলস করা হলো
+                          _isNoteEditorOpen = false;
+                          Navigator.of(context).pop();
+
+                          await DatabaseService().addTransaction(newNote);
+
+                          final newNoteMap = {
+                            'key': newNote.id,
+                            'note': newNote.note,
+                            'date': newNote.date,
+                            'category': newNote.category,
+                          };
+
+                          if (mounted) {
+                            setState(() {
+                              _textNotes.insert(0, newNoteMap);
+                            });
+                          }
+                          _showSnackBar("নোট সেভ হয়েছে", Colors.green);
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Editing", style: TextStyle(color: Colors.black54, fontSize: 14)),
+                            Text(DateFormat('dd/MM/yy h:mm a').format(DateTime.now()), style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.black87),
+                        onSelected: (value) {
+                          if (value == 'close') {
+                            _isNoteEditorOpen = false;
+                            Navigator.pop(context);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'close',
+                            child: Row(
+                              children: [
+                                Icon(Icons.close, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Text("বন্ধ করুন"),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // ---------- Notebook body with line background ----------
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: NotepadLinesPainter(),
+                        ),
+                      ),
+                      SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: tc,
+                              maxLines: null,
+                              keyboardType: TextInputType.multiline,
+                              style: const TextStyle(fontSize: 18, color: Colors.black87, height: 1.66),
+                              decoration: const InputDecoration(
+                                hintText: "নোট লিখুন...",
+                                hintStyle: TextStyle(color: Colors.black38),
+                                border: InputBorder.none,
+                                filled: false,
+                              ),
+                            ),
+                            if (existingImages.isNotEmpty) ...[
+                              const SizedBox(height: 20),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: existingImages.map((path) => Stack(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 8.0),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.file(File(path), height: 100, width: 100, fit: BoxFit.cover),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 0, right: 8,
+                                        child: GestureDetector(
+                                          onTap: () => s(() => existingImages.remove(path)),
+                                          child: const CircleAvatar(
+                                            radius: 12,
+                                            backgroundColor: Colors.black54,
+                                            child: Icon(Icons.close, size: 14, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )).toList(),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ---------- Bottom toolbar ----------
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  color: Colors.black.withOpacity(0.03),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () async {
+                              final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+                              if (picked != null) s(() => existingImages.add(picked.path));
+                            },
+                            icon: const Icon(Icons.photo_library, size: 20),
+                            label: const Text("গ্যালারি"),
+                          ),
+                          const SizedBox(width: 20),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final picked = await _imagePicker.pickImage(source: ImageSource.camera);
+                              if (picked != null) s(() => existingImages.add(picked.path));
+                            },
+                            icon: const Icon(Icons.camera_alt, size: 20),
+                            label: const Text("ক্যামেরা"),
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 50,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: bgs.length,
+                          itemBuilder: (c, i) => GestureDetector(
+                            onTap: () => s(() {
+                              selBg = bgs[i];
+                              selectedBg = bgs[i].value;
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: CircleAvatar(
+                                backgroundColor: bgs[i],
+                                radius: 18,
+                                child: selBg == bgs[i] ? const Icon(Icons.check, color: Colors.black54, size: 18) : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).then((_) {
+      // ইউজার যদি ব্যাক বাটন চেপে বা অন্য কোনোভাবে ডায়ালগ ক্লোজ করে
+      setState(() {
+        _isNoteEditorOpen = false;
+      });
+    });
+  }
+  // ==================== DRAWING NOTEBOOK (full featured) ====================
+  void _openDrawingNotebook({Map<String, dynamic>? existingNote, String? key}) {
+    if (_isDrawingEditorOpen) return;
+    setState(() => _isDrawingEditorOpen = true);
+    print("🖌️ Drawing editor opened");
+
+    List<Color> bgs = [
+      Colors.yellow.shade100, Colors.green.shade100, Colors.blue.shade100,
+      Colors.pink.shade100, Colors.purple.shade100, Colors.orange.shade100,
+    ];
+    String extraRaw = existingNote?['category']?.toString() ?? '';
+    int selectedBg = Colors.yellow.shade100.value;
+    List<String> existingImages = [];
+    List<List<Offset>> completedStrokes = [];
+    List<Color> strokeColors = [];
+    List<double> strokeWidths = [];
+
+    try {
+      if (extraRaw.startsWith('{')) {
+        Map<String, dynamic> extra = json.decode(extraRaw);
+        selectedBg = (extra['bgColor'] as int?) ?? Colors.yellow.shade100.value;
+        existingImages = List<String>.from(extra['imagePaths'] ?? []);
+        List<dynamic> strokesRaw = extra['strokes'] ?? [];
+        for (var stroke in strokesRaw) {
+          List<dynamic> points = stroke['points'] ?? [];
+          List<Offset> strokePoints = points.map((p) => Offset(
+            (p['dx'] as num).toDouble(),
+            (p['dy'] as num).toDouble(),
+          )).toList();
+          completedStrokes.add(strokePoints);
+          strokeColors.add(Color(stroke['color'] ?? Colors.black.value));
+          strokeWidths.add((stroke['width'] ?? 4.0).toDouble());
+        }
+      } else {
+        selectedBg = int.tryParse(extraRaw) ?? Colors.yellow.shade100.value;
+      }
+    } catch (_) {}
+
+    Color selBg = Color(selectedBg);
+    List<Offset> currentStroke = [];
+    Color currentColor = Colors.black;
+    double currentWidth = 4.0;
+    bool isEraser = false;
+
+    List<List<List<Offset>>> undoStrokes = [];
+    List<List<Color>> undocolors = [];
+    List<List<double>> undoWidths = [];
+    List<List<List<Offset>>> redoStrokes = [];
+    List<List<Color>> redocolors = [];
+    List<List<double>> redoWidths = [];
+
+    void saveToUndo() {
+      undoStrokes.add(completedStrokes.map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList());
+      undocolors.add(List.from(strokeColors));
+      undoWidths.add(List.from(strokeWidths));
+      redoStrokes.clear(); redocolors.clear(); redoWidths.clear();
+    }
+
+    void undo() { /* same as before */ }
+    void redo() { /* same as before */ }
+    void clearAll() { /* same as before */ }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => Container(
+          height: MediaQuery.of(c).size.height * 0.92,
+          decoration: BoxDecoration(color: selBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(25))),
+          child: Column(
+            children: [
+              // Drag handle
+              Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40,
+                  decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              // Top bar
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(icon: const Icon(Icons.close, size: 28), onPressed: () {
+                      _isDrawingEditorOpen = false; Navigator.pop(c);
+                    }),
+                    Text(existingNote == null ? "ড্রয়িং তৈরি করুন" : "ড্রয়িং এডিট", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        IconButton(icon: const Icon(Icons.undo), onPressed: undo),
+                        IconButton(icon: const Icon(Icons.redo), onPressed: redo),
+                        IconButton(icon: const Icon(Icons.delete_sweep, color: Colors.red), onPressed: clearAll),
+                        // ✅ SAVE BUTTON – explicit, no reminder, closes bottom sheet
+                        ElevatedButton(
+                          onPressed: () async {
+                            print("✅ Save button pressed – saving drawing...");
+                            Map<String, dynamic> extra = {
+                              'bgColor': selBg.value,
+                              'imagePaths': existingImages,
+                              'strokes': completedStrokes.asMap().entries.map((e) => {
+                                'points': e.value.map((off) => {'dx': off.dx, 'dy': off.dy}).toList(),
+                                'color': strokeColors[e.key].value,
+                                'width': strokeWidths[e.key],
+                              }).toList(),
+                              'hasDrawing': completedStrokes.isNotEmpty,
+                            };
+                            final newNote = TransactionModel(
+                              id: key ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                              amount: 0,
+                              note: "🎨 ড্রয়িং",
+                              type: "Note",
+                              category: json.encode(extra),
+                              date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
+                              isArchived: false,
+                            );
+                            await DatabaseService().addTransaction(newNote);
+                            final newNoteMap = {'key': newNote.id, 'note': newNote.note, 'date': newNote.date, 'category': newNote.category};
+                            if (mounted) setState(() => _drawingNotes.insert(0, newNoteMap));
+                            _isDrawingEditorOpen = false;
+                            Navigator.pop(c); // CLOSE immediately
+                            _showSnackBar("ড্রয়িং সেভ হয়েছে", Colors.green);
+                            print("✅ Drawing saved and bottom sheet closed");
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                          child: const Text("সেভ"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Drawing canvas (same as before)
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => GestureDetector(
+                    onPanStart: (details) => s(() => currentStroke = [details.localPosition]),
+                    onPanUpdate: (details) => s(() => currentStroke = List.from(currentStroke)..add(details.localPosition)),
+                    onPanEnd: (details) => s(() {
+                      if (currentStroke.isNotEmpty) {
+                        saveToUndo();
+                        completedStrokes = List.from(completedStrokes)..add(List.from(currentStroke));
+                        strokeColors = List.from(strokeColors)..add(isEraser ? selBg : currentColor);
+                        strokeWidths = List.from(strokeWidths)..add(isEraser ? 20.0 : currentWidth);
+                        currentStroke = [];
+                      }
+                    }),
+                    child: Container(
+                      width: constraints.maxWidth,
+                      height: constraints.maxHeight,
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), borderRadius: BorderRadius.circular(15)),
+                      child: CustomPaint(
+                        painter: FullDrawingPainter(
+                          completedStrokes: completedStrokes,
+                          strokeColors: strokeColors,
+                          strokeWidths: strokeWidths,
+                          currentStroke: currentStroke,
+                          currentColor: isEraser ? selBg : currentColor,
+                          currentWidth: isEraser ? 20.0 : currentWidth,
+                        ),
+                        child: Container(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Tools panel (colours, width, images) – inline colour buttons (no external _colorButton)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                child: Column(
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          // Black
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.black; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.black ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Red
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.red; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.red ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Blue
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.blue; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.blue ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Green
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.green; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.green ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Orange
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.orange; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.orange ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Purple
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.purple; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.purple,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.purple ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Pink
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.pink; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.pink,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.pink ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Brown
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = false; currentColor = Colors.brown; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.brown,
+                                shape: BoxShape.circle,
+                                border: currentColor == Colors.brown ? Border.all(color: Colors.white, width: 3) : null,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+                              ),
+                            ),
+                          ),
+                          // Eraser toggle
+                          GestureDetector(
+                            onTap: () => s(() { isEraser = !isEraser; }),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: isEraser ? Colors.grey.shade300 : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.grey),
+                              ),
+                              child: Icon(Icons.brush, color: isEraser ? Colors.grey : Colors.black),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.line_weight),
+                        Expanded(
+                          child: Slider(
+                            value: currentWidth,
+                            min: 2.0,
+                            max: 20.0,
+                            onChanged: (v) => s(() { currentWidth = v; isEraser = false; }),
+                          ),
+                        ),
+                        Text("${currentWidth.toInt()}px"),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                            if (picked != null) s(() => existingImages = List.from(existingImages)..add(picked.path));
+                          },
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text("Gallery"),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final picked = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 80);
+                            if (picked != null) s(() => existingImages = List.from(existingImages)..add(picked.path));
+                          },
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text("Camera"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Background colour picker
+              Container(
+                height: 80,
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: bgs.length,
+                  itemBuilder: (c, i) => GestureDetector(
+                    onTap: () => s(() {
+                      selBg = bgs[i];
+                      selectedBg = bgs[i].value;
+                    }),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: CircleAvatar(
+                        backgroundColor: bgs[i],
+                        radius: 28,
+                        child: selBg == bgs[i]
+                            ? const Icon(Icons.check, color: Colors.black54, size: 28)
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) {
+      _isDrawingEditorOpen = false;
+    });
+  }
+  // ==================== MAIN BUILD METHOD ====================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _isDarkMode ? Colors.grey[900] : const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: Colors.blue.shade700,
+        elevation: 0,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(getText('আমার হিসাব'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 8),
+            StreamBuilder<bool>(
+              stream: _connectionStream,
+              builder: (context, snapshot) {
+                bool isConnected = snapshot.data ?? false;
+                return Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: isConnected ? Colors.green : Colors.red));
+              },
+            ),
+          ],
+        ),
+        centerTitle: true,
+        actions: [
+          // 🟢 গ্যালারির লোকাল ছবি এবং গুগলের ছবি দুটোই হ্যান্ডেল করবে এই উইজেটটি
+          GestureDetector(
+            onTap: _showProfileDialog,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.white24,
+                child: () {
+                  // ১. প্রথমে চেক করবে লোকাল স্টোরেজে (গ্যালারি থেকে আপলোড করা) কোনো ছবি আছে কিনা
+                  if (_localProfilePicPath != null && _localProfilePicPath!.isNotEmpty) {
+                    final file = File(_localProfilePicPath!);
+                    if (file.existsSync()) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.file(
+                          file,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    }
+                  }
+
+                  // ২. লোকাল ছবি না থাকলে, চেক করবে গুগল অ্যাকাউন্টের (photoURL) ছবি আছে কিনা
+                  final googlePhotoUrl = FirebaseAuth.instance.currentUser?.photoURL;
+                  if (googlePhotoUrl != null && googlePhotoUrl.isNotEmpty) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.network(
+                        googlePhotoUrl,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    );
+                  }
+
+                  // ৩. কোনো ছবিই পাওয়া না গেলে ডিফল্ট পার্সন আইকন দেখাবে
+                  return const Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 20,
+                  );
+                }(), // ফাংশনটি সাথে সাথে রান (Invoke) করার জন্য
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+              onPressed: () async {
+                setState(() {
+                  _localProfilePicPath = null;
+                });
+                await AuthService().signOut();
+              }
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(backgroundColor: Colors.blue.shade700, onPressed: _openCalculator, child: const Icon(Icons.calculate, color: Colors.white, size: 28)),
+      body: IndexedStack(index: _currentIndex, children: [_buildMainBody(), _buildCalendarBody(), _buildNoticeBody(), _buildNotebookBody(), _buildProfileBody()]),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.blue.shade700,
+        unselectedItemColor: Colors.grey,
+        backgroundColor: _isDarkMode ? Colors.grey[850] : Colors.white,
+        onTap: (i) => setState(() => _currentIndex = i),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "হোম"),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: "ক্যালেন্ডার"),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "নোটিশ"),
+          BottomNavigationBarItem(icon: Icon(Icons.book), label: "নোটবুক"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "প্রোফাইল"),
+        ],
+      ),
+    );
+  }
+
+  // ==================== MAIN BODY (StreamBuilder) ====================
+  Widget _buildMainBody() {
+    String symbol = _currencySymbols[_selectedCurrency] ?? '৳';
+    return StreamBuilder<DatabaseEvent>(
+      stream: _transactionsStream,
+      builder: (context, snap) {
+        double inc = 0, exp = 0, sav = 0, dbt = 0, crd = 0;
+        List<Map<String, dynamic>> firebaseList = [];
+        Map<DateTime, List<Map<String, dynamic>>> newEvents = {};
+        List<Map<String, dynamic>> reminders = [];
+        List<Map<String, dynamic>> textNotes = [];
+        List<Map<String, dynamic>> drawingNotes = [];
+
+        if (snap.hasData && snap.data!.snapshot.value != null) {
+          Map<dynamic, dynamic> data = snap.data!.snapshot.value as Map<dynamic, dynamic>;
+          data.forEach((k, v) {
+            if (v == null) return;
+            Map<String, dynamic> tx = Map<String, dynamic>.from(v);
+
+            // Reminders
+            if (tx['type'] == 'Reminder' && !(tx['isArchived'] ?? false)) {
+              String dateStr = tx['date'] ?? '', timeStr = tx['time'] ?? '12:00 AM';
+              if (dateStr.isNotEmpty) {
+                try {
+                  DateTime date = DateFormat('dd/MM/yyyy').parse(dateStr);
+                  newEvents.putIfAbsent(date, () => []);
+                  newEvents[date]!.add({'key': k, 'note': tx['note'] ?? '', 'time': timeStr});
+                  reminders.add({'key': k, 'note': tx['note'] ?? '', 'date': dateStr, 'time': timeStr});
+                } catch (_) {}
+              }
+            }
+
+            // Notes (separate into text and drawing)
+            if (tx['type'] == 'Note' && !(tx['isArchived'] ?? false)) {
+              bool hasDrawing = false;
+              String category = tx['category'] ?? '';
+              if (category.startsWith('{')) {
+                try {
+                  Map<String, dynamic> extra = json.decode(category);
+                  hasDrawing = extra['hasDrawing'] == true;
+                } catch (_) {}
+              }
+              Map<String, dynamic> noteMap = {'key': k.toString(), 'note': tx['note'] ?? '', 'date': tx['date'] ?? '', 'category': category};
+              if (hasDrawing) drawingNotes.add(noteMap);
+              else textNotes.add(noteMap);
+            }
+
+            // Transactions
+            if (tx['type'] != 'Note' && tx['type'] != 'Reminder' && !(tx['isArchived'] ?? false)) {
+              double amt = 0.0;
+              var raw = tx['amount'];
+              if (raw is double) amt = raw;
+              else if (raw is int) amt = raw.toDouble();
+              else if (raw is String) amt = double.tryParse(raw) ?? 0.0;
+              tx['key'] = k.toString();
+              tx['amount'] = amt;
+              firebaseList.add(tx);
+            }
+          });
+          firebaseList.sort((a, b) => (b['id'] ?? b['key']).compareTo((a['id'] ?? a['key'])));
+        }
+
+        // Merge offline transactions
+        final offlineTxs = OfflineService.getOfflineTransactions();
+        List<Map<String, dynamic>> offlineList = offlineTxs.map((tx) => {
+          'key': tx.id, 'id': tx.id, 'amount': tx.amount, 'note': tx.note, 'type': tx.type, 'date': tx.date, 'category': tx.category, 'isArchived': tx.isArchived,
+        }).toList();
+        List<Map<String, dynamic>> allList = [...firebaseList, ...offlineList];
+        allList.sort((a, b) => (b['id'] ?? b['key']).compareTo((a['id'] ?? a['key'])));
+
+        for (var tx in allList) {
+          double amt = tx['amount'] ?? 0;
+          String type = tx['type'] ?? '';
+          if (type == 'Income') inc += amt;
+          else if (type == 'Expense') exp += amt;
+          else if (type == 'Savings') sav += amt;
+          else if (type == 'Debt') dbt += amt;
+          else if (type == 'Credit') crd += amt;
+        }
+
+        // Update state for calendar, reminders and notes
+        if (_events.length != newEvents.length ||
+            _allReminders.length != reminders.length ||
+            _textNotes.length != textNotes.length ||
+            _drawingNotes.length != drawingNotes.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() {
+              _events = newEvents;
+              _allReminders = reminders;
+              _textNotes = textNotes;
+              _drawingNotes = drawingNotes;
+            });
+            _showTodayReminders();
+          });
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async => setState(() {}),
+          child: SingleChildScrollView(
+            child: Column(children: [
+              const SizedBox(height: 10),
+              _buildSummaryGrid(inc, exp, sav, dbt, crd, symbol),
+              const SizedBox(height: 10),
+              _buildActionButtons(),
+              const SizedBox(height: 15),
+              _buildBudgetOverviewCard(),
+              const SizedBox(height: 15),
+              _buildSectionTitle(getText('income_expense_stats')),
+              const SizedBox(height: 5),
+              _buildDashboardStatsGrid(),
+              const SizedBox(height: 15),
+              _buildSectionTitle(getText('other_accounts')),
+              const SizedBox(height: 5),
+              _buildOtherAccountsGrid(),
+              const SizedBox(height: 15),
+              _buildBudgetButton(),
+              const SizedBox(height: 5),
+              _buildRecurringButton(),
+              const SizedBox(height: 5),
+              _buildExportButton(),
+              const SizedBox(height: 15),
+              _buildSectionTitle(getText('recent_transactions')),
+              _buildTransactionHistory(allList, symbol),
+              const SizedBox(height: 80),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+
+  // ==================== UI COMPONENTS (short versions – keep your existing code) ====================
+  Widget _buildSummaryGrid(double inc, double exp, double sav, double dbt, double crd, String symbol) => GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 3, padding: const EdgeInsets.all(10), mainAxisSpacing: 12, crossAxisSpacing: 12, children: [_buildBox(getText('income'), inc, Colors.green.shade700, symbol), _buildBox(getText('expense'), exp, Colors.red.shade700, symbol), _buildBox(getText('savings'), sav, Colors.blue.shade700, symbol), _buildBox(getText('debt'), dbt, Colors.deepOrange.shade700, symbol), _buildBox(getText('credit'), crd, Colors.deepPurple.shade700, symbol), _buildBox(getText('balance'), inc - exp, Colors.teal.shade700, symbol)]);
+  Widget _buildBox(String label, double value, Color color, String symbol) => TweenAnimationBuilder(tween: Tween<double>(begin: 0, end: value), duration: const Duration(milliseconds: 800), curve: Curves.elasticOut, builder: (c, double v, child) => Container(decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.2), color.withOpacity(0.05)]), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.3), width: 1.5)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)), const SizedBox(height: 8), Text("$symbol ${v.toStringAsFixed(0)}", style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18))])));
+  Widget _buildActionButtons() => Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Row(children: [Expanded(child: _bigBtn(getText('income'), Icons.add, Colors.green, _showIncomeDialog)), const SizedBox(width: 10), Expanded(child: _bigBtn(getText('expense'), Icons.remove, Colors.red, _showExpenseDialog))]));
+  Widget _bigBtn(String t, IconData i, Color c, VoidCallback f) => ElevatedButton.icon(onPressed: f, icon: Icon(i, color: Colors.white, size: 20), label: Text(t, style: const TextStyle(color: Colors.white, fontSize: 16)), style: ElevatedButton.styleFrom(backgroundColor: c, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 5));
+  Widget _buildSectionTitle(String t) => Padding(padding: const EdgeInsets.only(left: 15, top: 10, bottom: 5), child: Align(alignment: Alignment.centerLeft, child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueGrey))));
+  Widget _buildDashboardStatsGrid() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_buildGradientBox(Icons.today, getText('daily'), Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const DailyStatsScreen()))), _buildGradientBox(Icons.calendar_month, getText('monthly'), Colors.red, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const MonthlyStatsScreen()))), _buildGradientBox(Icons.history, getText('yearly'), Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const YearlyStatsScreen())))]));
+  Widget _buildGradientBox(IconData i, String l, Color c, VoidCallback f) => Expanded(child: GestureDetector(onTap: f, child: Container(margin: const EdgeInsets.symmetric(horizontal: 4), padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [c.withOpacity(0.9), c]), borderRadius: BorderRadius.circular(18)), child: Column(children: [Icon(i, color: Colors.white, size: 30), const SizedBox(height: 6), Text(l, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))]))));
+  Widget _buildOtherAccountsGrid() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_buildColoredBox(Icons.money_off, getText('debt'), Colors.deepOrange, () => _showDebtCreditDialog("দেনা")), _buildColoredBox(Icons.attach_money, getText('credit'), Colors.deepPurple, () => _showDebtCreditDialog("পাওনা")), _buildColoredBox(Icons.account_balance, getText('savings'), Colors.blue, () => _showDebtCreditDialog("সঞ্চয়"))]));
+  Widget _buildColoredBox(IconData i, String l, Color c, VoidCallback f) => Expanded(child: GestureDetector(onTap: f, child: Container(margin: const EdgeInsets.symmetric(horizontal: 4), padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [c.withOpacity(0.85), c]), borderRadius: BorderRadius.circular(18)), child: Column(children: [Icon(i, color: Colors.white, size: 30), const SizedBox(height: 6), Text(l, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))]))));
+  Widget _buildTransactionHistory(List<Map<String, dynamic>> list, String symbol) {
+    if (list.isEmpty) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(getText('no_transactions'), style: const TextStyle(fontSize: 16, color: Colors.grey))));
+    return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: list.length, itemBuilder: (c, i) {
+      final tx = list[i]; final bool isInc = tx['type'] == 'Income'; final Color ac = isInc ? Colors.green : Colors.red;
+      double amt = 0.0; var raw = tx['amount'];
+      if (raw is double) amt = raw; else if (raw is int) amt = raw.toDouble(); else if (raw is String) amt = double.tryParse(raw) ?? 0.0;
+      return Card(margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), elevation: 3, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), child: ListTile(leading: CircleAvatar(backgroundColor: ac.withOpacity(0.15), child: Icon(isInc ? Icons.arrow_downward : Icons.arrow_upward, color: ac)), title: Text(tx['note'] ?? "", style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis), subtitle: Text("${getCategoryName(tx['category'] ?? 'other')} • ${tx['date'] ?? ""}", style: const TextStyle(fontSize: 11, color: Colors.grey)), trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text("$symbol ${amt.toStringAsFixed(0)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ac)), const SizedBox(width: 8), Icon(Icons.more_vert, color: Colors.grey)]), onTap: () => _showTransactionOptions(tx)));
+    });
+  }
+  Widget _buildBudgetOverviewCard() {
+    String cm = DateFormat('yyyy-MM').format(DateTime.now());
+    return FutureBuilder<Map<String, dynamic>>(future: DatabaseService().getBudgetSummary(cm), builder: (c, snap) {
+      if (!snap.hasData) return const SizedBox.shrink();
+      double tb = (snap.data!['totalBudget'] ?? 0).toDouble(), ts = (snap.data!['totalSpent'] ?? 0).toDouble(), p = (snap.data!['percentage'] ?? 0).toDouble();
+      if (tb == 0) return const SizedBox.shrink();
+      Color sc = p >= 100 ? Colors.red : p >= 80 ? Colors.orange : Colors.teal;
+      return Padding(padding: const EdgeInsets.symmetric(horizontal: 15), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => BudgetScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText))), child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [sc.withOpacity(0.8), sc]), borderRadius: BorderRadius.circular(20)), child: Column(children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Row(children: [const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24), const SizedBox(width: 10), Text(getText('monthly_budget'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))]), const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16)]),
+        const SizedBox(height: 12),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('৳ ${ts.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)), Text(getText('budget_spent'), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12))]), Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text('৳ ${tb.toStringAsFixed(0)}', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 18)), Text(getText('total_budget'), style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12))])]),
+        const SizedBox(height: 12), ClipRRect(borderRadius: BorderRadius.circular(5), child: LinearProgressIndicator(value: p / 100, backgroundColor: Colors.white.withOpacity(0.3), valueColor: const AlwaysStoppedAnimation<Color>(Colors.white), minHeight: 8)),
+        const SizedBox(height: 5), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${p.toStringAsFixed(1)}% ${getText('used')}', style: const TextStyle(color: Colors.white, fontSize: 12)), Text('${getText('remaining')}: ৳ ${(tb - ts).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 12))]),
+        if (p >= 100) Container(margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)), child: Row(children: [const Icon(Icons.warning, color: Colors.white, size: 18), const SizedBox(width: 5), Text('${getText('budget_exceeded')}!', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))])),
+      ]))));
+    });
+  }
+  Widget _buildBudgetButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => BudgetScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText))), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.teal.withOpacity(0.85), Colors.teal.shade700]), borderRadius: BorderRadius.circular(18)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28), const SizedBox(width: 10), Text(getText('budget_management'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))));
+  Widget _buildRecurringButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => RecurringScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText, incomeCategories: incomeCategories, expenseCategories: expenseCategories))), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.purple.withOpacity(0.85), Colors.purple.shade700]), borderRadius: BorderRadius.circular(18)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.repeat, color: Colors.white, size: 28), const SizedBox(width: 10), Text(getText('recurring_transactions'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))));
+  Widget _buildExportButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => ExportScreen(selectedLanguage: _selectedLanguage, selectedCurrency: _selectedCurrency, currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳', localizedText: _localizedText))), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.indigo.withOpacity(0.85), Colors.indigo.shade700]), borderRadius: BorderRadius.circular(18)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.download, color: Colors.white, size: 28), const SizedBox(width: 10), Text(getText('export_report'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))));
+  Widget _buildCalendarBody() {
+    DateTime sd = _selectedDay ?? DateTime.now(); String? holiday = BDHolidays.getHoliday(sd);
+    return Column(children: [Expanded(child: SingleChildScrollView(child: Column(children: [
+      const SizedBox(height: 10), Container(margin: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)), child: ClipRRect(borderRadius: BorderRadius.circular(24), child: TableCalendar(firstDay: DateTime(2020), lastDay: DateTime(2030), focusedDay: _focusedDay, selectedDayPredicate: (d) => isSameDay(_selectedDay, d), onDaySelected: (sd2, fd) { if (mounted) setState(() { _selectedDay = sd2; _focusedDay = fd; }); }, calendarFormat: _calendarFormat, onFormatChanged: (f) { if (mounted) setState(() => _calendarFormat = f); }, calendarStyle: CalendarStyle(selectedDecoration: BoxDecoration(color: Colors.blue.shade700, shape: BoxShape.circle), todayDecoration: BoxDecoration(color: Colors.blue.shade100, shape: BoxShape.circle), weekendTextStyle: const TextStyle(color: Colors.red)), headerStyle: const HeaderStyle(formatButtonVisible: true, titleCentered: true, titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)), daysOfWeekStyle: const DaysOfWeekStyle(weekdayStyle: TextStyle(fontWeight: FontWeight.bold), weekendStyle: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)), eventLoader: (d) => _events[d] ?? []))),
+      _buildDateInfoCard(), if (holiday != null) Container(margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)), child: Row(children: [const Icon(Icons.celebration, color: Colors.red), const SizedBox(width: 10), Expanded(child: Text('${getText('government_holiday')}: $holiday', style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600)))])),
+      const SizedBox(height: 10), _buildAddReminderButton(), if (_events[sd]?.isEmpty ?? true) Container(margin: const EdgeInsets.all(20), padding: const EdgeInsets.all(30), child: Column(children: [Icon(Icons.event_busy, size: 60, color: Colors.grey[400]), const SizedBox(height: 10), Text(getText('no_reminders'))])), const SizedBox(height: 80),
+    ])))]);
+  }
+
+  Widget _buildDateInfoCard() {
+    DateTime sd = _selectedDay ?? DateTime.now();
+    return Container(margin: const EdgeInsets.symmetric(horizontal: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.purple.shade600]), borderRadius: BorderRadius.circular(20)), child: Column(children: [Row(children: [const Icon(Icons.calendar_today, color: Colors.white), const SizedBox(width: 10), Text(DateFormat('EEEE, d MMMM yyyy').format(sd), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))]), if (_showBengaliDate) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.calendar_month, color: Colors.white, size: 18), const SizedBox(width: 10), Text('বাংলা: ${BengaliCalendar.getBengaliDate(sd)}, ${BengaliCalendar.getBengaliDay(sd.weekday)}', style: const TextStyle(color: Colors.white))])], if (_showHijriDate) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.calendar_view_month, color: Colors.white, size: 18), const SizedBox(width: 10), Text('হিজরি: ${HijriCalendar.getHijriDate(sd)}', style: const TextStyle(color: Colors.white))])]]));
+  }
+
+  Widget _buildAddReminderButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: ElevatedButton.icon(onPressed: _showReminderInput, icon: const Icon(Icons.add_alert), label: Text(getText('add_reminder')), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 5)));
+
+  Widget _buildNoticeBody() {
+    if (_allReminders.isEmpty) {
+      return Center(child: Text(getText('no_notices')));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(10),
+      itemCount: _allReminders.length,
+      itemBuilder: (c, i) {
+        final reminder = _allReminders[i];
+        return Card(
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: ListTile(
+            leading: const Icon(Icons.notifications_active, color: Colors.orange),
+            title: Text(reminder['note'] ?? ''),
+            subtitle: Text("${reminder['date']} ⏰ ${reminder['time']}"),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _confirmDelete(reminder['key']),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  Widget _buildProfileBody() {
+    String cs = _currencySymbols[_selectedCurrency] ?? '৳';
+    String ln = _selectedLanguage == 'bn' ? 'বাংলা' : (_selectedLanguage == 'ar' ? 'العربية' : 'English');
+    return Center(child: SingleChildScrollView(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const SizedBox(height: 40),
+      GestureDetector(onTap: _changeProfilePhoto, child: Stack(children: [CircleAvatar(radius: 50, backgroundColor: Colors.blue.shade100, backgroundImage: _profileImagePath != null ? FileImage(File(_profileImagePath!)) : null, child: _profileImagePath == null ? Icon(Icons.person, size: 50, color: Colors.blue) : null), Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 18, backgroundColor: Colors.blue, child: Icon(Icons.camera_alt, size: 18, color: Colors.white)))])),
+      const SizedBox(height: 16), Text(_userName.isNotEmpty ? _userName : "User", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 5),
+      Text(AuthService().currentUser?.email ?? "", style: TextStyle(fontSize: 14, color: Colors.grey[600])), const SizedBox(height: 20),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(25)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.language, size: 18, color: Colors.blue), const SizedBox(width: 8), Text(ln), const SizedBox(width: 20), Icon(Icons.currency_exchange, size: 18, color: Colors.green), const SizedBox(width: 8), Text("$_selectedCurrency ($cs)")])),
+      const SizedBox(height: 30),
+      ElevatedButton.icon(onPressed: _showProfileDialog, icon: const Icon(Icons.settings), label: Text(getText('change_settings')), style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 3)),
+      const SizedBox(height: 15),
+      ElevatedButton.icon(onPressed: _openSecurityScreen, icon: const Icon(Icons.security), label: Text(getText('security_settings')), style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 3)),
+      const SizedBox(height: 15),
+      ElevatedButton.icon(onPressed: () => AuthService().signOut(), icon: const Icon(Icons.logout), label: Text(getText('logout')), style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 3)),
+      const SizedBox(height: 50),
+    ])));
+  }
+}
+
+// ==================== DRAWING PAINTER (unchanged) ====================
+class FullDrawingPainter extends CustomPainter {
+  final List<List<Offset>> completedStrokes;
+  final List<Color> strokeColors;
+  final List<double> strokeWidths;
+  final List<Offset> currentStroke;
+  final Color currentColor;
+  final double currentWidth;
+
+  FullDrawingPainter({required this.completedStrokes, required this.strokeColors, required this.strokeWidths, required this.currentStroke, required this.currentColor, required this.currentWidth});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (int i = 0; i < completedStrokes.length; i++) {
+      final paint = Paint()..color = strokeColors[i]..strokeWidth = strokeWidths[i]..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round..style = PaintingStyle.stroke;
+      final path = Path();
+      if (completedStrokes[i].isNotEmpty) {
+        path.moveTo(completedStrokes[i][0].dx, completedStrokes[i][0].dy);
+        for (int j = 1; j < completedStrokes[i].length; j++) path.lineTo(completedStrokes[i][j].dx, completedStrokes[i][j].dy);
+        canvas.drawPath(path, paint);
+      }
+    }
+    if (currentStroke.length > 1) {
+      final paint = Paint()..color = currentColor..strokeWidth = currentWidth..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round..style = PaintingStyle.stroke;
+      final path = Path();
+      path.moveTo(currentStroke[0].dx, currentStroke[0].dy);
+      for (int i = 1; i < currentStroke.length; i++) path.lineTo(currentStroke[i].dx, currentStroke[i].dy);
+      canvas.drawPath(path, paint);
+    }
+  }
+
+
+  @override
+  bool shouldRepaint(covariant FullDrawingPainter oldDelegate) {
+    return oldDelegate.completedStrokes != completedStrokes || oldDelegate.currentStroke != currentStroke || oldDelegate.currentColor != currentColor || oldDelegate.currentWidth != currentWidth || oldDelegate.strokeWidths != strokeWidths;
+  }
+}
+class NotepadLinesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black26
+      ..strokeWidth = 1.0;
+    const double lineHeight = 30.0;
+    int lines = (size.height / lineHeight).ceil();
+    for (int i = 1; i <= lines; i++) {
+      double y = i * lineHeight;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

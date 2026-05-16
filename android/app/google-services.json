@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "949640593029",
+    "firebase_url": "https://amarhisab-2794d-default-rtdb.firebaseio.com",
+    "project_id": "amarhisab-2794d",
+    "storage_bucket": "amarhisab-2794d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:949640593029:android:3a7de4bd1c5e555a3473ec",
+        "android_client_info": {
+          "package_name": "com.example.amar_hisab"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "949640593029-j3bhi5vvhklvmk65l0640oob2le76flc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.amar_hisab",
+            "certificate_hash": "388286b53bcdff9d316e4e6ea6f496186bed3600"
+          }
+        },
+        {
+          "client_id": "949640593029-566j11rn9ntrq3890sisolqmku90102c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPU6qiGskZAOLgUkD5fz980YrTAZ16fDY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "949640593029-566j11rn9ntrq3890sisolqmku90102c.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
