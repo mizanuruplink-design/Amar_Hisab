@@ -82,6 +82,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 class _HomeScreenState extends State<HomeScreen> {
+  AsyncSnapshot<DatabaseEvent>? _lastTransactionSnapshot;
   // ==================== NOTEBOOK SEPARATION ====================
   List<Map<String, dynamic>> _textNotes = [];
   List<Map<String, dynamic>> _drawingNotes = [];
@@ -848,19 +849,184 @@ class _HomeScreenState extends State<HomeScreen> {
   // ==================== PROFILE & SETTINGS ====================
   void _showProfileDialog() {
     final nameCtrl = TextEditingController(text: _userName);
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
-      GestureDetector(onTap: _changeProfilePhoto, child: Stack(children: [CircleAvatar(radius: 50, backgroundColor: Colors.blue.shade100, backgroundImage: _profileImagePath != null && File(_profileImagePath!).existsSync() ? FileImage(File(_profileImagePath!)) : null, child: _profileImagePath == null ? Icon(Icons.person, size: 50, color: Colors.blue) : null), Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 18, backgroundColor: Colors.blue, child: Icon(Icons.camera_alt, size: 18, color: Colors.white)))])),
-      const SizedBox(height: 16),
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 30), child: TextField(controller: nameCtrl, decoration: InputDecoration(labelText: getText('user_name'), prefixIcon: Icon(Icons.person), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => _userName = v)),
-      const SizedBox(height: 10), Text(AuthService().currentUser?.email ?? "User", style: TextStyle(fontSize: 14, color: Colors.grey[600])), const SizedBox(height: 20),
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Column(children: [
-        _buildSettingsCard(s), const SizedBox(height: 15),
-        GestureDetector(onTap: () { Navigator.pop(c); _openSecurityScreen(); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.red.shade400, Colors.red.shade700]), borderRadius: BorderRadius.circular(15)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.security, color: Colors.white, size: 24), const SizedBox(width: 10), Text(getText('security_settings'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))),
-        const SizedBox(height: 15),
-        ElevatedButton(onPressed: () { _saveUserSettings(); Navigator.pop(c); if (mounted) setState(() {}); }, style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white, fontSize: 16))), const SizedBox(height: 20),
-      ])),
-    ])))));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom), // কিবোর্ড আসলে স্ক্রিন উপরে উঠবে
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 20),
+
+                // 🖼️ প্রোফাইল পিকচার সেকশন (গুগল, লোকাল ও ডিলিট বাটন হ্যান্ডেলার)
+                Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        // 🟢 ১. ইমেজ পিকার ফাংশনটি কল করা হলো (await ছাড়া)
+                        _changeProfilePhoto();
+
+                        // 🟢 ২. ছবি সিলেক্ট হওয়ার জন্য সামান্য একটু অপেক্ষা করে ডায়ালগের UI রিফ্রেশ করা হলো
+                        Future.delayed(const Duration(milliseconds: 600), () async {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user != null) {
+                            final prefs = await SharedPreferences.getInstance();
+                            s(() {
+                              _profileImagePath = prefs.getString('profile_pic_${user.uid}');
+                            });
+                          }
+                        });
+                      },
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.blue.shade100,
+                        // প্রথমে চেক করবে কারেন্ট মেইলের নির্দিষ্ট লোকাল ছবি আছে কিনা
+                        backgroundImage: _profileImagePath != null && File(_profileImagePath!).existsSync()
+                            ? FileImage(File(_profileImagePath!))
+                        // লোকাল ছবি না থাকলে গুগলের ছবি ট্রাই করবে
+                            : (FirebaseAuth.instance.currentUser?.photoURL != null && FirebaseAuth.instance.currentUser!.photoURL!.isNotEmpty
+                            ? NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!) as ImageProvider
+                            : null),
+                        child: (_profileImagePath == null && (FirebaseAuth.instance.currentUser?.photoURL == null || FirebaseAuth.instance.currentUser!.photoURL!.isEmpty))
+                            ? const Icon(Icons.person, size: 50, color: Colors.blue)
+                            : null,
+                      ),
+                    ),
+
+                    // 📸 ক্যামেরা আইকন (ছবি পরিবর্তন করার জন্য)
+                    Positioned(
+                      bottom: 0,
+                      right: (_profileImagePath != null && File(_profileImagePath!).existsSync()) ? 60 : 0, // ছবি থাকলে ডিলিট বাটনের জন্য জায়গা ছেড়ে দেবে
+                      child: const CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.blue,
+                        child: Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                      ),
+                    ),
+
+                    // 🗑️ ডিলিট বাটন (লোকাল ছবি থাকলেই কেবল ক্যামেরা আইকনের পাশে এটি দেখা যাবে)
+                    if (_profileImagePath != null && File(_profileImagePath!).existsSync())
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user != null) {
+                              final prefs = await SharedPreferences.getInstance();
+                              // লোকাল স্টোরেজ থেকে এই মেইলের ছবি রিমুভ
+                              await prefs.remove('profile_pic_${user.uid}');
+
+                              // হোম স্ক্রিনের অ্যাপ বার আপডেট
+                              setState(() {
+                                _profileImagePath = null;
+                              });
+                              // ডায়ালগের ভেতরের UI আপডেট (বাটন এবং ছবি চলে যাবে)
+                              s(() {
+                                _profileImagePath = null;
+                              });
+
+                              _showSnackBar("প্রোফাইল পিকচার রিমুভ করা হয়েছে", Colors.red);
+                            }
+                          },
+                          child: const CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.red,
+                            child: Icon(Icons.delete, size: 18, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: getText('user_name'),
+                      prefixIcon: const Icon(Icons.person),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onChanged: (v) => _userName = v,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  AuthService().currentUser?.email ?? "User",
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      _buildSettingsCard(s),
+                      const SizedBox(height: 15),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(c);
+                          _openSecurityScreen();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [Colors.red.shade400, Colors.red.shade700]),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.security, color: Colors.white, size: 24),
+                              const SizedBox(width: 10),
+                              Text(
+                                getText('security_settings'),
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      ElevatedButton(
+                        onPressed: () {
+                          _saveUserSettings();
+                          Navigator.pop(c);
+                          if (mounted) setState(() {});
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade700,
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(getText('save'), style: const TextStyle(color: Colors.white, fontSize: 16)),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSettingsCard(StateSetter s) {
@@ -887,11 +1053,20 @@ class _HomeScreenState extends State<HomeScreen> {
     return InkWell(onTap: () => s(() => _selectedCurrency = code), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), decoration: BoxDecoration(color: sel ? Colors.blue.shade700 : Colors.white, borderRadius: BorderRadius.circular(25), border: Border.all(color: sel ? Colors.blue.shade700 : Colors.grey[300]!)), child: Text('$code ($sym)', style: TextStyle(color: sel ? Colors.white : Colors.black87))));
   }
 
-  void _changeProfilePhoto() {
-    showModalBottomSheet(context: context, builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(leading: Icon(Icons.camera_alt), title: Text(getText('take_photo')), onTap: () { Navigator.pop(c); _pickImage(ImageSource.camera); }),
-      ListTile(leading: Icon(Icons.photo_library), title: Text(getText('choose_gallery')), onTap: () { Navigator.pop(c); _pickImage(ImageSource.gallery); }),
-    ])));
+  void _changeProfilePhoto() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('profile_pic_${user.uid}', picked.path);
+        if (mounted) {
+          setState(() {
+            _profileImagePath = picked.path;
+          });
+        }
+      }
+    }
   }
 
   void _pickImage(ImageSource source) async {
@@ -1408,6 +1583,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double currentWidth = 4.0;
     bool isEraser = false;
 
+    // ========== UNDO / REDO STACKS ==========
     List<List<List<Offset>>> undoStrokes = [];
     List<List<Color>> undocolors = [];
     List<List<double>> undoWidths = [];
@@ -1416,15 +1592,52 @@ class _HomeScreenState extends State<HomeScreen> {
     List<List<double>> redoWidths = [];
 
     void saveToUndo() {
+      // Deep copy current state
       undoStrokes.add(completedStrokes.map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList());
       undocolors.add(List.from(strokeColors));
       undoWidths.add(List.from(strokeWidths));
-      redoStrokes.clear(); redocolors.clear(); redoWidths.clear();
+      // Clear redo stacks because new action invalidates redo
+      redoStrokes.clear();
+      redocolors.clear();
+      redoWidths.clear();
     }
 
-    void undo() { /* same as before */ }
-    void redo() { /* same as before */ }
-    void clearAll() { /* same as before */ }
+    void undo() {
+      if (undoStrokes.isNotEmpty) {
+        // Save current to redo
+        redoStrokes.add(completedStrokes.map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList());
+        redocolors.add(List.from(strokeColors));
+        redoWidths.add(List.from(strokeWidths));
+        // Restore last undo state
+        completedStrokes = undoStrokes.removeLast().map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList();
+        strokeColors = List.from(undocolors.removeLast());
+        strokeWidths = List.from(undoWidths.removeLast());
+        if (mounted) setState(() {});
+      }
+    }
+
+    void redo() {
+      if (redoStrokes.isNotEmpty) {
+        // Save current to undo
+        undoStrokes.add(completedStrokes.map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList());
+        undocolors.add(List.from(strokeColors));
+        undoWidths.add(List.from(strokeWidths));
+        // Restore last redo state
+        completedStrokes = redoStrokes.removeLast().map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList();
+        strokeColors = List.from(redocolors.removeLast());
+        strokeWidths = List.from(redoWidths.removeLast());
+        if (mounted) setState(() {});
+      }
+    }
+
+    void clearAll() {
+      if (completedStrokes.isEmpty) return;
+      saveToUndo(); // Save before clearing
+      completedStrokes.clear();
+      strokeColors.clear();
+      strokeWidths.clear();
+      if (mounted) setState(() {});
+    }
 
     showModalBottomSheet(
       context: context,
@@ -1451,10 +1664,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(existingNote == null ? "ড্রয়িং তৈরি করুন" : "ড্রয়িং এডিট", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     Row(
                       children: [
-                        IconButton(icon: const Icon(Icons.undo), onPressed: undo),
-                        IconButton(icon: const Icon(Icons.redo), onPressed: redo),
-                        IconButton(icon: const Icon(Icons.delete_sweep, color: Colors.red), onPressed: clearAll),
-                        // ✅ SAVE BUTTON – explicit, no reminder, closes bottom sheet
+                        IconButton(icon: const Icon(Icons.undo), onPressed: () { undo(); s(() {}); }),
+                        IconButton(icon: const Icon(Icons.redo), onPressed: () { redo(); s(() {}); }),
+                        IconButton(icon: const Icon(Icons.delete_sweep, color: Colors.red), onPressed: () { clearAll(); s(() {}); }),
                         ElevatedButton(
                           onPressed: () async {
                             print("✅ Save button pressed – saving drawing...");
@@ -1481,7 +1693,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             final newNoteMap = {'key': newNote.id, 'note': newNote.note, 'date': newNote.date, 'category': newNote.category};
                             if (mounted) setState(() => _drawingNotes.insert(0, newNoteMap));
                             _isDrawingEditorOpen = false;
-                            Navigator.pop(c); // CLOSE immediately
+                            Navigator.pop(c);
                             _showSnackBar("ড্রয়িং সেভ হয়েছে", Colors.green);
                             print("✅ Drawing saved and bottom sheet closed");
                           },
@@ -1493,7 +1705,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              // Drawing canvas (same as before)
+              // Drawing canvas – same as before (unchanged)
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) => GestureDetector(
@@ -1860,8 +2072,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // ==================== MAIN BODY (StreamBuilder) ====================
   Widget _buildMainBody() {
     String symbol = _currencySymbols[_selectedCurrency] ?? '৳';
-    return StreamBuilder<DatabaseEvent>(
-      stream: _transactionsStream,
+    return StreamBuilder<List<TransactionModel>>(
+      stream: DatabaseService().transactionsStream,
       builder: (context, snap) {
         double inc = 0, exp = 0, sav = 0, dbt = 0, crd = 0;
         List<Map<String, dynamic>> firebaseList = [];
@@ -1870,63 +2082,64 @@ class _HomeScreenState extends State<HomeScreen> {
         List<Map<String, dynamic>> textNotes = [];
         List<Map<String, dynamic>> drawingNotes = [];
 
-        if (snap.hasData && snap.data!.snapshot.value != null) {
-          Map<dynamic, dynamic> data = snap.data!.snapshot.value as Map<dynamic, dynamic>;
-          data.forEach((k, v) {
-            if (v == null) return;
-            Map<String, dynamic> tx = Map<String, dynamic>.from(v);
+        if (snap.hasData) {
+          final List<TransactionModel> transactions = snap.data!;
+          for (var tx in transactions) {
+            // Convert to map to preserve all fields (including 'time' and custom data)
+            final Map<String, dynamic> txMap = tx.toMap();
+            txMap['key'] = tx.id;
 
             // Reminders
-            if (tx['type'] == 'Reminder' && !(tx['isArchived'] ?? false)) {
-              String dateStr = tx['date'] ?? '', timeStr = tx['time'] ?? '12:00 AM';
+            if (tx.type == 'Reminder' && !(txMap['isArchived'] ?? false)) {
+              String dateStr = txMap['date'] ?? '';
+              String timeStr = txMap['time'] ?? '12:00 AM';
               if (dateStr.isNotEmpty) {
                 try {
                   DateTime date = DateFormat('dd/MM/yyyy').parse(dateStr);
                   newEvents.putIfAbsent(date, () => []);
-                  newEvents[date]!.add({'key': k, 'note': tx['note'] ?? '', 'time': timeStr});
-                  reminders.add({'key': k, 'note': tx['note'] ?? '', 'date': dateStr, 'time': timeStr});
+                  newEvents[date]!.add({'key': tx.id, 'note': tx.note ?? '', 'time': timeStr});
+                  reminders.add({'key': tx.id, 'note': tx.note ?? '', 'date': dateStr, 'time': timeStr});
                 } catch (_) {}
               }
             }
 
-            // Notes (separate into text and drawing)
-            if (tx['type'] == 'Note' && !(tx['isArchived'] ?? false)) {
+            // Notes (text vs drawing)
+            if (tx.type == 'Note' && !(txMap['isArchived'] ?? false)) {
               bool hasDrawing = false;
-              String category = tx['category'] ?? '';
+              String category = tx.category ?? '';
               if (category.startsWith('{')) {
                 try {
                   Map<String, dynamic> extra = json.decode(category);
                   hasDrawing = extra['hasDrawing'] == true;
                 } catch (_) {}
               }
-              Map<String, dynamic> noteMap = {'key': k.toString(), 'note': tx['note'] ?? '', 'date': tx['date'] ?? '', 'category': category};
+              Map<String, dynamic> noteMap = {'key': tx.id, 'note': tx.note ?? '', 'date': tx.date ?? '', 'category': category};
               if (hasDrawing) drawingNotes.add(noteMap);
               else textNotes.add(noteMap);
             }
 
-            // Transactions
-            if (tx['type'] != 'Note' && tx['type'] != 'Reminder' && !(tx['isArchived'] ?? false)) {
-              double amt = 0.0;
-              var raw = tx['amount'];
-              if (raw is double) amt = raw;
-              else if (raw is int) amt = raw.toDouble();
-              else if (raw is String) amt = double.tryParse(raw) ?? 0.0;
-              tx['key'] = k.toString();
-              tx['amount'] = amt;
-              firebaseList.add(tx);
+            // Regular financial transactions
+            if (tx.type != 'Note' && tx.type != 'Reminder' && !(txMap['isArchived'] ?? false)) {
+              double amt = tx.amount;
+              txMap['amount'] = amt;
+              firebaseList.add(txMap);
+              // We'll recalculate totals later after merging offline data
             }
-          });
+          }
           firebaseList.sort((a, b) => (b['id'] ?? b['key']).compareTo((a['id'] ?? a['key'])));
         }
 
-        // Merge offline transactions
+        // Merge offline transactions (kept as before)
         final offlineTxs = OfflineService.getOfflineTransactions();
         List<Map<String, dynamic>> offlineList = offlineTxs.map((tx) => {
-          'key': tx.id, 'id': tx.id, 'amount': tx.amount, 'note': tx.note, 'type': tx.type, 'date': tx.date, 'category': tx.category, 'isArchived': tx.isArchived,
+          'key': tx.id, 'id': tx.id, 'amount': tx.amount, 'note': tx.note,
+          'type': tx.type, 'date': tx.date, 'category': tx.category, 'isArchived': tx.isArchived,
         }).toList();
         List<Map<String, dynamic>> allList = [...firebaseList, ...offlineList];
         allList.sort((a, b) => (b['id'] ?? b['key']).compareTo((a['id'] ?? a['key'])));
 
+        // Recalculate totals from the merged list
+        inc = 0; exp = 0; sav = 0; dbt = 0; crd = 0;
         for (var tx in allList) {
           double amt = tx['amount'] ?? 0;
           String type = tx['type'] ?? '';
@@ -1937,7 +2150,7 @@ class _HomeScreenState extends State<HomeScreen> {
           else if (type == 'Credit') crd += amt;
         }
 
-        // Update state for calendar, reminders and notes
+        // Update UI state for calendar and notebook tabs
         if (_events.length != newEvents.length ||
             _allReminders.length != reminders.length ||
             _textNotes.length != textNotes.length ||

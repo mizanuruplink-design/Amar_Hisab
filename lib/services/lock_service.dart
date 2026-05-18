@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -47,27 +48,44 @@ class LockService {
     try {
       return await _localAuth.canCheckBiometrics;
     } catch (e) {
+      print('canCheckBiometrics error: $e');
       return false;
     }
   }
 
   Future<bool> authenticateWithBiometric({required String reason}) async {
     final isAvailable = await isBiometricAvailable();
-    if (!isAvailable) return false;
+    if (!isAvailable) {
+      print('⚠️ Biometric not available');
+      return false;
+    }
+
     try {
-      return await _localAuth.authenticate(
+      final authenticated = await _localAuth.authenticate(
         localizedReason: reason,
         options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: true,
         ),
       );
+      return authenticated;
+    } on PlatformException catch (e) {
+      print('❌ Biometric error: ${e.code} - ${e.message}');
+      if (e.code == 'NotEnrolled') {
+        // কোনো ফিঙ্গারপ্রিন্ট নিবন্ধন নেই
+        return false;
+      } else if (e.code == 'LockedOut') {
+        // অনেকবার চেষ্টা করে লক হয়ে গেছে
+        return false;
+      }
+      return false;
     } catch (e) {
+      print('❌ Unexpected error: $e');
       return false;
     }
   }
 
-  // ========== Biometric Enabled (legacy, for compatibility) ==========
+  // ========== Biometric Enabled (legacy) ==========
   Future<void> setBiometricEnabled(bool enabled) async {
     await _storage.write(key: _biometricEnabledKey, value: enabled.toString());
   }

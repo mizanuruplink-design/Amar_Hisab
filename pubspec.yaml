@@ -1,6 +1,7 @@
 name: amar_hisab
 description: "Daily Expense Tracker with Debt Management and Reminders."
 publish_to: 'none'
+
 version: 1.0.0+1
 
 environment:
@@ -30,6 +31,8 @@ dependencies:
   webview_flutter: ^4.8.0
   package_info_plus: ^8.0.0
   url_launcher: ^6.3.0
+  flutter_native_splash: ^2.4.0
+  rxdart: ^0.27.7
 
   # --- নোটিফিকেশন ও রিমাইন্ডার ---
   flutter_local_notifications: ^17.1.2
@@ -54,15 +57,24 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
 
-# আইকন সেট করার কনফিগারেশন (এখানে লোগোর পাথ দিন)
+# ========== LAUNCHER ICON CONFIGURATION ==========
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.png" # নিশ্চিত করুন এই পাথে আপনার লোগোটি আছে
+  image_path: "assets/images/logo.png"   # Replace with your actual logo path
   min_sdk_android: 21
+
+# ========== NATIVE SPLASH SCREEN (optional, remove if not needed) ==========
+flutter_native_splash:
+  color: "#1976D2"   # Your app's primary color
+  image: assets/images/logo.png
+  android: true
+  ios: true
+  android_gravity: center
+  ios_content_mode: center
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/fonts/
-    - assets/images/ # লোগো ইমেজের জন্য এই ফোল্ডারটিও অ্যাড করে রাখুন
+    - assets/fonts/NotoSansBengali.ttf
+    - assets/images/

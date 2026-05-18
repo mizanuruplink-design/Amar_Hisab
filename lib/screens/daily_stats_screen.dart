@@ -1,8 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
 import '../services/database_service.dart';
-import '../services/pdf_service.dart'; // নিশ্চিত করুন এই ইম্পোর্টটি আছে
+import '../services/pdf_service.dart';
+import '../models/transaction_model.dart';
 
 class DailyStatsScreen extends StatefulWidget {
   const DailyStatsScreen({super.key});
@@ -13,148 +14,169 @@ class DailyStatsScreen extends StatefulWidget {
 
 class _DailyStatsScreenState extends State<DailyStatsScreen> {
   DateTime _selectedDate = DateTime.now();
-  String _filterStatus = "সব লেনদেন";
+  String _filterType = 'all';
+  bool _isExporting = false;
 
   @override
   Widget build(BuildContext context) {
-    String formattedDate = DateFormat('dd/MM/yyyy').format(_selectedDate);
+    final String formattedDate = DateFormat('dd/MM/yyyy').format(_selectedDate);
+    final String displayDate = DateFormat('EEEE, d MMMM yyyy', 'bn').format(_selectedDate);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text("দৈনিক আয়/ব্যয়ের পরিসংখ্যান", style: TextStyle(fontSize: 18)),
+        title: const Text("দৈনিক পরিসংখ্যান", style: TextStyle(fontSize: 18)),
         backgroundColor: Colors.blue.shade800,
         elevation: 0,
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.blue, Colors.purple]),
+          ),
+        ),
       ),
-      body: StreamBuilder(
-        stream: DatabaseService().getTransactions(),
-        builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
-          double totalInc = 0, totalExp = 0;
-          List<Map<dynamic, dynamic>> allDailyList = []; // PDF এর জন্য সব ডাটা
-          List<Map<dynamic, dynamic>> filteredList = []; // স্ক্রিনে দেখানোর জন্য ফিল্টারড ডাটা
+      body: StreamBuilder<List<TransactionModel>>(
+        stream: DatabaseService().transactionsStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-            Map data = snapshot.data!.snapshot.value as Map;
-            data.forEach((key, value) {
-              // তারিখ চেক (আপনার ডাটাবেস ফরম্যাট অনুযায়ী)
-              if (value['date'].toString().contains(formattedDate)) {
-                double amt = double.tryParse(value['amount'].toString()) ?? 0;
+          final allTransactions = snapshot.data!;
+          final todayTxs = allTransactions.where((tx) {
+            final datePart = tx.date?.split(' ').first ?? '';
+            if (datePart != formattedDate) return false;
+            return tx.type == 'Income' || tx.type == 'Expense';
+          }).toList();
 
-                if (value['type'] == 'Income') totalInc += amt;
-                if (value['type'] == 'Expense') totalExp += amt;
+          double totalIncome = 0, totalExpense = 0;
+          for (var tx in todayTxs) {
+            if (tx.type == 'Income') totalIncome += tx.amount;
+            else if (tx.type == 'Expense') totalExpense += tx.amount;
+          }
 
-                // PDF এর জন্য সব ডাটা সেভ করছি
-                allDailyList.add(value);
-
-                // ড্রপডাউন ফিল্টার লজিক
-                if (_filterStatus == "সব লেনদেন") {
-                  filteredList.add(value);
-                } else if (_filterStatus == "শুধু ক্যাশ ইন" && value['type'] == 'Income') {
-                  filteredList.add(value);
-                } else if (_filterStatus == "শুধু ক্যাশ আউট" && value['type'] == 'Expense') {
-                  filteredList.add(value);
-                }
-              }
-            });
+          List<TransactionModel> filteredList = todayTxs;
+          if (_filterType == 'income') {
+            filteredList = todayTxs.where((t) => t.type == 'Income').toList();
+          } else if (_filterType == 'expense') {
+            filteredList = todayTxs.where((t) => t.type == 'Expense').toList();
           }
 
           return Column(
             children: [
-              // ১. ডেট পিকার এবং পিডিএফ বাটন
+              // Date picker + PDF export
               Padding(
-                padding: const EdgeInsets.all(10.0),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
                     Expanded(
-                      child: InkWell(
+                      child: _buildActionCard(
+                        icon: Icons.calendar_month,
+                        label: displayDate,
+                        color: Colors.red,
                         onTap: () async {
-                          DateTime? picked = await showDatePicker(
+                          final picked = await showDatePicker(
                             context: context,
                             initialDate: _selectedDate,
                             firstDate: DateTime(2020),
-                            lastDate: DateTime(2101),
+                            lastDate: DateTime(2030),
                           );
                           if (picked != null) setState(() => _selectedDate = picked);
                         },
-                        child: _topActionBox(Icons.calendar_month, formattedDate, Colors.red),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: InkWell(
-                        onTap: () {
+                      child: _buildActionCard(
+                        icon: Icons.picture_as_pdf,
+                        label: _isExporting ? "সেভ হচ্ছে..." : "PDF",
+                        color: Colors.green,
+                        onTap: _isExporting ? null : () {
                           if (filteredList.isNotEmpty) {
-                            // PDF জেনারেট ফাংশন কল
-                            PdfService().generatePdf(
-                                filteredList,
-                                "দৈনিক রিপোর্ট: $formattedDate"
-                            );
+                            _exportToPdf(filteredList, formattedDate);
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("এক্সপোর্ট করার মতো কোনো ডাটা নেই!"))
-                            );
+                            _showSnackBar("কোনো লেনদেন নেই");
                           }
                         },
-                        child: _topActionBox(Icons.description, "পিডিএফ এক্সপোর্ট", Colors.green),
                       ),
                     ),
                   ],
                 ),
               ),
 
-              // ২. সামারি সেকশন
+              // Summary cards
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _summaryItem("মোট আয়", "$totalInc", Colors.green),
-                    _summaryItem("মোট ব্যয়", "$totalExp", Colors.orange),
-                    _summaryItem("ব্যালেন্স", "${totalInc - totalExp}", Colors.blue),
+                    _summaryCard("মোট আয়", totalIncome, Colors.green),
+                    const SizedBox(width: 12),
+                    _summaryCard("মোট ব্যয়", totalExpense, Colors.red),
+                    const SizedBox(width: 12),
+                    _summaryCard("সঞ্চয়", totalIncome - totalExpense, Colors.blue),
                   ],
                 ),
               ),
 
-              // ৩. ফিল্টার ও লিস্ট হেডার
+              const SizedBox(height: 16),
+
+              // Filter row
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("দৈনিক আয়-ব্যয় ইতিহাস", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("লেনদেন ইতিহাস", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     DropdownButton<String>(
-                      value: _filterStatus,
+                      value: _filterType,
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text("সব")),
+                        DropdownMenuItem(value: 'income', child: Text("শুধু আয়")),
+                        DropdownMenuItem(value: 'expense', child: Text("শুধু ব্যয়")),
+                      ],
+                      onChanged: (v) => setState(() => _filterType = v!),
                       underline: const SizedBox(),
-                      icon: const Icon(Icons.filter_list, size: 20),
-                      items: ["সব লেনদেন", "শুধু ক্যাশ ইন", "শুধু ক্যাশ আউট"]
-                          .map((val) => DropdownMenuItem(value: val, child: Text(val, style: const TextStyle(fontSize: 12))))
-                          .toList(),
-                      onChanged: (val) => setState(() => _filterStatus = val!),
+                      icon: const Icon(Icons.filter_list),
                     ),
                   ],
                 ),
               ),
+              const Divider(),
 
-              // ৪. ডাটা লিস্ট
+              // Transaction list
               Expanded(
                 child: filteredList.isEmpty
-                    ? _buildEmptyState()
+                    ? _emptyState()
                     : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: filteredList.length,
-                  itemBuilder: (context, index) {
-                    final item = filteredList[index];
-                    return ListTile(
-                      leading: Icon(
-                        item['type'] == 'Income' ? Icons.arrow_downward : Icons.arrow_upward,
-                        color: item['type'] == 'Income' ? Colors.green : Colors.red,
-                      ),
-                      title: Text(item['note'] ?? "নো ট্যাগ"),
-                      subtitle: Text(item['date']),
-                      trailing: Text(
-                        "${item['amount']} ৳",
-                        style: TextStyle(
+                  itemBuilder: (context, i) {
+                    final tx = filteredList[i];
+                    final isIncome = tx.type == 'Income';
+                    String displayDateOnly = '';
+                    if (tx.date != null && tx.date!.isNotEmpty) {
+                      final parts = tx.date!.split(' ');
+                      displayDateOnly = parts.isNotEmpty ? parts[0] : '';
+                    }
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isIncome ? Colors.green.shade100 : Colors.red.shade100,
+                          child: Icon(isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                              color: isIncome ? Colors.green : Colors.red),
+                        ),
+                        title: Text(tx.note ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(displayDateOnly),
+                        trailing: Text(
+                          "৳ ${tx.amount.toInt()}",
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: item['type'] == 'Income' ? Colors.green : Colors.red
+                            color: isIncome ? Colors.green : Colors.red,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     );
@@ -168,43 +190,125 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
     );
   }
 
-  Widget _topActionBox(IconData icon, String text, Color iconColor) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: iconColor, size: 20),
-          const SizedBox(width: 8),
-          Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        ],
+  Widget _buildActionCard({required IconData icon, required String label, required Color color, required VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [color.withOpacity(0.1), color.withOpacity(0.05)]),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _summaryItem(String title, String val, Color color) {
-    return Column(
-      children: [
-        Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        const SizedBox(height: 5),
-        Text("$val ৳", style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14)),
-      ],
+  Widget _summaryCard(String title, double amount, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [color.withOpacity(0.8), color]),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Text(title, style: const TextStyle(color: Colors.white, fontSize: 12)),
+            const SizedBox(height: 4),
+            Text("৳ ${amount.toInt()}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _emptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open, size: 80, color: Colors.grey.shade300),
-          const Text("কোনো তথ্য পাওয়া যায়নি", style: TextStyle(color: Colors.grey)),
+          Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 10),
+          Text("কোনো লেনদেন নেই", style: TextStyle(color: Colors.grey[600])),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportToPdf(List<TransactionModel> transactions, String date) async {
+    setState(() => _isExporting = true);
+
+    try {
+      final exportData = transactions.map((tx) {
+        return {
+          'note': tx.note ?? '',
+          'amount': tx.amount,
+          'type': tx.type,
+          'date': tx.date ?? '',
+          'category': tx.category ?? '',
+        };
+      }).toList();
+
+      final pdfFile = await PdfService().generatePdf(exportData, "দৈনিক রিপোর্ট: $date");
+      if (mounted) {
+        _showExportSuccessDialog(pdfFile);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar("PDF তৈরি করতে ব্যর্থ: $e");
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  void _showExportSuccessDialog(File file) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("এক্সপোর্ট সফল"),
+        content: const Text("পিডিএফ ফাইল তৈরি হয়েছে। আপনি শেয়ার বা প্রিন্ট করতে পারেন।"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text("বন্ধ করুন"),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(c);
+              PdfService().shareFile(file);
+            },
+            icon: const Icon(Icons.share),
+            label: const Text("শেয়ার"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(c);
+              PdfService().printPdf(file);
+            },
+            icon: const Icon(Icons.print),
+            label: const Text("প্রিন্ট"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
     );
   }
 }
