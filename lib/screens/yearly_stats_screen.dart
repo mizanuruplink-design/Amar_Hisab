@@ -64,7 +64,6 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
             final dateStr = tx.date ?? '';
             if (dateStr.contains(_selectedYear.toString())) {
               try {
-                // Date format expected: dd/MM/yyyy hh:mm a
                 final parts = dateStr.split('/');
                 if (parts.length >= 2) {
                   final month = int.parse(parts[1]);
@@ -89,6 +88,7 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
                 const SizedBox(height: 20),
                 _summaryRow(yearlyInc, yearlyExp),
                 const SizedBox(height: 20),
+                // Responsive pie chart section
                 _pieChartSection(yearlyInc, yearlyExp),
                 const SizedBox(height: 20),
                 _tableHeader(),
@@ -167,10 +167,11 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
     );
   }
 
+  // Responsive pie chart section
   Widget _pieChartSection(double inc, double exp) {
     final total = inc + exp;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -180,16 +181,13 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
         children: [
           const Text("আয়-ব্যয়ের অনুপাত", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 200,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _pieChart("আয়", inc, total, Colors.green),
-                _pieChart("ব্যয়", exp, total, Colors.red),
-                _pieChart("ব্যালেন্স", inc - exp, inc, Colors.blue),
-              ],
-            ),
+          // Responsive row: each pie chart takes equal space
+          Row(
+            children: [
+              Expanded(child: _pieChart("আয়", inc, total, Colors.green)),
+              Expanded(child: _pieChart("ব্যয়", exp, total, Colors.red)),
+              Expanded(child: _pieChart("ব্যালেন্স", inc - exp, inc, Colors.blue)),
+            ],
           ),
         ],
       ),
@@ -200,33 +198,34 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
     final percent = total > 0 ? (value / total) * 100 : 0;
     return Column(
       children: [
+        // Responsive size: use LayoutBuilder or fixed but smaller
         SizedBox(
-          height: 90,
-          width: 90,
+          height: 70,
+          width: 70,
           child: PieChart(
             PieChartData(
               sections: [
                 PieChartSectionData(
                   value: value.abs(),
                   color: color,
-                  radius: 40,
+                  radius: 30,
                   showTitle: false,
                 ),
                 PieChartSectionData(
                   value: (total - value).abs(),
                   color: Colors.grey.shade100,
-                  radius: 40,
+                  radius: 30,
                   showTitle: false,
                 ),
               ],
-              centerSpaceRadius: 25,
+              centerSpaceRadius: 18,
               sectionsSpace: 0,
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-        Text("${percent.toStringAsFixed(0)}%", style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 6),
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+        Text("${percent.toStringAsFixed(0)}%", style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 12)),
       ],
     );
   }
@@ -251,7 +250,7 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
   Widget _monthRow(String name, double inc, double exp, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -259,11 +258,11 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(radius: 16, backgroundColor: color, child: Text(name[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-          const SizedBox(width: 16),
-          Expanded(flex: 2, child: Text(name, style: TextStyle(fontWeight: FontWeight.w600, color: color))),
-          Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
-          Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
+          CircleAvatar(radius: 14, backgroundColor: color, child: Text(name[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
+          const SizedBox(width: 12),
+          Expanded(flex: 2, child: Text(name, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 13))),
+          Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))),
+          Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))),
         ],
       ),
     );
@@ -271,14 +270,14 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
 
   Widget _totalFooter(double inc, double exp) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [Colors.blue.shade700, Colors.purple.shade700]),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          const Expanded(flex: 2, child: Text("মোট:", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+          const Expanded(flex: 2, child: Text("মোট:", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
           Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
           Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
         ],

@@ -1,7 +1,7 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:rxdart/rxdart.dart';  // ✅ added for BehaviorSubject
+import 'package:rxdart/rxdart.dart';
 import '../models/transaction_model.dart';
 import '../models/budget_model.dart';
 import '../models/recurring_transaction_model.dart';
@@ -17,7 +17,6 @@ class DatabaseService {
     _auth.authStateChanges().listen((user) {
       _resetCachedStreams();
       if (user != null) {
-        // Delay to avoid UI freeze during first login
         Future.delayed(const Duration(seconds: 2), () {
           processRecurringTransactions();
         });
@@ -30,17 +29,23 @@ class DatabaseService {
 
   String? get _uid => _auth.currentUser?.uid;
 
-  // Cached broadcast streams (kept for backward compatibility)
+  // Cached broadcast streams (legacy)
   Stream<DatabaseEvent>? _cachedTransactionsStream;
   Stream<DatabaseEvent>? _cachedBudgetsStream;
   Stream<DatabaseEvent>? _cachedRecurringStream;
   Stream<DatabaseEvent>? _cachedNotesStream;
 
-  // ✅ NEW: BehaviorSubject that caches and replays the latest transaction list
+  // BehaviorSubjects for caching
   BehaviorSubject<List<TransactionModel>>? _transactionsSubject;
   bool _isTransactionListenerSet = false;
 
-  // Public stream that new listeners can subscribe to – receives the last list immediately
+  BehaviorSubject<List<BudgetModel>>? _budgetsSubject;
+  bool _isBudgetListenerSet = false;
+
+  BehaviorSubject<List<RecurringTransactionModel>>? _recurringSubject;
+  bool _isRecurringListenerSet = false;
+
+  // --- Public cached streams ---
   Stream<List<TransactionModel>> get transactionsStream {
     if (_uid == null) return Stream.empty();
     _transactionsSubject ??= BehaviorSubject<List<TransactionModel>>();
@@ -48,53 +53,73 @@ class DatabaseService {
     return _transactionsSubject!.stream;
   }
 
-  // One‑time fetch of all transactions (for export / stats that don't need live updates)
-  Future<List<TransactionModel>> fetchAllTransactions() async {
-    if (_uid == null) return [];
-    try {
-      final snap = await _db.child('users/$_uid/transactions').get();
-      if (!snap.exists || snap.value == null) return [];
-      final Map<dynamic, dynamic> data = snap.value as Map<dynamic, dynamic>;
-      final List<TransactionModel> list = [];
-      data.forEach((key, value) {
-        if (value != null) {
-          list.add(TransactionModel.fromMap(
-            key.toString(),
-            Map<String, dynamic>.from(value as Map),
-          ));
-        }
-      });
-      return list;
-    } catch (e) {
-      print('Error fetching all transactions: $e');
-      return [];
-    }
+  Stream<List<BudgetModel>> get budgetsStream {
+    if (_uid == null) return Stream.empty();
+    _budgetsSubject ??= BehaviorSubject<List<BudgetModel>>();
+    _ensureBudgetListener();
+    return _budgetsSubject!.stream;
   }
 
+  Stream<List<RecurringTransactionModel>> get recurringStream {
+    if (_uid == null) return Stream.empty();
+    _recurringSubject ??= BehaviorSubject<List<RecurringTransactionModel>>();
+    _ensureRecurringListener();
+    return _recurringSubject!.stream;
+  }
+
+  // --- Private listeners ---
   void _ensureTransactionListener() {
     if (_isTransactionListenerSet) return;
     _isTransactionListenerSet = true;
-
-    // Create the underlying broadcast stream (only one Firebase subscription)
     _cachedTransactionsStream ??= _db
         .child('users/$_uid/transactions')
         .limitToLast(100)
         .onValue
         .asBroadcastStream();
-
-    // Every time Firebase emits an event, parse and add to BehaviorSubject
     _cachedTransactionsStream!.listen((event) {
-      final List<TransactionModel> parsed = _parseTransactions(event);
+      final parsed = _parseTransactions(event);
       if (!_transactionsSubject!.isClosed) {
         _transactionsSubject!.add(parsed);
       }
     });
   }
 
+  void _ensureBudgetListener() {
+    if (_isBudgetListenerSet) return;
+    _isBudgetListenerSet = true;
+    _cachedBudgetsStream ??= _db
+        .child('users/$_uid/budgets')
+        .onValue
+        .asBroadcastStream();
+    _cachedBudgetsStream!.listen((event) {
+      final parsed = _parseBudgets(event);
+      if (!_budgetsSubject!.isClosed) {
+        _budgetsSubject!.add(parsed);
+      }
+    });
+  }
+
+  void _ensureRecurringListener() {
+    if (_isRecurringListenerSet) return;
+    _isRecurringListenerSet = true;
+    _cachedRecurringStream ??= _db
+        .child('users/$_uid/recurring')
+        .limitToLast(100)
+        .onValue
+        .asBroadcastStream();
+    _cachedRecurringStream!.listen((event) {
+      final parsed = _parseRecurring(event);
+      if (!_recurringSubject!.isClosed) {
+        _recurringSubject!.add(parsed);
+      }
+    });
+  }
+
+  // --- Parsers ---
   List<TransactionModel> _parseTransactions(DatabaseEvent event) {
-    final List<TransactionModel> list = [];
+    final list = <TransactionModel>[];
     if (event.snapshot.value != null) {
-      final Map<dynamic, dynamic> data = event.snapshot.value as Map<dynamic, dynamic>;
+      final data = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
       data.forEach((key, value) {
         if (value != null) {
           list.add(TransactionModel.fromMap(
@@ -107,17 +132,62 @@ class DatabaseService {
     return list;
   }
 
+  List<BudgetModel> _parseBudgets(DatabaseEvent event) {
+    final list = <BudgetModel>[];
+    if (event.snapshot.value != null) {
+      final data = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
+      data.forEach((key, value) {
+        if (value != null) {
+          list.add(BudgetModel.fromMap(
+            key.toString(),
+            Map<String, dynamic>.from(value as Map),
+          ));
+        }
+      });
+    }
+    return list;
+  }
+
+  List<RecurringTransactionModel> _parseRecurring(DatabaseEvent event) {
+    final list = <RecurringTransactionModel>[];
+    if (event.snapshot.value != null) {
+      final data = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
+      data.forEach((key, value) {
+        if (value != null) {
+          list.add(RecurringTransactionModel.fromMap(
+            key.toString(),
+            Map<String, dynamic>.from(value as Map),
+          ));
+        }
+      });
+    }
+    list.sort((a, b) => b.nextDueDate.compareTo(a.nextDueDate));
+    return list;
+  }
+
   void _resetCachedStreams() {
     _cachedTransactionsStream = null;
     _cachedBudgetsStream = null;
     _cachedRecurringStream = null;
     _cachedNotesStream = null;
-    // Also close and recreate the BehaviorSubject on user change
+
     if (_transactionsSubject != null && !_transactionsSubject!.isClosed) {
       _transactionsSubject!.close();
     }
+    if (_budgetsSubject != null && !_budgetsSubject!.isClosed) {
+      _budgetsSubject!.close();
+    }
+    if (_recurringSubject != null && !_recurringSubject!.isClosed) {
+      _recurringSubject!.close();
+    }
+
     _transactionsSubject = null;
+    _budgetsSubject = null;
+    _recurringSubject = null;
+
     _isTransactionListenerSet = false;
+    _isBudgetListenerSet = false;
+    _isRecurringListenerSet = false;
   }
 
   // --------------- Internet check ---------------
@@ -152,7 +222,7 @@ class DatabaseService {
     }
   }
 
-  // Legacy stream – kept for compatibility (but new code should use transactionsStream)
+  // Legacy stream (kept for compatibility)
   Stream<DatabaseEvent> getTransactions() {
     if (_uid == null) return const Stream.empty();
     _cachedTransactionsStream ??= _db
@@ -193,6 +263,29 @@ class DatabaseService {
     }
   }
 
+  // --------------- One‑time fetch (for export/stats) ---------------
+  Future<List<TransactionModel>> fetchAllTransactions() async {
+    if (_uid == null) return [];
+    try {
+      final snap = await _db.child('users/$_uid/transactions').get();
+      if (!snap.exists || snap.value == null) return [];
+      final data = Map<dynamic, dynamic>.from(snap.value as Map);
+      final list = <TransactionModel>[];
+      data.forEach((key, value) {
+        if (value != null) {
+          list.add(TransactionModel.fromMap(
+            key.toString(),
+            Map<String, dynamic>.from(value as Map),
+          ));
+        }
+      });
+      return list;
+    } catch (e) {
+      print('Error fetching all transactions: $e');
+      return [];
+    }
+  }
+
   // --------------- Sync ---------------
   Future<int> syncOfflineToOnline() async {
     if (_uid == null) return 0;
@@ -214,7 +307,7 @@ class DatabaseService {
     return OfflineService.getOfflineTransactions();
   }
 
-  // --------------- Budget ---------------
+  // --------------- Budgets ---------------
   Future<void> addBudget(BudgetModel budget) async {
     if (_uid != null) {
       await _db.child('users/$_uid/budgets/${budget.id}').set(budget.toMap());
@@ -229,6 +322,7 @@ class DatabaseService {
     if (_uid != null) await _db.child('users/$_uid/budgets/$id').remove();
   }
 
+  // Legacy stream
   Stream<DatabaseEvent> getBudgets() {
     if (_uid == null) return const Stream.empty();
     _cachedBudgetsStream ??= _db
@@ -298,6 +392,7 @@ class DatabaseService {
     }
   }
 
+  // Legacy stream
   Stream<DatabaseEvent> getRecurringTransactions() {
     if (_uid == null) return const Stream.empty();
     _cachedRecurringStream ??= _db
@@ -359,8 +454,11 @@ class DatabaseService {
     if (_uid != null) {
       final id = DateTime.now().millisecondsSinceEpoch.toString();
       await _db.child('users/$_uid/notes/$id').set({
-        'id': id, 'title': title, 'content': content,
-        'reminderTime': reminderDateTime, 'colorValue': colorValue,
+        'id': id,
+        'title': title,
+        'content': content,
+        'reminderTime': reminderDateTime,
+        'colorValue': colorValue,
         'createdAt': DateTime.now().toString(),
       });
     }
@@ -374,6 +472,8 @@ class DatabaseService {
         .asBroadcastStream();
     return _cachedNotesStream!;
   }
+
+  // Helper method that uses fetchAllTransactions (now defined)
   Future<List<TransactionModel>> getTransactionsOnce() async {
     return await fetchAllTransactions();
   }

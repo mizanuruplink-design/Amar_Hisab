@@ -16,7 +16,13 @@ dependencies:
   pdf: ^3.11.0
   printing: ^5.11.1
   path_provider: ^2.1.2
-  open_file: ^3.3.2
+
+  # 🟢 ফিক্সড: পুরানো open_file কেটে গ্রেডল ক্র্যাশ এড়াতে লেটেস্ট open_filex যুক্ত করা হলো
+  open_filex: ^4.5.0
+
+  # 🟢 নতুন যুক্ত: প্রতি স্ক্রিনে বিজ্ঞাপন দেখানোর অফিশিয়াল AdMob প্লাগইন
+  #google_mobile_ads: ^5.1.0
+
   share_plus: ^7.2.1
   math_expressions: ^3.1.0
   signature: ^6.3.0
@@ -43,6 +49,8 @@ dependencies:
   firebase_auth: ^5.1.1
   firebase_database: ^11.0.1
   google_sign_in: ^6.2.1
+  firebase_remote_config: ^5.0.0
+
 
   # --- ইউটিলিটি এবং ডিজাইন ---
   intl: ^0.19.0
@@ -64,14 +72,19 @@ flutter_launcher_icons:
   image_path: "assets/images/logo.png"   # Replace with your actual logo path
   min_sdk_android: 21
 
-# ========== NATIVE SPLASH SCREEN (optional, remove if not needed) ==========
+# ========== NATIVE SPLASH SCREEN ==========
 flutter_native_splash:
-  color: "#1976D2"   # Your app's primary color
+  color: "#004B49"
   image: assets/images/logo.png
   android: true
   ios: true
   android_gravity: center
   ios_content_mode: center
+
+  # 🟢 অ্যান্ড্রয়েড ১২+ এর নতুন স্প্ল্যাশ স্ক্রিন সেফগার্ড
+  android_12:
+    color: "#004B49"
+    image: assets/images/logo.png
 
 flutter:
   uses-material-design: true

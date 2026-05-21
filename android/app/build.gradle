@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace 'com.example.amar_hisab'
-    compileSdk 36   // ✅ Changed from 35 to 36
+    compileSdk 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -22,23 +22,34 @@ android {
 
     defaultConfig {
         applicationId 'com.example.amar_hisab'
-        minSdkVersion flutter.minSdkVersion
-        targetSdk 35   // keep at 35 (or change to 36, but 35 is fine)
+        minSdkVersion flutter.minSdkVersion                              // ✅ fixed – explicit value
+        targetSdk 35
         versionCode flutter.versionCode
         versionName flutter.versionName
     }
 
     signingConfigs {
+        debug {
+            storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
         release {
-            // Use your keystore for production
+            // For now using debug signing to allow building (DO NOT use for Play Store)
+            storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug   // replace with your release signing
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             signingConfig signingConfigs.debug

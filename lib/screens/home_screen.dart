@@ -24,9 +24,7 @@ import '../services/offline_service.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
-// ==================== Helper Classes (unchanged) ====================
-
+// ==================== Helper Classes ====================
 class HijriCalendar {
   static Map<int, String> hijriMonths = {
     1: 'মুহাররম', 2: 'সফর', 3: 'রবিউল আউয়াল', 4: 'রবিউস সানি',
@@ -76,18 +74,18 @@ class BDHolidays {
 }
 
 class HomeScreen extends StatefulWidget {
-  // ==================== Main HomeScreen ====================
   const HomeScreen({super.key});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+
 class _HomeScreenState extends State<HomeScreen> {
   AsyncSnapshot<DatabaseEvent>? _lastTransactionSnapshot;
   // ==================== NOTEBOOK SEPARATION ====================
   List<Map<String, dynamic>> _textNotes = [];
   List<Map<String, dynamic>> _drawingNotes = [];
   int _notebookMode = 0; // 0 = text, 1 = drawing
-  bool _isNoteEditorOpen = false; // এই ফ্ল্যাগটি ডাবল ওপেনিং এবং রিমাইন্ডার পপআপ লক করবে
+  bool _isNoteEditorOpen = false;
   bool _isReminderDialogOpen = false;
   bool _isDrawingEditorOpen = false;
   String? _localProfilePicPath;
@@ -111,6 +109,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, Map<String, String>> _localizedText = {
     'bn': {
       'app_title': 'আমার হিসাব',
+      'home': 'হোম',
+      'calendar': 'ক্যালেন্ডার',
+      'notice': 'নোটিশ',
+      'notebook': 'নোটবুক',
+      'profile': 'প্রোফাইল',
       'income': 'আয়',
       'expense': 'ব্যয়',
       'savings': 'সঞ্চয়',
@@ -187,7 +190,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'show_hijri': 'হিজরি দেখান',
       'show_bengali': 'বাংলা দেখান',
       'calendar_settings': 'পঞ্জিকা সেটিংস',
-      // Security keys
       'set_pin': 'পিন সেট করুন',
       'new_pin': 'নতুন পিন',
       'confirm_pin': 'পিন নিশ্চিত করুন',
@@ -199,7 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'biometric_only': 'শুধুমাত্র বায়োমেট্রিক',
       'pin_and_biometric': 'পিন ও বায়োমেট্রিক',
       'change_pin': 'পিন পরিবর্তন করুন',
-      // About / Privacy keys
       'about_app': 'অ্যাপ সম্পর্কে',
       'app_description': 'আপনার দৈনন্দিন আয়-ব্যয় এবং লেনদেনের হিসাব রাখার সহজ অ্যাপ। অফলাইন, ব্যাকআপ ও সুরক্ষা সুবিধা সহ।',
       'privacy_policy': 'গোপনীয়তা নীতি',
@@ -207,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'pin_set_success': 'পিন সফলভাবে সেট করা হয়েছে',
       'pin_mismatch': 'পিন মেলেনি, আবার চেষ্টা করুন',
       'lock_disabled': 'লক বন্ধ করা হয়েছে',
-      // FAQ keys
       'faq_title': '🙋‍♂️ সাধারণ জিজ্ঞাসা',
       'faq_q1': 'অ্যাপটি মূলত কী কী কাজে ব্যবহার করা যাবে?',
       'faq_a1': 'এই অ্যাপটি আপনার দৈনন্দিন জীবনের অল-ইন-ওয়ান অ্যাসিস্ট্যান্ট। আপনি এখানে ৪টি প্রধান সুবিধা পাবেন:\n\n📊 হিসাব-নিকাশ: আয়-ব্যয়ের হিসাব রাখতে পারেন।\n📓 নোটবুক ও ড্রয়িং: গুরুত্বপূর্ণ তথ্য লিখতে ও আঁকতে পারেন।\n⏰ রিমাইন্ডার: কাজ বা বিলের তারিখ মনে করিয়ে দেবে।\n💰 বাজেট: মাসিক বা সাপ্তাহিক বাজেট সেট করে খরচ নিয়ন্ত্রণ করতে পারেন।',
@@ -224,6 +224,11 @@ class _HomeScreenState extends State<HomeScreen> {
     },
     'en': {
       'app_title': 'My Accounting',
+      'home': 'Home',
+      'calendar': 'Calendar',
+      'notice': 'Notice',
+      'notebook': 'Notebook',
+      'profile': 'Profile',
       'income': 'Income',
       'expense': 'Expense',
       'savings': 'Savings',
@@ -300,7 +305,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'show_hijri': 'Show Hijri',
       'show_bengali': 'Show Bengali',
       'calendar_settings': 'Calendar Settings',
-      // Security keys
       'set_pin': 'Set PIN',
       'new_pin': 'New PIN',
       'confirm_pin': 'Confirm PIN',
@@ -312,7 +316,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'biometric_only': 'Biometric only',
       'pin_and_biometric': 'PIN & Biometric',
       'change_pin': 'Change PIN',
-      // About / Privacy keys
       'about_app': 'About App',
       'app_description': 'A simple app to track your daily income, expenses and transactions with offline support, backup and security features.',
       'privacy_policy': 'Privacy Policy',
@@ -320,7 +323,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'pin_set_success': 'PIN set successfully',
       'pin_mismatch': 'PIN mismatch, try again',
       'lock_disabled': 'Lock disabled',
-      // FAQ keys
       'faq_title': '🙋‍♂️ Frequently Asked Questions',
       'faq_q1': 'What are the main features of this app?',
       'faq_a1': 'This app is your all-in-one assistant. It offers 4 main features:\n\n📊 Income/Expense Tracking\n📓 Notebook & Drawing\n⏰ Reminders\n💰 Budget Planning',
@@ -337,6 +339,11 @@ class _HomeScreenState extends State<HomeScreen> {
     },
     'ar': {
       'app_title': 'محاسبتي',
+      'home': 'الرئيسية',
+      'calendar': 'التقويم',
+      'notice': 'الإشعارات',
+      'notebook': 'دفتر الملاحظات',
+      'profile': 'الملف الشخصي',
       'income': 'دخل',
       'expense': 'مصروف',
       'savings': 'مدخرات',
@@ -413,7 +420,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'show_hijri': 'إظهار الهجري',
       'show_bengali': 'إظهار البنغالي',
       'calendar_settings': 'إعدادات التقويم',
-      // Security keys (Arabic)
       'set_pin': 'تعيين الرمز',
       'new_pin': 'رمز جديد',
       'confirm_pin': 'تأكيد الرمز',
@@ -425,7 +431,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'biometric_only': 'بصمة فقط',
       'pin_and_biometric': 'الرمز والبصمة',
       'change_pin': 'تغيير الرمز',
-      // About / Privacy keys (Arabic)
       'about_app': 'عن التطبيق',
       'app_description': 'تطبيق بسيط لتتبع دخلك ونفقاتك اليومية مع دعم غير متصل بالإنترنت والنسخ الاحتياطي وميزات الأمان.',
       'privacy_policy': 'سياسة الخصوصية',
@@ -433,7 +438,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'pin_set_success': 'تم تعيين الرمز بنجاح',
       'pin_mismatch': 'الرمز غير متطابق، حاول مرة أخرى',
       'lock_disabled': 'تم تعطيل القفل',
-      // FAQ keys (Arabic)
       'faq_title': '🙋‍♂️ الأسئلة الشائعة',
       'faq_q1': 'ما هي الميزات الرئيسية لهذا التطبيق؟',
       'faq_a1': 'هذا التطبيق هو مساعد شامل. يوفر 4 ميزات رئيسية:\n\n📊 تتبع الدخل والمصروفات\n📓 دفتر الملاحظات والرسم\n⏰ تذكيرات\n💰 تخطيط الميزانية',
@@ -449,6 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'faq_a6': 'نعم. يمكنك إرفاق صور من الكاميرا / المعرض وكذلك الرسم أو التخطيط على اللوحة داخل دفتر الملاحظات.',
     },
   };
+
   String getText(String key) =>
       _localizedText[_selectedLanguage]?[key] ?? _localizedText['bn']?[key] ?? key;
 
@@ -486,10 +491,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _operator;
   bool _shouldResetDisplay = false;
   bool _isNewNumber = true;
-  // bool _isOnline = false;
-  //late Timer _internetCheckTimer;
 
-// ==================== LIFECYCLE ====================
+  // ==================== LIFECYCLE ====================
   @override
   void initState() {
     super.initState();
@@ -511,41 +514,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void _loadCurrentUserProfilePic() async {
     FirebaseAuth.instance.authStateChanges().listen((User? user) async {
       final prefs = await SharedPreferences.getInstance();
-
       if (user != null) {
-        // 🟢 মেইল আইডি অনুযায়ী ইউনিক ছবি লোড হবে
-        String? path = prefs.getString('profile_pic_${user.uid}');
-
-        if (mounted) {
-          setState(() {
-            _localProfilePicPath = path;
-          });
-        }
+        setState(() => _localProfilePicPath = prefs.getString('profile_pic_${user.uid}'));
       } else {
-        // 🔴 লগআউট করার সাথে সাথে আগের মেইলের ছবি মেমোরি থেকে মুছে যাবে
-        if (mounted) {
-          setState(() {
-            _localProfilePicPath = null;
-          });
-        }
+        setState(() => _localProfilePicPath = null);
       }
     });
   }
+
   void _deleteProfilePic() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final prefs = await SharedPreferences.getInstance();
-
-      // 🔴 লোকাল স্টোরেজ (SharedPreferences) থেকে ছবি ডিলিট করা হলো
       await prefs.remove('profile_pic_${user.uid}');
-
-      // 🔄 স্টেট আপডেট করা হলো যেন অ্যাপ বারে সাথে সাথে ডিফল্ট আইকন চলে আসে
-      if (mounted) {
-        setState(() {
-          _localProfilePicPath = null;
-        });
-      }
-
+      if (mounted) setState(() => _localProfilePicPath = null);
       _showSnackBar("প্রোফাইল পিকচার রিমুভ করা হয়েছে", Colors.red);
     }
   }
@@ -557,12 +539,13 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {});
     }
   }
+
   @override
   void dispose() {
-    // _internetCheckTimer.cancel();
     super.dispose();
   }
-// ==================== USER SETTINGS ====================
+
+  // ==================== USER SETTINGS ====================
   void _loadUserSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (mounted) setState(() {
@@ -582,7 +565,8 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setString('language', _selectedLanguage);
     await prefs.setString('currency', _selectedCurrency);
   }
-// ==================== NOTIFICATIONS ====================
+
+  // ==================== NOTIFICATIONS ====================
   void _initializeNotifications() async {
     tz.initializeTimeZones();
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -616,6 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {}
   }
+
   // ==================== REMINDERS ====================
   void _showTodayReminders() {
     String today = DateFormat('dd/MM/yyyy').format(DateTime.now());
@@ -634,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
-  // ==================== TRANSACTION HELPERS (shortened) ====================
+  // ==================== TRANSACTION HELPERS ====================
   void _showSnackBar(String m, Color c) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), backgroundColor: c, duration: const Duration(seconds: 2), behavior: SnackBarBehavior.floating)); }
 
   void _confirmDelete(String id) {
@@ -644,31 +629,16 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(getText('delete')),
         content: Text(getText('delete_confirm') ?? 'ডিলিট?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: Text(getText('no')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              // ১. ডাটাবেজ ডিলিট শুরু হওয়ার আগেই ডায়ালগটি বন্ধ করুন (c কনটেক্সট দিয়ে)
-              Navigator.pop(c);
-
-              // ২. আন্ডারস্কোর (_) সহ সঠিক ভ্যারিয়েবল থেকে আইটেম রিমুভ করুন
-              if (mounted) {
-                setState(() {
-                  _textNotes.removeWhere((note) => note['key'] == id);
-                  _drawingNotes.removeWhere((note) => note['key'] == id);
-                });
-              }
-
-              // ৩. ব্যাকগ্রাউন্ডে ডাটাবেজ অপারেশন
-              await DatabaseService().deleteTransaction(id);
-
-              _showSnackBar(getText('delete'), Colors.red);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(getText('yes'), style: const TextStyle(color: Colors.white)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(getText('no'))),
+          ElevatedButton(onPressed: () async {
+            Navigator.pop(c);
+            if (mounted) setState(() {
+              _textNotes.removeWhere((note) => note['key'] == id);
+              _drawingNotes.removeWhere((note) => note['key'] == id);
+            });
+            await DatabaseService().deleteTransaction(id);
+            _showSnackBar(getText('delete'), Colors.red);
+          }, style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: Text(getText('yes'), style: const TextStyle(color: Colors.white))),
         ],
       ),
     );
@@ -681,34 +651,21 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(getText('archive')),
         content: const Text("আর্কাইভ?"),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: Text(getText('no')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              // ১. আগে ডায়ালগটি বন্ধ করুন
-              Navigator.pop(c);
-
-              // ২. আন্ডারস্কোর (_) সহ সঠিক ভ্যারিয়েবল থেকে আইটেম রিমুভ করুন
-              if (mounted) {
-                setState(() {
-                  _textNotes.removeWhere((note) => note['key'] == id);
-                  _drawingNotes.removeWhere((note) => note['key'] == id);
-                });
-              }
-
-              // ৩. ব্যাকগ্রাউন্ডে আর্কাইভ করুন
-              await DatabaseService().archiveTransaction(id);
-
-              _showSnackBar(getText('archive'), Colors.orange);
-            },
-            child: Text(getText('yes')),
-          ),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(getText('no'))),
+          ElevatedButton(onPressed: () async {
+            Navigator.pop(c);
+            if (mounted) setState(() {
+              _textNotes.removeWhere((note) => note['key'] == id);
+              _drawingNotes.removeWhere((note) => note['key'] == id);
+            });
+            await DatabaseService().archiveTransaction(id);
+            _showSnackBar(getText('archive'), Colors.orange);
+          }, child: Text(getText('yes'))),
         ],
       ),
     );
   }
+
   void _showTransactionOptions(Map<String, dynamic> tx) {
     showModalBottomSheet(context: context, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), builder: (c) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
       Container(height: 4, width: 40, margin: const EdgeInsets.only(top: 12), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
@@ -718,6 +675,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const SizedBox(height: 20),
     ])));
   }
+
   void _showEditDialog(Map<String, dynamic> tx) {
     final amtCtrl = TextEditingController(text: (tx['amount'] ?? '').toString());
     final noteCtrl = TextEditingController(text: tx['note'] ?? '');
@@ -751,6 +709,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const SizedBox(height: 20),
     ])))));
   }
+
   void _showExpenseDialog() {
     final amtCtrl = TextEditingController(), noteCtrl = TextEditingController(); String selCat = 'gas_bill';
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => SingleChildScrollView(child: Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -767,18 +726,197 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showDebtCreditDialog(String type) {
-    final amtCtrl = TextEditingController(), noteCtrl = TextEditingController();
+    final amtCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+
     String title = type == 'দেনা' ? getText('debt') : (type == 'পাওনা' ? getText('credit') : getText('savings'));
     String engType = type == 'দেনা' ? 'Debt' : (type == 'পাওনা' ? 'Credit' : 'Savings');
     Color color = type == 'দেনা' ? Colors.orange : (type == 'পাওনা' ? Colors.purple : Colors.blue);
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => SingleChildScrollView(child: Container(decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))), const SizedBox(height: 20),
-      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
-      TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)), autofocus: true), const SizedBox(height: 12),
-      TextField(controller: noteCtrl, decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note))), const SizedBox(height: 20),
-      ElevatedButton(onPressed: () { if (amtCtrl.text.isNotEmpty) { double? amt = double.tryParse(amtCtrl.text); if (amt != null) { DatabaseService().addTransaction(TransactionModel(id: DateTime.now().millisecondsSinceEpoch.toString(), amount: amt, note: noteCtrl.text.isEmpty ? title : noteCtrl.text, type: engType, date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()), category: "other", isArchived: false)); Navigator.pop(c); _showSnackBar('$title ${getText('save')}', color); if (mounted) setState(() {}); } } else { _showSnackBar(getText('amount_error'), Colors.red); } }, style: ElevatedButton.styleFrom(backgroundColor: color, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text(getText('save'), style: const TextStyle(color: Colors.white))),
-      const SizedBox(height: 20),
-    ])))));
+
+    // Reminder variables
+    bool addReminder = false;
+    DateTime? reminderDate;
+    TimeOfDay? reminderTime;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => SingleChildScrollView(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(c).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: amtCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: getText('amount'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.money),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(
+                    labelText: getText('description'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.note),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Reminder checkbox
+                CheckboxListTile(
+                  title: const Text("রিমাইন্ডার যোগ করুন"),
+                  value: addReminder,
+                  onChanged: (val) => s(() => addReminder = val!),
+                  activeColor: Colors.blue,
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                if (addReminder) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ListTile(
+                          leading: const Icon(Icons.calendar_today),
+                          title: const Text("তারিখ"),
+                          subtitle: Text(reminderDate == null
+                              ? "নির্বাচন করুন"
+                              : DateFormat('dd/MM/yyyy').format(reminderDate!)),
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: c,
+                              initialDate: reminderDate ?? DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime(2030),
+                            );
+                            if (picked != null) s(() => reminderDate = picked);
+                          },
+                        ),
+                      ),
+                      Expanded(
+                        child: ListTile(
+                          leading: const Icon(Icons.access_time),
+                          title: const Text("সময়"),
+                          subtitle: Text(reminderTime == null
+                              ? "নির্বাচন করুন"
+                              : reminderTime!.format(c)),
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: c,
+                              initialTime: reminderTime ?? TimeOfDay.now(),
+                            );
+                            if (picked != null) s(() => reminderTime = picked);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (amtCtrl.text.isNotEmpty) {
+                      double? amt = double.tryParse(amtCtrl.text);
+                      if (amt != null) {
+                        // Save main debt/credit transaction
+                        final debtTx = TransactionModel(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          amount: amt,
+                          note: noteCtrl.text.isEmpty ? title : noteCtrl.text,
+                          type: engType,
+                          date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
+                          category: "other",
+                          isArchived: false,
+                        );
+                        await DatabaseService().addTransaction(debtTx);
+
+                        // Create reminder if needed
+                        if (addReminder && reminderDate != null && reminderTime != null) {
+                          final reminderDateTime = DateTime(
+                            reminderDate!.year,
+                            reminderDate!.month,
+                            reminderDate!.day,
+                            reminderTime!.hour,
+                            reminderTime!.minute,
+                          );
+                          final reminderId = DateTime.now().millisecondsSinceEpoch.toString();
+                          final reminderNote = "ঋণ পরিশোধের কথা মনে করিয়ে দিন: ${noteCtrl.text}";
+
+                          final reminderTx = TransactionModel(
+                            id: reminderId,
+                            amount: 0,
+                            note: reminderNote,
+                            type: 'Reminder',
+                            date: DateFormat('dd/MM/yyyy').format(reminderDate!),
+                            category: '',
+                            isArchived: false,
+                          );
+                          await DatabaseService().addTransaction(reminderTx);
+                          await DatabaseService().updateReminderTime(
+                            reminderId,
+                            reminderTime!.format(c),
+                          );
+                          _scheduleNotification(
+                            reminderNote,
+                            reminderDateTime,
+                            reminderId,
+                          );
+                        }
+
+                        Navigator.pop(c);
+                        _showSnackBar('$title ${getText('save')}', color);
+                        if (mounted) setState(() {});
+                      }
+                    } else {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    getText('save'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _showReminderInput() {
@@ -794,6 +932,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const SizedBox(height: 20),
     ])))));
   }
+
   void _openSecurityScreen() {
     Navigator.push(
       context,
@@ -806,8 +945,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-// ==================== CALCULATOR (keep existing) ====================
+  // ==================== CALCULATOR ====================
   void _openCalculator() {
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (c) => StatefulBuilder(builder: (c, s) => Container(height: MediaQuery.of(c).size.height * 0.65, decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))), child: Column(children: [
       Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
@@ -845,7 +983,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(padding: const EdgeInsets.all(4), child: Material(color: bg, borderRadius: BorderRadius.circular(12), child: InkWell(onTap: () => _onKeyPress(t, s), borderRadius: BorderRadius.circular(12), child: Container(height: double.infinity, alignment: Alignment.center, child: Text(t, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500, color: tc))))));
   }
 
-
   // ==================== PROFILE & SETTINGS ====================
   void _showProfileDialog() {
     final nameCtrl = TextEditingController(text: _userName);
@@ -861,7 +998,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
           ),
           child: SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom), // কিবোর্ড আসলে স্ক্রিন উপরে উঠবে
+            padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -873,15 +1010,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // 🖼️ প্রোফাইল পিকচার সেকশন (গুগল, লোকাল ও ডিলিট বাটন হ্যান্ডেলার)
+                // Profile picture section
                 Stack(
                   children: [
                     GestureDetector(
                       onTap: () {
-                        // 🟢 ১. ইমেজ পিকার ফাংশনটি কল করা হলো (await ছাড়া)
                         _changeProfilePhoto();
-
-                        // 🟢 ২. ছবি সিলেক্ট হওয়ার জন্য সামান্য একটু অপেক্ষা করে ডায়ালগের UI রিফ্রেশ করা হলো
                         Future.delayed(const Duration(milliseconds: 600), () async {
                           final user = FirebaseAuth.instance.currentUser;
                           if (user != null) {
@@ -895,10 +1029,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: Colors.blue.shade100,
-                        // প্রথমে চেক করবে কারেন্ট মেইলের নির্দিষ্ট লোকাল ছবি আছে কিনা
                         backgroundImage: _profileImagePath != null && File(_profileImagePath!).existsSync()
                             ? FileImage(File(_profileImagePath!))
-                        // লোকাল ছবি না থাকলে গুগলের ছবি ট্রাই করবে
                             : (FirebaseAuth.instance.currentUser?.photoURL != null && FirebaseAuth.instance.currentUser!.photoURL!.isNotEmpty
                             ? NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!) as ImageProvider
                             : null),
@@ -907,19 +1039,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             : null,
                       ),
                     ),
-
-                    // 📸 ক্যামেরা আইকন (ছবি পরিবর্তন করার জন্য)
                     Positioned(
                       bottom: 0,
-                      right: (_profileImagePath != null && File(_profileImagePath!).existsSync()) ? 60 : 0, // ছবি থাকলে ডিলিট বাটনের জন্য জায়গা ছেড়ে দেবে
+                      right: (_profileImagePath != null && File(_profileImagePath!).existsSync()) ? 60 : 0,
                       child: const CircleAvatar(
                         radius: 18,
                         backgroundColor: Colors.blue,
                         child: Icon(Icons.camera_alt, size: 18, color: Colors.white),
                       ),
                     ),
-
-                    // 🗑️ ডিলিট বাটন (লোকাল ছবি থাকলেই কেবল ক্যামেরা আইকনের পাশে এটি দেখা যাবে)
                     if (_profileImagePath != null && File(_profileImagePath!).existsSync())
                       Positioned(
                         bottom: 0,
@@ -929,18 +1057,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             final user = FirebaseAuth.instance.currentUser;
                             if (user != null) {
                               final prefs = await SharedPreferences.getInstance();
-                              // লোকাল স্টোরেজ থেকে এই মেইলের ছবি রিমুভ
                               await prefs.remove('profile_pic_${user.uid}');
-
-                              // হোম স্ক্রিনের অ্যাপ বার আপডেট
                               setState(() {
                                 _profileImagePath = null;
                               });
-                              // ডায়ালগের ভেতরের UI আপডেট (বাটন এবং ছবি চলে যাবে)
                               s(() {
                                 _profileImagePath = null;
                               });
-
                               _showSnackBar("প্রোফাইল পিকচার রিমুভ করা হয়েছে", Colors.red);
                             }
                           },
@@ -1060,11 +1183,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (user != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('profile_pic_${user.uid}', picked.path);
-        if (mounted) {
-          setState(() {
-            _profileImagePath = picked.path;
-          });
-        }
+        if (mounted) setState(() => _profileImagePath = picked.path);
       }
     }
   }
@@ -1072,7 +1191,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _pickImage(ImageSource source) async {
     try { final XFile? f = await _imagePicker.pickImage(source: source, imageQuality: 80); if (f != null && mounted) { setState(() => _profileImagePath = f.path); _saveUserSettings(); } } catch (e) {}
   }
-
 
   // ==================== NOTEBOOK UI ====================
   Widget _buildTextNotesList() {
@@ -1283,13 +1401,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ==================== TEXT NOTE EDITOR ====================
   void _openTextNoteEditor({Map<String, dynamic>? existingNote, String? key}) {
-    // ১. ডায়ালগ অলরেডি ওপেন থাকলে নতুন করে ওপেন হতে দেবে না
     if (_isNoteEditorOpen) return;
-
-    setState(() {
-      _isNoteEditorOpen = true;
-    });
-
+    setState(() => _isNoteEditorOpen = true);
     final TextEditingController tc = TextEditingController(text: existingNote?['note'] ?? "");
     List<Color> bgs = [
       Colors.yellow.shade100, Colors.green.shade100, Colors.blue.shade100,
@@ -1326,7 +1439,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: selBg,
             child: Column(
               children: [
-                // ---------- Top bar with SAVE button ----------
+                // Top bar with SAVE button
                 Container(
                   padding: const EdgeInsets.only(top: 40, left: 8, right: 8, bottom: 8),
                   child: Row(
@@ -1338,13 +1451,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             _showSnackBar("নোট লিখুন", Colors.red);
                             return;
                           }
-
                           Map<String, dynamic> extra = {
                             'bgColor': selBg.value,
                             'imagePaths': existingImages,
                             'hasDrawing': false,
                           };
-
                           final newNote = TransactionModel(
                             id: key ?? DateTime.now().millisecondsSinceEpoch.toString(),
                             amount: 0,
@@ -1354,25 +1465,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
                             isArchived: false,
                           );
-
-                          // ডায়ালগ বন্ধ করার আগে ফ্ল্যাগ ফলস করা হলো
                           _isNoteEditorOpen = false;
                           Navigator.of(context).pop();
-
                           await DatabaseService().addTransaction(newNote);
-
                           final newNoteMap = {
                             'key': newNote.id,
                             'note': newNote.note,
                             'date': newNote.date,
                             'category': newNote.category,
                           };
-
-                          if (mounted) {
-                            setState(() {
-                              _textNotes.insert(0, newNoteMap);
-                            });
-                          }
+                          if (mounted) setState(() => _textNotes.insert(0, newNoteMap));
                           _showSnackBar("নোট সেভ হয়েছে", Colors.green);
                         },
                       ),
@@ -1410,7 +1512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                // ---------- Notebook body with line background ----------
+                // Notebook body with line background
                 Expanded(
                   child: Stack(
                     children: [
@@ -1473,7 +1575,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                // ---------- Bottom toolbar ----------
+                // Bottom toolbar
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   color: Colors.black.withOpacity(0.03),
@@ -1533,13 +1635,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     ).then((_) {
-      // ইউজার যদি ব্যাক বাটন চেপে বা অন্য কোনোভাবে ডায়ালগ ক্লোজ করে
-      setState(() {
-        _isNoteEditorOpen = false;
-      });
+      setState(() => _isNoteEditorOpen = false);
     });
   }
-  // ==================== DRAWING NOTEBOOK (full featured) ====================
+
+  // ==================== DRAWING NOTEBOOK ====================
   void _openDrawingNotebook({Map<String, dynamic>? existingNote, String? key}) {
     if (_isDrawingEditorOpen) return;
     setState(() => _isDrawingEditorOpen = true);
@@ -1583,7 +1683,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double currentWidth = 4.0;
     bool isEraser = false;
 
-    // ========== UNDO / REDO STACKS ==========
+    // UNDO / REDO STACKS
     List<List<List<Offset>>> undoStrokes = [];
     List<List<Color>> undocolors = [];
     List<List<double>> undoWidths = [];
@@ -1592,11 +1692,9 @@ class _HomeScreenState extends State<HomeScreen> {
     List<List<double>> redoWidths = [];
 
     void saveToUndo() {
-      // Deep copy current state
       undoStrokes.add(completedStrokes.map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList());
       undocolors.add(List.from(strokeColors));
       undoWidths.add(List.from(strokeWidths));
-      // Clear redo stacks because new action invalidates redo
       redoStrokes.clear();
       redocolors.clear();
       redoWidths.clear();
@@ -1604,11 +1702,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     void undo() {
       if (undoStrokes.isNotEmpty) {
-        // Save current to redo
         redoStrokes.add(completedStrokes.map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList());
         redocolors.add(List.from(strokeColors));
         redoWidths.add(List.from(strokeWidths));
-        // Restore last undo state
         completedStrokes = undoStrokes.removeLast().map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList();
         strokeColors = List.from(undocolors.removeLast());
         strokeWidths = List.from(undoWidths.removeLast());
@@ -1618,11 +1714,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     void redo() {
       if (redoStrokes.isNotEmpty) {
-        // Save current to undo
         undoStrokes.add(completedStrokes.map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList());
         undocolors.add(List.from(strokeColors));
         undoWidths.add(List.from(strokeWidths));
-        // Restore last redo state
         completedStrokes = redoStrokes.removeLast().map((s) => s.map((p) => Offset(p.dx, p.dy)).toList()).toList();
         strokeColors = List.from(redocolors.removeLast());
         strokeWidths = List.from(redoWidths.removeLast());
@@ -1632,7 +1726,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     void clearAll() {
       if (completedStrokes.isEmpty) return;
-      saveToUndo(); // Save before clearing
+      saveToUndo();
       completedStrokes.clear();
       strokeColors.clear();
       strokeWidths.clear();
@@ -1650,18 +1744,29 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               // Drag handle
-              Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40,
-                  decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                height: 4,
+                width: 40,
+                decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+              ),
               // Top bar
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(icon: const Icon(Icons.close, size: 28), onPressed: () {
-                      _isDrawingEditorOpen = false; Navigator.pop(c);
-                    }),
-                    Text(existingNote == null ? "ড্রয়িং তৈরি করুন" : "ড্রয়িং এডিট", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 28),
+                      onPressed: () {
+                        _isDrawingEditorOpen = false;
+                        Navigator.pop(c);
+                      },
+                    ),
+                    Text(
+                      existingNote == null ? "ড্রয়িং তৈরি করুন" : "ড্রয়িং এডিট",
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
                     Row(
                       children: [
                         IconButton(icon: const Icon(Icons.undo), onPressed: () { undo(); s(() {}); }),
@@ -1690,7 +1795,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               isArchived: false,
                             );
                             await DatabaseService().addTransaction(newNote);
-                            final newNoteMap = {'key': newNote.id, 'note': newNote.note, 'date': newNote.date, 'category': newNote.category};
+                            final newNoteMap = {
+                              'key': newNote.id,
+                              'note': newNote.note,
+                              'date': newNote.date,
+                              'category': newNote.category,
+                            };
                             if (mounted) setState(() => _drawingNotes.insert(0, newNoteMap));
                             _isDrawingEditorOpen = false;
                             Navigator.pop(c);
@@ -1705,7 +1815,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              // Drawing canvas – same as before (unchanged)
+              // Drawing canvas
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) => GestureDetector(
@@ -1723,7 +1833,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       width: constraints.maxWidth,
                       height: constraints.maxHeight,
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), borderRadius: BorderRadius.circular(15)),
                       child: CustomPaint(
                         painter: FullDrawingPainter(
                           completedStrokes: completedStrokes,
@@ -1739,157 +1848,45 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              // Tools panel (colours, width, images) – inline colour buttons (no external _colorButton)
+              // Tools panel
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Column(
                   children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          // Black
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.black; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.black ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _buildColorCircle(Colors.black, currentColor, s, () { isEraser = false; currentColor = Colors.black; }),
+                        _buildColorCircle(Colors.red, currentColor, s, () { isEraser = false; currentColor = Colors.red; }),
+                        _buildColorCircle(Colors.blue, currentColor, s, () { isEraser = false; currentColor = Colors.blue; }),
+                        _buildColorCircle(Colors.green, currentColor, s, () { isEraser = false; currentColor = Colors.green; }),
+                        _buildColorCircle(Colors.orange, currentColor, s, () { isEraser = false; currentColor = Colors.orange; }),
+                        _buildColorCircle(Colors.purple, currentColor, s, () { isEraser = false; currentColor = Colors.purple; }),
+                        _buildColorCircle(Colors.pink, currentColor, s, () { isEraser = false; currentColor = Colors.pink; }),
+                        _buildColorCircle(Colors.brown, currentColor, s, () { isEraser = false; currentColor = Colors.brown; }),
+                        GestureDetector(
+                          onTap: () => s(() { isEraser = !isEraser; }),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: isEraser ? Colors.grey.shade300 : Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey),
                             ),
+                            child: Icon(Icons.brush, color: isEraser ? Colors.grey : Colors.black),
                           ),
-                          // Red
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.red; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.red ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
-                            ),
-                          ),
-                          // Blue
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.blue; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.blue,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.blue ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
-                            ),
-                          ),
-                          // Green
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.green; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.green ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
-                            ),
-                          ),
-                          // Orange
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.orange; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.orange,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.orange ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
-                            ),
-                          ),
-                          // Purple
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.purple; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.purple,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.purple ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
-                            ),
-                          ),
-                          // Pink
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.pink; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.pink,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.pink ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
-                            ),
-                          ),
-                          // Brown
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = false; currentColor = Colors.brown; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.brown,
-                                shape: BoxShape.circle,
-                                border: currentColor == Colors.brown ? Border.all(color: Colors.white, width: 3) : null,
-                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
-                              ),
-                            ),
-                          ),
-                          // Eraser toggle
-                          GestureDetector(
-                            onTap: () => s(() { isEraser = !isEraser; }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 5),
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: isEraser ? Colors.grey.shade300 : Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.grey),
-                              ),
-                              child: Icon(Icons.brush, color: isEraser ? Colors.grey : Colors.black),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         const Icon(Icons.line_weight),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Slider(
                             value: currentWidth,
@@ -1902,8 +1899,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
                       children: [
                         ElevatedButton.icon(
                           onPressed: () async {
@@ -1960,6 +1959,27 @@ class _HomeScreenState extends State<HomeScreen> {
       _isDrawingEditorOpen = false;
     });
   }
+
+  Widget _buildColorCircle(Color color, Color currentColor, StateSetter s, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        onTap();
+        s(() {});
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: color == currentColor ? Border.all(color: Colors.white, width: 3) : null,
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
+        ),
+      ),
+    );
+  }
+
   // ==================== MAIN BUILD METHOD ====================
   @override
   Widget build(BuildContext context) {
@@ -1971,7 +1991,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(getText('আমার হিসাব'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Text(getText('app_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             const SizedBox(width: 8),
             StreamBuilder<bool>(
               stream: _connectionStream,
@@ -1984,7 +2004,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
         actions: [
-          // 🟢 গ্যালারির লোকাল ছবি এবং গুগলের ছবি দুটোই হ্যান্ডেল করবে এই উইজেটটি
           GestureDetector(
             onTap: _showProfileDialog,
             child: Padding(
@@ -1993,64 +2012,38 @@ class _HomeScreenState extends State<HomeScreen> {
                 radius: 18,
                 backgroundColor: Colors.white24,
                 child: () {
-                  // ১. প্রথমে চেক করবে লোকাল স্টোরেজে (গ্যালারি থেকে আপলোড করা) কোনো ছবি আছে কিনা
                   if (_localProfilePicPath != null && _localProfilePicPath!.isNotEmpty) {
                     final file = File(_localProfilePicPath!);
                     if (file.existsSync()) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Image.file(
-                          file,
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.cover,
-                        ),
-                      );
+                      return ClipRRect(borderRadius: BorderRadius.circular(18), child: Image.file(file, width: 36, height: 36, fit: BoxFit.cover));
                     }
                   }
-
-                  // ২. লোকাল ছবি না থাকলে, চেক করবে গুগল অ্যাকাউন্টের (photoURL) ছবি আছে কিনা
                   final googlePhotoUrl = FirebaseAuth.instance.currentUser?.photoURL;
                   if (googlePhotoUrl != null && googlePhotoUrl.isNotEmpty) {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Image.network(
-                        googlePhotoUrl,
-                        width: 36,
-                        height: 36,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    );
+                    return ClipRRect(borderRadius: BorderRadius.circular(18), child: Image.network(googlePhotoUrl, width: 36, height: 36, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white, size: 20)));
                   }
-
-                  // ৩. কোনো ছবিই পাওয়া না গেলে ডিফল্ট পার্সন আইকন দেখাবে
-                  return const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 20,
-                  );
-                }(), // ফাংশনটি সাথে সাথে রান (Invoke) করার জন্য
+                  return const Icon(Icons.person, color: Colors.white, size: 20);
+                }(),
               ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-              onPressed: () async {
-                setState(() {
-                  _localProfilePicPath = null;
-                });
-                await AuthService().signOut();
-              }
+            onPressed: () async {
+              setState(() => _localProfilePicPath = null);
+              await AuthService().signOut();
+            },
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(backgroundColor: Colors.blue.shade700, onPressed: _openCalculator, child: const Icon(Icons.calculate, color: Colors.white, size: 28)),
-      body: IndexedStack(index: _currentIndex, children: [_buildMainBody(), _buildCalendarBody(), _buildNoticeBody(), _buildNotebookBody(), _buildProfileBody()]),
+      body: IndexedStack(index: _currentIndex, children: [
+        _buildMainBody(),
+        _buildCalendarBody(),
+        _buildNoticeBody(),
+        _buildNotebookBody(),
+        _buildProfileBody(),
+      ]),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
@@ -2058,12 +2051,12 @@ class _HomeScreenState extends State<HomeScreen> {
         unselectedItemColor: Colors.grey,
         backgroundColor: _isDarkMode ? Colors.grey[850] : Colors.white,
         onTap: (i) => setState(() => _currentIndex = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "হোম"),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: "ক্যালেন্ডার"),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "নোটিশ"),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: "নোটবুক"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "প্রোফাইল"),
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: getText('home')),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: getText('calendar')),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: getText('notice')),
+          BottomNavigationBarItem(icon: Icon(Icons.book), label: getText('notebook')),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: getText('profile')),
         ],
       ),
     );
@@ -2083,9 +2076,8 @@ class _HomeScreenState extends State<HomeScreen> {
         List<Map<String, dynamic>> drawingNotes = [];
 
         if (snap.hasData) {
-          final List<TransactionModel> transactions = snap.data!;
+          final transactions = snap.data!;
           for (var tx in transactions) {
-            // Convert to map to preserve all fields (including 'time' and custom data)
             final Map<String, dynamic> txMap = tx.toMap();
             txMap['key'] = tx.id;
 
@@ -2103,7 +2095,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             }
 
-            // Notes (text vs drawing)
+            // Notes
             if (tx.type == 'Note' && !(txMap['isArchived'] ?? false)) {
               bool hasDrawing = false;
               String category = tx.category ?? '';
@@ -2118,18 +2110,15 @@ class _HomeScreenState extends State<HomeScreen> {
               else textNotes.add(noteMap);
             }
 
-            // Regular financial transactions
+            // Financial transactions
             if (tx.type != 'Note' && tx.type != 'Reminder' && !(txMap['isArchived'] ?? false)) {
-              double amt = tx.amount;
-              txMap['amount'] = amt;
               firebaseList.add(txMap);
-              // We'll recalculate totals later after merging offline data
             }
           }
           firebaseList.sort((a, b) => (b['id'] ?? b['key']).compareTo((a['id'] ?? a['key'])));
         }
 
-        // Merge offline transactions (kept as before)
+        // Merge offline transactions
         final offlineTxs = OfflineService.getOfflineTransactions();
         List<Map<String, dynamic>> offlineList = offlineTxs.map((tx) => {
           'key': tx.id, 'id': tx.id, 'amount': tx.amount, 'note': tx.note,
@@ -2138,7 +2127,7 @@ class _HomeScreenState extends State<HomeScreen> {
         List<Map<String, dynamic>> allList = [...firebaseList, ...offlineList];
         allList.sort((a, b) => (b['id'] ?? b['key']).compareTo((a['id'] ?? a['key'])));
 
-        // Recalculate totals from the merged list
+        // Recalculate totals
         inc = 0; exp = 0; sav = 0; dbt = 0; crd = 0;
         for (var tx in allList) {
           double amt = tx['amount'] ?? 0;
@@ -2150,7 +2139,7 @@ class _HomeScreenState extends State<HomeScreen> {
           else if (type == 'Credit') crd += amt;
         }
 
-        // Update UI state for calendar and notebook tabs
+        // Update state for calendar and notebook
         if (_events.length != newEvents.length ||
             _allReminders.length != reminders.length ||
             _textNotes.length != textNotes.length ||
@@ -2166,80 +2155,453 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
 
+        // ========== PROFESSIONAL UI ==========
         return RefreshIndicator(
           onRefresh: () async => setState(() {}),
           child: SingleChildScrollView(
-            child: Column(children: [
-              const SizedBox(height: 10),
-              _buildSummaryGrid(inc, exp, sav, dbt, crd, symbol),
-              const SizedBox(height: 10),
-              _buildActionButtons(),
-              const SizedBox(height: 15),
-              _buildBudgetOverviewCard(),
-              const SizedBox(height: 15),
-              _buildSectionTitle(getText('income_expense_stats')),
-              const SizedBox(height: 5),
-              _buildDashboardStatsGrid(),
-              const SizedBox(height: 15),
-              _buildSectionTitle(getText('other_accounts')),
-              const SizedBox(height: 5),
-              _buildOtherAccountsGrid(),
-              const SizedBox(height: 15),
-              _buildBudgetButton(),
-              const SizedBox(height: 5),
-              _buildRecurringButton(),
-              const SizedBox(height: 5),
-              _buildExportButton(),
-              const SizedBox(height: 15),
-              _buildSectionTitle(getText('recent_transactions')),
-              _buildTransactionHistory(allList, symbol),
-              const SizedBox(height: 80),
-            ]),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildProfessionalSummaryGrid(inc, exp, sav, dbt, crd, symbol),
+                const SizedBox(height: 20),
+                _buildProfessionalActionButtons(),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _buildBudgetOverviewCard(),
+                ),
+                const SizedBox(height: 20),
+                _buildProfessionalSectionTitle(getText('income_expense_stats'), Icons.bar_chart),
+                const SizedBox(height: 12),
+                _buildProfessionalDashboardStatsGrid(),
+                const SizedBox(height: 20),
+                _buildProfessionalSectionTitle(getText('other_accounts'), Icons.account_balance_wallet),
+                const SizedBox(height: 12),
+                _buildProfessionalOtherAccountsGrid(),
+                const SizedBox(height: 20),
+                _buildFeatureButtonsRow(),
+                const SizedBox(height: 20),
+                _buildProfessionalSectionTitle(getText('recent_transactions'), Icons.history),
+                const SizedBox(height: 12),
+                _buildTransactionHistory(allList, symbol),
+                const SizedBox(height: 80),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  // ==================== UI COMPONENTS (short versions – keep your existing code) ====================
-  Widget _buildSummaryGrid(double inc, double exp, double sav, double dbt, double crd, String symbol) => GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 3, padding: const EdgeInsets.all(10), mainAxisSpacing: 12, crossAxisSpacing: 12, children: [_buildBox(getText('income'), inc, Colors.green.shade700, symbol), _buildBox(getText('expense'), exp, Colors.red.shade700, symbol), _buildBox(getText('savings'), sav, Colors.blue.shade700, symbol), _buildBox(getText('debt'), dbt, Colors.deepOrange.shade700, symbol), _buildBox(getText('credit'), crd, Colors.deepPurple.shade700, symbol), _buildBox(getText('balance'), inc - exp, Colors.teal.shade700, symbol)]);
-  Widget _buildBox(String label, double value, Color color, String symbol) => TweenAnimationBuilder(tween: Tween<double>(begin: 0, end: value), duration: const Duration(milliseconds: 800), curve: Curves.elasticOut, builder: (c, double v, child) => Container(decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.2), color.withOpacity(0.05)]), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.3), width: 1.5)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)), const SizedBox(height: 8), Text("$symbol ${v.toStringAsFixed(0)}", style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18))])));
-  Widget _buildActionButtons() => Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Row(children: [Expanded(child: _bigBtn(getText('income'), Icons.add, Colors.green, _showIncomeDialog)), const SizedBox(width: 10), Expanded(child: _bigBtn(getText('expense'), Icons.remove, Colors.red, _showExpenseDialog))]));
-  Widget _bigBtn(String t, IconData i, Color c, VoidCallback f) => ElevatedButton.icon(onPressed: f, icon: Icon(i, color: Colors.white, size: 20), label: Text(t, style: const TextStyle(color: Colors.white, fontSize: 16)), style: ElevatedButton.styleFrom(backgroundColor: c, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 5));
-  Widget _buildSectionTitle(String t) => Padding(padding: const EdgeInsets.only(left: 15, top: 10, bottom: 5), child: Align(alignment: Alignment.centerLeft, child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueGrey))));
-  Widget _buildDashboardStatsGrid() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_buildGradientBox(Icons.today, getText('daily'), Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const DailyStatsScreen()))), _buildGradientBox(Icons.calendar_month, getText('monthly'), Colors.red, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const MonthlyStatsScreen()))), _buildGradientBox(Icons.history, getText('yearly'), Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (c) => const YearlyStatsScreen())))]));
-  Widget _buildGradientBox(IconData i, String l, Color c, VoidCallback f) => Expanded(child: GestureDetector(onTap: f, child: Container(margin: const EdgeInsets.symmetric(horizontal: 4), padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [c.withOpacity(0.9), c]), borderRadius: BorderRadius.circular(18)), child: Column(children: [Icon(i, color: Colors.white, size: 30), const SizedBox(height: 6), Text(l, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))]))));
-  Widget _buildOtherAccountsGrid() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_buildColoredBox(Icons.money_off, getText('debt'), Colors.deepOrange, () => _showDebtCreditDialog("দেনা")), _buildColoredBox(Icons.attach_money, getText('credit'), Colors.deepPurple, () => _showDebtCreditDialog("পাওনা")), _buildColoredBox(Icons.account_balance, getText('savings'), Colors.blue, () => _showDebtCreditDialog("সঞ্চয়"))]));
-  Widget _buildColoredBox(IconData i, String l, Color c, VoidCallback f) => Expanded(child: GestureDetector(onTap: f, child: Container(margin: const EdgeInsets.symmetric(horizontal: 4), padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [c.withOpacity(0.85), c]), borderRadius: BorderRadius.circular(18)), child: Column(children: [Icon(i, color: Colors.white, size: 30), const SizedBox(height: 6), Text(l, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))]))));
-  Widget _buildTransactionHistory(List<Map<String, dynamic>> list, String symbol) {
-    if (list.isEmpty) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(getText('no_transactions'), style: const TextStyle(fontSize: 16, color: Colors.grey))));
-    return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: list.length, itemBuilder: (c, i) {
-      final tx = list[i]; final bool isInc = tx['type'] == 'Income'; final Color ac = isInc ? Colors.green : Colors.red;
-      double amt = 0.0; var raw = tx['amount'];
-      if (raw is double) amt = raw; else if (raw is int) amt = raw.toDouble(); else if (raw is String) amt = double.tryParse(raw) ?? 0.0;
-      return Card(margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), elevation: 3, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), child: ListTile(leading: CircleAvatar(backgroundColor: ac.withOpacity(0.15), child: Icon(isInc ? Icons.arrow_downward : Icons.arrow_upward, color: ac)), title: Text(tx['note'] ?? "", style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis), subtitle: Text("${getCategoryName(tx['category'] ?? 'other')} • ${tx['date'] ?? ""}", style: const TextStyle(fontSize: 11, color: Colors.grey)), trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text("$symbol ${amt.toStringAsFixed(0)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ac)), const SizedBox(width: 8), Icon(Icons.more_vert, color: Colors.grey)]), onTap: () => _showTransactionOptions(tx)));
-    });
+  // ==================== UI COMPONENTS ====================
+  Widget _buildProfessionalSummaryGrid(double inc, double exp, double sav, double dbt, double crd, String symbol) {
+    final items = [
+      {'label': getText('income'), 'value': inc, 'color': Colors.green, 'icon': Icons.trending_up},
+      {'label': getText('expense'), 'value': exp, 'color': Colors.red, 'icon': Icons.trending_down},
+      {'label': getText('savings'), 'value': sav, 'color': Colors.blue, 'icon': Icons.savings},
+      {'label': getText('debt'), 'value': dbt, 'color': Colors.deepOrange, 'icon': Icons.money_off},
+      {'label': getText('credit'), 'value': crd, 'color': Colors.deepPurple, 'icon': Icons.attach_money},
+      {'label': getText('balance'), 'value': inc - exp, 'color': Colors.teal, 'icon': Icons.account_balance},
+    ];
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 3,
+      crossAxisSpacing: 4,
+      mainAxisSpacing: 4,
+      childAspectRatio: 0.8,
+      children: items.map((item) => _buildGradientCard(
+        item['label'] as String,
+        item['value'] as double,
+        item['color'] as Color,
+        item['icon'] as IconData,
+        symbol,
+      )).toList(),
+    );
   }
+
+  Widget _buildGradientCard(String label, double value, Color color, IconData icon, String symbol) {
+    return AnimatedBorderCard(
+      baseColor: color,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 1),
+            Text("$symbol ${value.toInt()}", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfessionalActionButtons() {
+    return Row(
+      children: [
+        Expanded(child: _buildGradientButton(getText('income'), Icons.add, Colors.green, _showIncomeDialog)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildGradientButton(getText('expense'), Icons.remove, Colors.red, _showExpenseDialog)),
+      ],
+    );
+  }
+
+  Widget _buildGradientButton(String label, IconData icon, Color color, VoidCallback onPressed) {
+    return Expanded(
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          minimumSize: const Size(0, 52),
+        ),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]),
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Container(
+            alignment: Alignment.center,
+            height: 52,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 24),
+                const SizedBox(width: 8),
+                Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfessionalSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.blue.shade700, size: 22),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: _isDarkMode ? Colors.white : Colors.blueGrey.shade800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfessionalDashboardStatsGrid() {
+    return Row(
+      children: [
+        _buildStatCard(Icons.today, getText('daily'), Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DailyStatsScreen()))),
+        const SizedBox(width: 12),
+        _buildStatCard(Icons.calendar_month, getText('monthly'), Colors.red, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MonthlyStatsScreen()))),
+        const SizedBox(width: 12),
+        _buildStatCard(Icons.history, getText('yearly'), Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const YearlyStatsScreen()))),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [color.withOpacity(0.1), color.withOpacity(0.05)]),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 30),
+              const SizedBox(height: 6),
+              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfessionalOtherAccountsGrid() {
+    return Row(
+      children: [
+        _buildOtherAccountCard(Icons.money_off, getText('debt'), Colors.deepOrange, () => _showDebtCreditDialog("দেনা")),
+        const SizedBox(width: 12),
+        _buildOtherAccountCard(Icons.attach_money, getText('credit'), Colors.deepPurple, () => _showDebtCreditDialog("পাওনা")),
+        const SizedBox(width: 12),
+        _buildOtherAccountCard(Icons.account_balance, getText('savings'), Colors.blue, () => _showDebtCreditDialog("সঞ্চয়")),
+      ],
+    );
+  }
+
+  Widget _buildOtherAccountCard(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [color.withOpacity(0.1), color.withOpacity(0.05)]),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 30),
+              const SizedBox(height: 6),
+              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureButtonsRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildFeatureButton(
+            getText('budget_management'),
+            Icons.account_balance_wallet,
+            Colors.teal,
+                () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BudgetScreen(
+                  selectedLanguage: _selectedLanguage,
+                  localizedText: _localizedText,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildFeatureButton(
+            getText('recurring_transactions'),
+            Icons.repeat,
+            Colors.purple,
+                () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RecurringScreen(
+                  selectedLanguage: _selectedLanguage,
+                  localizedText: _localizedText,
+                  incomeCategories: incomeCategories,
+                  expenseCategories: expenseCategories,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildFeatureButton(
+            getText('export_report'),
+            Icons.download,
+            Colors.indigo,
+                () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ExportScreen(
+                  selectedLanguage: _selectedLanguage,
+                  selectedCurrency: _selectedCurrency,
+                  currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳',
+                  localizedText: _localizedText,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeatureButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: color,
+        elevation: 2,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionHistory(List<Map<String, dynamic>> list, String symbol) {
+    if (list.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(getText('no_transactions'), style: const TextStyle(fontSize: 16, color: Colors.grey)),
+        ),
+      );
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: list.length,
+      itemBuilder: (context, i) {
+        final tx = list[i];
+        final bool isInc = tx['type'] == 'Income';
+        final Color ac = isInc ? Colors.green : Colors.red;
+        double amt = 0.0;
+        var raw = tx['amount'];
+        if (raw is double) amt = raw;
+        else if (raw is int) amt = raw.toDouble();
+        else if (raw is String) amt = double.tryParse(raw) ?? 0.0;
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+          elevation: 1.5,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: ac.withOpacity(0.15),
+              child: Icon(isInc ? Icons.arrow_downward : Icons.arrow_upward, color: ac),
+            ),
+            title: Text(tx['note'] ?? "", style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text("${getCategoryName(tx['category'] ?? 'other')} • ${tx['date'] ?? ""}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text("$symbol ${amt.toStringAsFixed(0)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: ac)),
+                const SizedBox(width: 12),
+                Icon(Icons.more_vert, color: Colors.grey),
+              ],
+            ),
+            onTap: () => _showTransactionOptions(tx),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildBudgetOverviewCard() {
     String cm = DateFormat('yyyy-MM').format(DateTime.now());
-    return FutureBuilder<Map<String, dynamic>>(future: DatabaseService().getBudgetSummary(cm), builder: (c, snap) {
-      if (!snap.hasData) return const SizedBox.shrink();
-      double tb = (snap.data!['totalBudget'] ?? 0).toDouble(), ts = (snap.data!['totalSpent'] ?? 0).toDouble(), p = (snap.data!['percentage'] ?? 0).toDouble();
-      if (tb == 0) return const SizedBox.shrink();
-      Color sc = p >= 100 ? Colors.red : p >= 80 ? Colors.orange : Colors.teal;
-      return Padding(padding: const EdgeInsets.symmetric(horizontal: 15), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => BudgetScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText))), child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [sc.withOpacity(0.8), sc]), borderRadius: BorderRadius.circular(20)), child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Row(children: [const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24), const SizedBox(width: 10), Text(getText('monthly_budget'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))]), const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16)]),
-        const SizedBox(height: 12),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('৳ ${ts.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)), Text(getText('budget_spent'), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12))]), Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text('৳ ${tb.toStringAsFixed(0)}', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 18)), Text(getText('total_budget'), style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12))])]),
-        const SizedBox(height: 12), ClipRRect(borderRadius: BorderRadius.circular(5), child: LinearProgressIndicator(value: p / 100, backgroundColor: Colors.white.withOpacity(0.3), valueColor: const AlwaysStoppedAnimation<Color>(Colors.white), minHeight: 8)),
-        const SizedBox(height: 5), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${p.toStringAsFixed(1)}% ${getText('used')}', style: const TextStyle(color: Colors.white, fontSize: 12)), Text('${getText('remaining')}: ৳ ${(tb - ts).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 12))]),
-        if (p >= 100) Container(margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)), child: Row(children: [const Icon(Icons.warning, color: Colors.white, size: 18), const SizedBox(width: 5), Text('${getText('budget_exceeded')}!', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))])),
-      ]))));
-    });
+    return FutureBuilder<Map<String, dynamic>>(
+      future: DatabaseService().getBudgetSummary(cm),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        double tb = (snap.data!['totalBudget'] ?? 0).toDouble();
+        double ts = (snap.data!['totalSpent'] ?? 0).toDouble();
+        double p = (snap.data!['percentage'] ?? 0).toDouble();
+        if (tb == 0) return const SizedBox.shrink();
+        Color sc = p >= 100 ? Colors.red : p >= 80 ? Colors.orange : Colors.teal;
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BudgetScreen(
+                selectedLanguage: _selectedLanguage,
+                localizedText: _localizedText,
+              ),
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [sc.withOpacity(0.8), sc]),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
+                        const SizedBox(width: 10),
+                        Text(getText('monthly_budget'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('৳ ${ts.toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text(getText('budget_spent'), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('৳ ${tb.toStringAsFixed(0)}', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 18)),
+                        Text(getText('total_budget'), style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: LinearProgressIndicator(
+                    value: p / 100,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('${p.toStringAsFixed(1)}% ${getText('used')}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    Text('${getText('remaining')}: ৳ ${(tb - ts).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ],
+                ),
+                if (p >= 100)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning, color: Colors.white, size: 18),
+                        const SizedBox(width: 5),
+                        Text('${getText('budget_exceeded')}!', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
-  Widget _buildBudgetButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => BudgetScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText))), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.teal.withOpacity(0.85), Colors.teal.shade700]), borderRadius: BorderRadius.circular(18)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28), const SizedBox(width: 10), Text(getText('budget_management'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))));
-  Widget _buildRecurringButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => RecurringScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText, incomeCategories: incomeCategories, expenseCategories: expenseCategories))), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.purple.withOpacity(0.85), Colors.purple.shade700]), borderRadius: BorderRadius.circular(18)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.repeat, color: Colors.white, size: 28), const SizedBox(width: 10), Text(getText('recurring_transactions'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))));
-  Widget _buildExportButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => ExportScreen(selectedLanguage: _selectedLanguage, selectedCurrency: _selectedCurrency, currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳', localizedText: _localizedText))), child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.indigo.withOpacity(0.85), Colors.indigo.shade700]), borderRadius: BorderRadius.circular(18)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.download, color: Colors.white, size: 28), const SizedBox(width: 10), Text(getText('export_report'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600))]))));
+
   Widget _buildCalendarBody() {
     DateTime sd = _selectedDay ?? DateTime.now(); String? holiday = BDHolidays.getHoliday(sd);
     return Column(children: [Expanded(child: SingleChildScrollView(child: Column(children: [
@@ -2254,12 +2616,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(margin: const EdgeInsets.symmetric(horizontal: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.purple.shade600]), borderRadius: BorderRadius.circular(20)), child: Column(children: [Row(children: [const Icon(Icons.calendar_today, color: Colors.white), const SizedBox(width: 10), Text(DateFormat('EEEE, d MMMM yyyy').format(sd), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))]), if (_showBengaliDate) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.calendar_month, color: Colors.white, size: 18), const SizedBox(width: 10), Text('বাংলা: ${BengaliCalendar.getBengaliDate(sd)}, ${BengaliCalendar.getBengaliDay(sd.weekday)}', style: const TextStyle(color: Colors.white))])], if (_showHijriDate) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.calendar_view_month, color: Colors.white, size: 18), const SizedBox(width: 10), Text('হিজরি: ${HijriCalendar.getHijriDate(sd)}', style: const TextStyle(color: Colors.white))])]]));
   }
 
-  Widget _buildAddReminderButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: ElevatedButton.icon(onPressed: _showReminderInput, icon: const Icon(Icons.add_alert), label: Text(getText('add_reminder')), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 5)));
+  Widget _buildAddReminderButton() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    child: ElevatedButton.icon(
+      onPressed: _showReminderInput,
+      icon: const Icon(Icons.add_alert),
+      label: Text(getText('add_reminder')),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 5,
+      ),
+    ),
+  );
 
   Widget _buildNoticeBody() {
-    if (_allReminders.isEmpty) {
-      return Center(child: Text(getText('no_notices')));
-    }
+    if (_allReminders.isEmpty) return Center(child: Text(getText('no_notices')));
     return ListView.builder(
       padding: const EdgeInsets.all(10),
       itemCount: _allReminders.length,
@@ -2282,28 +2657,143 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Widget _buildProfileBody() {
     String cs = _currencySymbols[_selectedCurrency] ?? '৳';
     String ln = _selectedLanguage == 'bn' ? 'বাংলা' : (_selectedLanguage == 'ar' ? 'العربية' : 'English');
-    return Center(child: SingleChildScrollView(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const SizedBox(height: 40),
-      GestureDetector(onTap: _changeProfilePhoto, child: Stack(children: [CircleAvatar(radius: 50, backgroundColor: Colors.blue.shade100, backgroundImage: _profileImagePath != null ? FileImage(File(_profileImagePath!)) : null, child: _profileImagePath == null ? Icon(Icons.person, size: 50, color: Colors.blue) : null), Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 18, backgroundColor: Colors.blue, child: Icon(Icons.camera_alt, size: 18, color: Colors.white)))])),
-      const SizedBox(height: 16), Text(_userName.isNotEmpty ? _userName : "User", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 5),
-      Text(AuthService().currentUser?.email ?? "", style: TextStyle(fontSize: 14, color: Colors.grey[600])), const SizedBox(height: 20),
-      Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(25)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.language, size: 18, color: Colors.blue), const SizedBox(width: 8), Text(ln), const SizedBox(width: 20), Icon(Icons.currency_exchange, size: 18, color: Colors.green), const SizedBox(width: 8), Text("$_selectedCurrency ($cs)")])),
-      const SizedBox(height: 30),
-      ElevatedButton.icon(onPressed: _showProfileDialog, icon: const Icon(Icons.settings), label: Text(getText('change_settings')), style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 3)),
-      const SizedBox(height: 15),
-      ElevatedButton.icon(onPressed: _openSecurityScreen, icon: const Icon(Icons.security), label: Text(getText('security_settings')), style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 3)),
-      const SizedBox(height: 15),
-      ElevatedButton.icon(onPressed: () => AuthService().signOut(), icon: const Icon(Icons.logout), label: Text(getText('logout')), style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 3)),
-      const SizedBox(height: 50),
-    ])));
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 40),
+            GestureDetector(
+              onTap: _changeProfilePhoto,
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.blue.shade100,
+                    backgroundImage: _profileImagePath != null ? FileImage(File(_profileImagePath!)) : null,
+                    child: _profileImagePath == null ? const Icon(Icons.person, size: 50, color: Colors.blue) : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: const CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.blue,
+                      child: Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(_userName.isNotEmpty ? _userName : "User", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 5),
+            Text(AuthService().currentUser?.email ?? "", style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(25)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.language, size: 18, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Text(ln),
+                  const SizedBox(width: 20),
+                  const Icon(Icons.currency_exchange, size: 18, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text("$_selectedCurrency ($cs)"),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: _showProfileDialog,
+              icon: const Icon(Icons.settings),
+              label: Text(getText('change_settings')),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 3,
+              ),
+            ),
+            const SizedBox(height: 15),
+            ElevatedButton.icon(
+              onPressed: _openSecurityScreen,
+              icon: const Icon(Icons.security),
+              label: Text(getText('security_settings')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 3,
+              ),
+            ),
+            const SizedBox(height: 15),
+            ElevatedButton.icon(
+              onPressed: () => AuthService().signOut(),
+              icon: const Icon(Icons.logout),
+              label: Text(getText('logout')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 3,
+              ),
+            ),
+            const SizedBox(height: 50),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-// ==================== DRAWING PAINTER (unchanged) ====================
+// ==================== HELPER CLASSES ====================
+class AnimatedBorderCard extends StatefulWidget {
+  final Widget child;
+  final Color baseColor;
+  const AnimatedBorderCard({super.key, required this.child, required this.baseColor});
+  @override
+  State<AnimatedBorderCard> createState() => _AnimatedBorderCardState();
+}
+
+class _AnimatedBorderCardState extends State<AnimatedBorderCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: const Duration(seconds: 3), vsync: this)..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
+  }
+  @override
+  void dispose() { _controller.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        final opacity = 0.3 + (_animation.value * 0.4);
+        final borderWidth = 1.5 + (_animation.value * 1.5);
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [widget.baseColor.withOpacity(0.9), widget.baseColor]),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: widget.baseColor.withOpacity(opacity), blurRadius: 12 + (_animation.value * 8), offset: Offset(0, 4 + (_animation.value * 4)))],
+            border: Border.all(color: widget.baseColor.withOpacity(0.8), width: borderWidth),
+          ),
+          child: widget.child,
+        );
+      },
+    );
+  }
+}
+
 class FullDrawingPainter extends CustomPainter {
   final List<List<Offset>> completedStrokes;
   final List<Color> strokeColors;
@@ -2311,9 +2801,7 @@ class FullDrawingPainter extends CustomPainter {
   final List<Offset> currentStroke;
   final Color currentColor;
   final double currentWidth;
-
   FullDrawingPainter({required this.completedStrokes, required this.strokeColors, required this.strokeWidths, required this.currentStroke, required this.currentColor, required this.currentWidth});
-
   @override
   void paint(Canvas canvas, Size size) {
     for (int i = 0; i < completedStrokes.length; i++) {
@@ -2333,19 +2821,16 @@ class FullDrawingPainter extends CustomPainter {
       canvas.drawPath(path, paint);
     }
   }
-
-
   @override
   bool shouldRepaint(covariant FullDrawingPainter oldDelegate) {
     return oldDelegate.completedStrokes != completedStrokes || oldDelegate.currentStroke != currentStroke || oldDelegate.currentColor != currentColor || oldDelegate.currentWidth != currentWidth || oldDelegate.strokeWidths != strokeWidths;
   }
 }
+
 class NotepadLinesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.black26
-      ..strokeWidth = 1.0;
+    final paint = Paint()..color = Colors.black26..strokeWidth = 1.0;
     const double lineHeight = 30.0;
     int lines = (size.height / lineHeight).ceil();
     for (int i = 1; i <= lines; i++) {
@@ -2353,7 +2838,6 @@ class NotepadLinesPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
