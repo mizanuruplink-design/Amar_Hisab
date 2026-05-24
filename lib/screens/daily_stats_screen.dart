@@ -6,7 +6,14 @@ import '../services/pdf_service.dart';
 import '../models/transaction_model.dart';
 
 class DailyStatsScreen extends StatefulWidget {
-  const DailyStatsScreen({super.key});
+  final String selectedLanguage;
+  final Map<String, Map<String, String>> localizedText;
+
+  const DailyStatsScreen({
+    super.key,
+    required this.selectedLanguage,
+    required this.localizedText,
+  });
 
   @override
   State<DailyStatsScreen> createState() => _DailyStatsScreenState();
@@ -17,15 +24,33 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
   String _filterType = 'all';
   bool _isExporting = false;
 
+  String getText(String key) {
+    return widget.localizedText[widget.selectedLanguage]?[key] ??
+        widget.localizedText['bn']?[key] ??
+        key;
+  }
+
+  String _getFormattedDate(DateTime date) {
+    String locale;
+    if (widget.selectedLanguage == 'bn') {
+      locale = 'bn_BD';
+    } else if (widget.selectedLanguage == 'ar') {
+      locale = 'ar_SA';
+    } else {
+      locale = 'en_US';
+    }
+    return DateFormat('EEEE, d MMMM yyyy', locale).format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     final String formattedDate = DateFormat('dd/MM/yyyy').format(_selectedDate);
-    final String displayDate = DateFormat('EEEE, d MMMM yyyy', 'bn').format(_selectedDate);
+    final String displayDate = _getFormattedDate(_selectedDate);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text("দৈনিক পরিসংখ্যান", style: TextStyle(fontSize: 18)),
+        title: Text(getText('daily_stats'), style: const TextStyle(fontSize: 18)),
         backgroundColor: Colors.blue.shade800,
         elevation: 0,
         centerTitle: true,
@@ -89,13 +114,15 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
                     Expanded(
                       child: _buildActionCard(
                         icon: Icons.picture_as_pdf,
-                        label: _isExporting ? "সেভ হচ্ছে..." : "PDF",
+                        label: _isExporting ? getText('saving') : getText('pdf'),
                         color: Colors.green,
-                        onTap: _isExporting ? null : () {
+                        onTap: _isExporting
+                            ? null
+                            : () {
                           if (filteredList.isNotEmpty) {
                             _exportToPdf(filteredList, formattedDate);
                           } else {
-                            _showSnackBar("কোনো লেনদেন নেই");
+                            _showSnackBar(getText('no_transactions'));
                           }
                         },
                       ),
@@ -109,30 +136,30 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    _summaryCard("মোট আয়", totalIncome, Colors.green),
+                    _summaryCard(getText('total_income'), totalIncome, Colors.green),
                     const SizedBox(width: 12),
-                    _summaryCard("মোট ব্যয়", totalExpense, Colors.red),
+                    _summaryCard(getText('total_expense'), totalExpense, Colors.red),
                     const SizedBox(width: 12),
-                    _summaryCard("সঞ্চয়", totalIncome - totalExpense, Colors.blue),
+                    _summaryCard(getText('savings'), totalIncome - totalExpense, Colors.blue),
                   ],
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              // Filter row
+              // Filter row - NOW WITH TRANSLATED DROPDOWN
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("লেনদেন ইতিহাস", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(getText('transaction_history'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     DropdownButton<String>(
                       value: _filterType,
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text("সব")),
-                        DropdownMenuItem(value: 'income', child: Text("শুধু আয়")),
-                        DropdownMenuItem(value: 'expense', child: Text("শুধু ব্যয়")),
+                      items: [
+                        DropdownMenuItem(value: 'all', child: Text(getText('all'))),
+                        DropdownMenuItem(value: 'income', child: Text(getText('income'))),
+                        DropdownMenuItem(value: 'expense', child: Text(getText('expense'))),
                       ],
                       onChanged: (v) => setState(() => _filterType = v!),
                       underline: const SizedBox(),
@@ -165,8 +192,10 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: isIncome ? Colors.green.shade100 : Colors.red.shade100,
-                          child: Icon(isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                              color: isIncome ? Colors.green : Colors.red),
+                          child: Icon(
+                            isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                            color: isIncome ? Colors.green : Colors.red,
+                          ),
                         ),
                         title: Text(tx.note ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(displayDateOnly),
@@ -190,7 +219,12 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
     );
   }
 
-  Widget _buildActionCard({required IconData icon, required String label, required Color color, required VoidCallback? onTap}) {
+  Widget _buildActionCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback? onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -225,7 +259,10 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
           children: [
             Text(title, style: const TextStyle(color: Colors.white, fontSize: 12)),
             const SizedBox(height: 4),
-            Text("৳ ${amount.toInt()}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              "৳ ${amount.toInt()}",
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ],
         ),
       ),
@@ -239,7 +276,7 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
         children: [
           Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 10),
-          Text("কোনো লেনদেন নেই", style: TextStyle(color: Colors.grey[600])),
+          Text(getText('no_transactions'), style: TextStyle(color: Colors.grey[600])),
         ],
       ),
     );
@@ -259,13 +296,13 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
         };
       }).toList();
 
-      final pdfFile = await PdfService().generatePdf(exportData, "দৈনিক রিপোর্ট: $date");
+      final pdfFile = await PdfService().generatePdf(exportData, "${getText('daily_report')}: $date");
       if (mounted) {
         _showExportSuccessDialog(pdfFile);
       }
     } catch (e) {
       if (mounted) {
-        _showSnackBar("PDF তৈরি করতে ব্যর্থ: $e");
+        _showSnackBar("${getText('pdf_failed')}: $e");
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);
@@ -276,12 +313,12 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text("এক্সপোর্ট সফল"),
-        content: const Text("পিডিএফ ফাইল তৈরি হয়েছে। আপনি শেয়ার বা প্রিন্ট করতে পারেন।"),
+        title: Text(getText('export_success')),
+        content: Text(getText('pdf_created_message')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c),
-            child: const Text("বন্ধ করুন"),
+            child: Text(getText('close')),
           ),
           ElevatedButton.icon(
             onPressed: () {
@@ -289,7 +326,7 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
               PdfService().shareFile(file);
             },
             icon: const Icon(Icons.share),
-            label: const Text("শেয়ার"),
+            label: Text(getText('share')),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           ),
           ElevatedButton.icon(
@@ -298,7 +335,7 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
               PdfService().printPdf(file);
             },
             icon: const Icon(Icons.print),
-            label: const Text("প্রিন্ট"),
+            label: Text(getText('print')),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
           ),
         ],

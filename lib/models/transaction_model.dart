@@ -8,6 +8,7 @@ class TransactionModel {
   String? refundDate;
   bool isPaid;
   bool isArchived;
+  String? time;  // 👈 ADD THIS LINE
 
   TransactionModel({
     required this.id,
@@ -19,6 +20,7 @@ class TransactionModel {
     this.refundDate,
     this.isPaid = false,
     this.isArchived = false,
+    this.time,  // 👈 ADD THIS LINE (optional)
   });
 
   // ডাটাবেসে সেভ করার জন্য Map-এ কনভার্ট (id সহ)
@@ -33,6 +35,7 @@ class TransactionModel {
       'refundDate': refundDate,
       'isPaid': isPaid,
       'isArchived': isArchived,
+      if (time != null) 'time': time,  // 👈 ADD THIS LINE (only if not null)
     };
   }
 
@@ -50,6 +53,7 @@ class TransactionModel {
       refundDate: map['refundDate'],
       isPaid: map['isPaid'] ?? false,
       isArchived: map['isArchived'] ?? false,
+      time: map['time'] as String?,  // 👈 ADD THIS LINE
     );
   }
 }

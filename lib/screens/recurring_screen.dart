@@ -24,15 +24,33 @@ class RecurringScreen extends StatefulWidget {
 class _RecurringScreenState extends State<RecurringScreen> {
   final DatabaseService _db = DatabaseService();
 
-  // ✅ আপগ্রেডেড getText – সব টেক্সটের জন্য ফলব্যাক ট্রান্সলেশন
+  // ✅ ক্যাটাগরি অনুযায়ী আইকন ও রঙ বের করার হেল্পার
+  IconData _getCategoryIcon(String categoryKey, String type) {
+    final List<Map<String, dynamic>> categories =
+    type == 'Income' ? widget.incomeCategories : widget.expenseCategories;
+    final cat = categories.firstWhere(
+          (c) => c['key'] == categoryKey,
+      orElse: () => {'icon': Icons.category, 'color': Colors.grey},
+    );
+    return cat['icon'] as IconData;
+  }
+
+  Color _getCategoryColor(String categoryKey, String type) {
+    final List<Map<String, dynamic>> categories =
+    type == 'Income' ? widget.incomeCategories : widget.expenseCategories;
+    final cat = categories.firstWhere(
+          (c) => c['key'] == categoryKey,
+      orElse: () => {'icon': Icons.category, 'color': Colors.grey},
+    );
+    return cat['color'] as Color;
+  }
+
   String getText(String key) {
-    // প্রথমে লোকালাইজেশন ম্যাপ থেকে খোঁজে
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
 
-    // ফলব্যাক ট্রান্সলেশন (বাংলা, ইংরেজি, আরবি) – কী অনুযায়ী
+    // ফলব্যাক ট্রান্সলেশন (আগের মতোই রাখা হয়েছে)
     switch (key) {
-    // শিরোনাম ও সাধারণ টেক্সট
       case 'recurring_transactions':
         switch (widget.selectedLanguage) {
           case 'bn': return 'রিকারিং ট্রানজেকশন';
@@ -69,8 +87,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
           case 'ar': return 'الاستحقاق القادم';
           default: return 'Next Due';
         }
-
-    // ফ্রিকোয়েন্সি টেক্সট
       case 'daily':
         switch (widget.selectedLanguage) {
           case 'bn': return 'দৈনিক';
@@ -95,8 +111,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
           case 'ar': return 'سنوياً';
           default: return 'Yearly';
         }
-
-    // ফর্ম লেবেল
       case 'type':
         switch (widget.selectedLanguage) {
           case 'bn': return 'টাইপ';
@@ -145,8 +159,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
           case 'ar': return 'تاريخ البدء';
           default: return 'Start Date';
         }
-
-    // বাটন ও মেসেজ
       case 'add':
         switch (widget.selectedLanguage) {
           case 'bn': return 'যোগ করুন';
@@ -195,9 +207,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
           case 'ar': return 'لا';
           default: return 'No';
         }
-
       default:
-      // কোনো ম্যাচ না পেলে বাংলা ফলব্যাক বা কী-নাম
         return widget.localizedText['bn']?[key] ?? key;
     }
   }
@@ -215,10 +225,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.blue.shade700,
-        title: Text(
-          getText('recurring_transactions'),
-          style: const TextStyle(color: Colors.white),
-        ),
+        title: Text(getText('recurring_transactions'), style: const TextStyle(color: Colors.white)),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -236,7 +243,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (snapshot.hasError) {
             return Center(
               child: Column(
@@ -246,17 +252,12 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   const SizedBox(height: 10),
                   Text('Error: ${snapshot.error}'),
                   const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () => setState(() {}),
-                    child: Text(getText('retry')),
-                  ),
+                  ElevatedButton(onPressed: () => setState(() {}), child: Text(getText('retry'))),
                 ],
               ),
             );
           }
-
           final list = snapshot.data ?? [];
-
           if (list.isEmpty) {
             return Center(
               child: Column(
@@ -264,20 +265,13 @@ class _RecurringScreenState extends State<RecurringScreen> {
                 children: [
                   Icon(Icons.repeat, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 10),
-                  Text(
-                    getText('no_recurring'),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                  ),
+                  Text(getText('no_recurring'), style: TextStyle(color: Colors.grey[600], fontSize: 16)),
                   const SizedBox(height: 5),
-                  Text(
-                    getText('add_new_hint'),
-                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                  ),
+                  Text(getText('add_new_hint'), style: TextStyle(color: Colors.grey[400], fontSize: 13)),
                 ],
               ),
             );
           }
-
           return ListView.builder(
             cacheExtent: 500,
             padding: const EdgeInsets.all(12),
@@ -291,8 +285,9 @@ class _RecurringScreenState extends State<RecurringScreen> {
 
   Widget _buildRecurringCard(RecurringTransactionModel rt) {
     final isIncome = rt.type == 'Income';
-    final typeColor = isIncome ? Colors.green : Colors.red;
-    final freqText = getText(rt.frequency); // daily, weekly, monthly, yearly
+    final categoryIcon = _getCategoryIcon(rt.category, rt.type);
+    final categoryColor = _getCategoryColor(rt.category, rt.type);
+    final freqText = getText(rt.frequency);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -302,23 +297,17 @@ class _RecurringScreenState extends State<RecurringScreen> {
         padding: const EdgeInsets.all(8.0),
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: typeColor.withOpacity(0.15),
-            child: Icon(
-              isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-              color: typeColor,
-            ),
+            backgroundColor: categoryColor.withOpacity(0.15),
+            child: Icon(categoryIcon, color: categoryColor),
           ),
-          title: Text(
-            rt.note,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          title: Text(rt.note, style: const TextStyle(fontWeight: FontWeight.bold)),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('৳ ${rt.amount.toStringAsFixed(0)} • $freqText'),
+              Text('৳ ${rt.amount.toStringAsFixed(0)} • $freqText', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               Text(
                 '${getText('next_due')}: ${DateFormat('dd/MM/yyyy').format(rt.nextDueDate)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
             ],
           ),
@@ -345,15 +334,11 @@ class _RecurringScreenState extends State<RecurringScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            getText('add_recurring'),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          title: Text(getText('add_recurring'), style: const TextStyle(fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // টাইপ ড্রপডাউন
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -366,29 +351,19 @@ class _RecurringScreenState extends State<RecurringScreen> {
                       isExpanded: true,
                       hint: Text(getText('type')),
                       items: [
-                        DropdownMenuItem<String>(
-                          value: 'Expense',
-                          child: Text(getText('expense')),
-                        ),
-                        DropdownMenuItem<String>(
-                          value: 'Income',
-                          child: Text(getText('income')),
-                        ),
+                        DropdownMenuItem(value: 'Expense', child: Text(getText('expense'))),
+                        DropdownMenuItem(value: 'Income', child: Text(getText('income'))),
                       ],
                       onChanged: (String? v) {
-                        if (v != null) {
-                          setDialogState(() {
-                            selType = v;
-                            selCat = v == 'Income' ? 'salary' : 'gas_bill';
-                          });
-                        }
+                        if (v != null) setDialogState(() {
+                          selType = v;
+                          selCat = v == 'Income' ? 'salary' : 'gas_bill';
+                        });
                       },
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // টাকা
                 TextField(
                   controller: amtCtrl,
                   keyboardType: TextInputType.number,
@@ -399,8 +374,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // বিবরণ
                 TextField(
                   controller: noteCtrl,
                   decoration: InputDecoration(
@@ -409,8 +382,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // ক্যাটাগরি
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -424,11 +395,16 @@ class _RecurringScreenState extends State<RecurringScreen> {
                       hint: Text(getText('category')),
                       items: (selType == 'Income'
                           ? widget.incomeCategories
-                          : widget.expenseCategories
-                      ).map<DropdownMenuItem<String>>((cat) {
+                          : widget.expenseCategories).map<DropdownMenuItem<String>>((cat) {
                         return DropdownMenuItem<String>(
                           value: cat['key'] as String,
-                          child: Text(getCategoryName(cat['key'] as String)),
+                          child: Row(
+                            children: [
+                              Icon(cat['icon'] as IconData, size: 20, color: cat['color'] as Color),
+                              const SizedBox(width: 10),
+                              Text(getCategoryName(cat['key'] as String)),
+                            ],
+                          ),
                         );
                       }).toList(),
                       onChanged: (String? v) {
@@ -438,8 +414,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // ফ্রিকোয়েন্সি
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -452,22 +426,10 @@ class _RecurringScreenState extends State<RecurringScreen> {
                       isExpanded: true,
                       hint: Text(getText('frequency')),
                       items: [
-                        DropdownMenuItem<String>(
-                          value: 'daily',
-                          child: Text(getText('daily')),
-                        ),
-                        DropdownMenuItem<String>(
-                          value: 'weekly',
-                          child: Text(getText('weekly')),
-                        ),
-                        DropdownMenuItem<String>(
-                          value: 'monthly',
-                          child: Text(getText('monthly')),
-                        ),
-                        DropdownMenuItem<String>(
-                          value: 'yearly',
-                          child: Text(getText('yearly')),
-                        ),
+                        DropdownMenuItem(value: 'daily', child: Text(getText('daily'))),
+                        DropdownMenuItem(value: 'weekly', child: Text(getText('weekly'))),
+                        DropdownMenuItem(value: 'monthly', child: Text(getText('monthly'))),
+                        DropdownMenuItem(value: 'yearly', child: Text(getText('yearly'))),
                       ],
                       onChanged: (String? v) {
                         if (v != null) setDialogState(() => selFreq = v);
@@ -476,8 +438,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // শুরুর তারিখ
                 InkWell(
                   onTap: () async {
                     DateTime? p = await showDatePicker(
@@ -498,9 +458,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                       children: [
                         const Icon(Icons.calendar_today, size: 18),
                         const SizedBox(width: 10),
-                        Text(
-                          '${getText('start_date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
-                        ),
+                        Text('${getText('start_date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}'),
                       ],
                     ),
                   ),
@@ -509,10 +467,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(getText('cancel')),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(getText('cancel'))),
             ElevatedButton(
               onPressed: () {
                 if (amtCtrl.text.isNotEmpty && double.tryParse(amtCtrl.text) != null) {
@@ -526,7 +481,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                     startDate: selDate,
                   ));
                   Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(this.context).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(getText('added_successfully')),
                       backgroundColor: Colors.green,
@@ -536,10 +491,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   );
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade700,
-                foregroundColor: Colors.white,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, foregroundColor: Colors.white),
               child: Text(getText('add')),
             ),
           ],
@@ -555,27 +507,17 @@ class _RecurringScreenState extends State<RecurringScreen> {
         title: Text(getText('delete')),
         content: Text(getText('delete_recurring_confirm')),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: Text(getText('no')),
-          ),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(getText('no'))),
           ElevatedButton(
             onPressed: () {
               _db.deleteRecurringTransaction(id);
               Navigator.pop(c);
-              ScaffoldMessenger.of(this.context).showSnackBar(
-                SnackBar(
-                  content: Text(getText('deleted_successfully')),
-                  backgroundColor: Colors.red,
-                  behavior: SnackBarBehavior.floating,
-                ),
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(getText('deleted_successfully')), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(
-              getText('yes'),
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(getText('yes'), style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),

@@ -6,28 +6,56 @@ import '../services/pdf_service.dart';
 import '../models/transaction_model.dart';
 
 class MonthlyStatsScreen extends StatefulWidget {
-  const MonthlyStatsScreen({super.key});
+  final String selectedLanguage;
+  final Map<String, Map<String, String>> localizedText;
+
+  const MonthlyStatsScreen({
+    super.key,
+    required this.selectedLanguage,
+    required this.localizedText,
+  });
 
   @override
   State<MonthlyStatsScreen> createState() => _MonthlyStatsScreenState();
 }
 
 class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
-  DateTime _selectedMonth = DateTime.now();
+  DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
   String _filterType = 'all';
   bool _isExporting = false;
 
+  String getText(String key) {
+    return widget.localizedText[widget.selectedLanguage]?[key] ??
+        widget.localizedText['bn']?[key] ??
+        key;
+  }
+
+  String _formatDate(DateTime date) {
+    String locale;
+    if (widget.selectedLanguage == 'bn') {
+      locale = 'bn_BD';
+    } else if (widget.selectedLanguage == 'ar') {
+      locale = 'ar_SA';
+    } else {
+      locale = 'en_US';
+    }
+    return DateFormat('dd/MM/yyyy', locale).format(date);
+  }
+
+  String _getDateRangeTitle() {
+    return '${_formatDate(_startDate)} - ${_formatDate(_endDate)}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String monthYear = DateFormat('MM/yyyy').format(_selectedMonth);
-    final String displayMonth = DateFormat('MMMM yyyy', 'bn').format(_selectedMonth);
-
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text("মাসিক পরিসংখ্যান", style: TextStyle(fontSize: 18)),
+        title: Text(getText('monthly_stats'), style: const TextStyle(fontSize: 18)),
         backgroundColor: Colors.blue.shade800,
         elevation: 0,
+        centerTitle: true,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(colors: [Colors.blue, Colors.purple]),
@@ -42,27 +70,32 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           }
 
           final allTransactions = snapshot.data!;
-          final monthTxs = allTransactions.where((tx) {
+          final filteredByDate = allTransactions.where((tx) {
             final datePart = tx.date?.split(' ').first ?? '';
-            final parts = datePart.split('/');
-            if (parts.length != 3) return false;
-            final month = parts[1];
-            final year = parts[2];
-            final txMonthYear = '$month/$year';
-            return txMonthYear == monthYear && (tx.type == 'Income' || tx.type == 'Expense');
+            try {
+              final txDate = DateFormat('dd/MM/yyyy').parse(datePart);
+              return txDate.isAfter(_startDate.subtract(const Duration(days: 1))) &&
+                  txDate.isBefore(_endDate.add(const Duration(days: 1)));
+            } catch (_) {
+              return false;
+            }
           }).toList();
 
+          final List<TransactionModel> incomeExpenseTxs = filteredByDate
+              .where((tx) => tx.type == 'Income' || tx.type == 'Expense')
+              .toList();
+
           double totalIncome = 0, totalExpense = 0;
-          for (var tx in monthTxs) {
+          for (var tx in incomeExpenseTxs) {
             if (tx.type == 'Income') totalIncome += tx.amount;
             else if (tx.type == 'Expense') totalExpense += tx.amount;
           }
 
-          List<TransactionModel> filteredList = monthTxs;
+          List<TransactionModel> filteredList = incomeExpenseTxs;
           if (_filterType == 'income') {
-            filteredList = monthTxs.where((t) => t.type == 'Income').toList();
+            filteredList = incomeExpenseTxs.where((t) => t.type == 'Income').toList();
           } else if (_filterType == 'expense') {
-            filteredList = monthTxs.where((t) => t.type == 'Expense').toList();
+            filteredList = incomeExpenseTxs.where((t) => t.type == 'Expense').toList();
           }
 
           return Column(
@@ -72,33 +105,40 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _buildActionCard(
-                        icon: Icons.calendar_month,
-                        label: displayMonth,
-                        color: Colors.red,
+                      child: _buildDatePickerCard(
+                        label: getText('from_date'),
+                        date: _startDate,
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: _selectedMonth,
+                            initialDate: _startDate,
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2030),
-                            helpText: "মাস নির্বাচন করুন",
                           );
-                          if (picked != null) setState(() => _selectedMonth = picked);
+                          if (picked != null && picked.isBefore(_endDate.add(const Duration(days: 1)))) {
+                            setState(() => _startDate = picked);
+                          } else if (picked != null) {
+                            _showSnackBar(getText('start_date_before_end_date'));
+                          }
                         },
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildActionCard(
-                        icon: Icons.picture_as_pdf,
-                        label: _isExporting ? "সেভ হচ্ছে..." : "PDF",
-                        color: Colors.green,
-                        onTap: _isExporting ? null : () {
-                          if (filteredList.isNotEmpty) {
-                            _exportToPdf(filteredList, displayMonth);
-                          } else {
-                            _showSnackBar("কোনো লেনদেন নেই");
+                      child: _buildDatePickerCard(
+                        label: getText('to_date'),
+                        date: _endDate,
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _endDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null && picked.isAfter(_startDate.subtract(const Duration(days: 1)))) {
+                            setState(() => _endDate = picked);
+                          } else if (picked != null) {
+                            _showSnackBar(getText('end_date_after_start_date'));
                           }
                         },
                       ),
@@ -107,35 +147,59 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                 ),
               ),
 
-              // Summary cards
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    _summaryCard("মোট আয়", totalIncome, Colors.green),
+                    Expanded(
+                      child: _buildActionCard(
+                        icon: Icons.picture_as_pdf,
+                        label: _isExporting ? getText('saving') : getText('pdf'),
+                        color: Colors.green,
+                        onTap: _isExporting
+                            ? null
+                            : () {
+                          if (filteredList.isNotEmpty) {
+                            _exportToPdf(filteredList, _getDateRangeTitle());
+                          } else {
+                            _showSnackBar(getText('no_transactions'));
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    _summaryCard(getText('total_income'), totalIncome, Colors.green),
                     const SizedBox(width: 12),
-                    _summaryCard("মোট ব্যয়", totalExpense, Colors.red),
+                    _summaryCard(getText('total_expense'), totalExpense, Colors.red),
                     const SizedBox(width: 12),
-                    _summaryCard("সঞ্চয়", totalIncome - totalExpense, Colors.blue),
+                    _summaryCard(getText('savings'), totalIncome - totalExpense, Colors.blue),
                   ],
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              // Filter & header
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("লেনদেন ইতিহাস", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(getText('transaction_history'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     DropdownButton<String>(
                       value: _filterType,
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text("সব")),
-                        DropdownMenuItem(value: 'income', child: Text("শুধু আয়")),
-                        DropdownMenuItem(value: 'expense', child: Text("শুধু ব্যয়")),
+                      items: [
+                        DropdownMenuItem(value: 'all', child: Text(getText('all'))),
+                        DropdownMenuItem(value: 'income', child: Text(getText('income'))),
+                        DropdownMenuItem(value: 'expense', child: Text(getText('expense'))),
                       ],
                       onChanged: (v) => setState(() => _filterType = v!),
                       underline: const SizedBox(),
@@ -146,7 +210,6 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               ),
               const Divider(),
 
-              // Transaction list
               Expanded(
                 child: filteredList.isEmpty
                     ? _emptyState()
@@ -168,8 +231,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: isIncome ? Colors.green.shade100 : Colors.red.shade100,
-                          child: Icon(isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                              color: isIncome ? Colors.green : Colors.red),
+                          child: Icon(
+                            isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                            color: isIncome ? Colors.green : Colors.red,
+                          ),
                         ),
                         title: Text(tx.note ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(displayDateOnly),
@@ -193,7 +258,44 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildActionCard({required IconData icon, required String label, required Color color, required VoidCallback? onTap}) {
+  Widget _buildDatePickerCard({
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Colors.blue.withOpacity(0.1), Colors.blue.withOpacity(0.05)]),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w500, fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _formatDate(date),
+              style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback? onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -228,7 +330,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           children: [
             Text(title, style: const TextStyle(color: Colors.white, fontSize: 12)),
             const SizedBox(height: 4),
-            Text("৳ ${amount.toInt()}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              "৳ ${amount.toInt()}",
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ],
         ),
       ),
@@ -242,7 +347,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         children: [
           Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 10),
-          Text("কোনো লেনদেন নেই", style: TextStyle(color: Colors.grey[600])),
+          Text(getText('no_transactions'), style: TextStyle(color: Colors.grey[600])),
         ],
       ),
     );
@@ -262,13 +367,13 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         };
       }).toList();
 
-      final pdfFile = await PdfService().generatePdf(exportData, "মাসিক রিপোর্ট: $period");
+      final pdfFile = await PdfService().generatePdf(exportData, "${getText('monthly_report')}: $period");
       if (mounted) {
         _showExportSuccessDialog(pdfFile);
       }
     } catch (e) {
       if (mounted) {
-        _showSnackBar("PDF তৈরি করতে ব্যর্থ: $e");
+        _showSnackBar("${getText('pdf_failed')}: $e");
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);
@@ -279,12 +384,12 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text("এক্সপোর্ট সফল"),
-        content: const Text("পিডিএফ ফাইল তৈরি হয়েছে। আপনি শেয়ার বা প্রিন্ট করতে পারেন।"),
+        title: Text(getText('export_success')),
+        content: Text(getText('pdf_created_message')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c),
-            child: const Text("বন্ধ করুন"),
+            child: Text(getText('close')),
           ),
           ElevatedButton.icon(
             onPressed: () {
@@ -292,7 +397,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               PdfService().shareFile(file);
             },
             icon: const Icon(Icons.share),
-            label: const Text("শেয়ার"),
+            label: Text(getText('share')),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           ),
           ElevatedButton.icon(
@@ -301,7 +406,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               PdfService().printPdf(file);
             },
             icon: const Icon(Icons.print),
-            label: const Text("প্রিন্ট"),
+            label: Text(getText('print')),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
           ),
         ],

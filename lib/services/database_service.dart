@@ -257,6 +257,28 @@ class DatabaseService {
     }
   }
 
+  // ✅ Add this method – update reminder details (note, date, time)
+  Future<void> updateReminder(String id, String? newNote, String newDate, String newTime) async {
+    if (_uid != null) {
+      final updates = <String, dynamic>{
+        'date': newDate,
+        'time': newTime,
+      };
+      if (newNote != null) {
+        updates['note'] = newNote;
+      }
+      await _db.child('users/$_uid/transactions/$id').update(updates);
+    }
+  }
+
+  // ✅ Add this method – mark reminder as completed (hide from notice list)
+  Future<void> updateReminderCompleted(String id, bool completed) async {
+    if (_uid != null) {
+      await _db.child('users/$_uid/transactions/$id').update({'completed': completed});
+    }
+  }
+
+  // ✅ Already exists – update only the time field
   Future<void> updateReminderTime(String id, String time) async {
     if (_uid != null) {
       await _db.child('users/$_uid/transactions/$id').update({'time': time});

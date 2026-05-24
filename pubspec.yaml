@@ -16,6 +16,7 @@ dependencies:
   pdf: ^3.11.0
   printing: ^5.11.1
   path_provider: ^2.1.2
+  bangla_pdf_fixer: ^2.0.0
 
   # 🟢 ফিক্সড: পুরানো open_file কেটে গ্রেডল ক্র্যাশ এড়াতে লেটেস্ট open_filex যুক্ত করা হলো
   open_filex: ^4.5.0
@@ -89,5 +90,9 @@ flutter_native_splash:
 flutter:
   uses-material-design: true
   assets:
-    - assets/fonts/NotoSansBengali.ttf
+    - assets/fonts/NotoSansBengali-Regular.ttf
     - assets/images/
+fonts:
+  - family: NotoSansBengali
+    fonts:
+      - asset: assets/fonts/NotoSansBengali-Regular.ttf

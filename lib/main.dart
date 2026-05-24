@@ -19,7 +19,7 @@ void main() async {
   // ১. ফ্লাটার বাইন্ডিং নিশ্চিত করা
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ লোকাল ডেট ফরম্যাটিং লোড করা
+  // লোকাল ডেট ফরম্যাটিং লোড করা (তিনটি ভাষার জন্য)
   await initializeDateFormatting('bn', null);
   await initializeDateFormatting('en', null);
   await initializeDateFormatting('ar', null);
@@ -35,9 +35,6 @@ void main() async {
     // অফলাইন পারসিস্টেন্স অন থাকবে (এটি ক্যাশ ধরে রাখবে)
     db.setPersistenceEnabled(true);
     db.setPersistenceCacheSizeBytes(50 * 1024 * 1024);
-
-    // 🟢 ফিক্সড: গ্লোবাল সিঙ্কিং এর এই ক্ষতিকর লাইনটি মুছে ফেলা হলো
-    // await db.ref('users').keepSynced(true);
 
     tz.initializeTimeZones();
     await NotificationService.init();
@@ -69,6 +66,9 @@ class AmarHisabApp extends StatelessWidget {
           fillColor: Colors.white,
         ),
       ),
+      // ✅ ডিফল্ট লোকেল ইংরেজি সেট করা হয়েছে
+      locale: const Locale('en'),
+      supportedLocales: const [Locale('bn'), Locale('en'), Locale('ar')],
       home: const AuthWrapper(),
     );
   }
@@ -109,33 +109,34 @@ class _LockWrapperState extends State<LockWrapper> {
   final LockService _lockService = LockService();
   bool _isLocked = false;
   bool _isLoading = true;
-  String _language = 'bn';
+  String _language = 'en'; // ✅ ডিফল্ট ইংরেজি
   bool _isDarkMode = false;
 
   @override
   void initState() {
     super.initState();
-    // 🟢 ফিক্সড: দুটি আলাদা মেথডের বদলে সিকুয়েন্সিয়ালি ডাটা লোড করার জন্য একটি মেথড কল করা হলো
     _initializeAppSettings();
   }
 
-  // 🟢 ফিক্সড মেথড: ট্রাই-ক্যাচ ব্লক এবং প্রোপার ডিস্ট্রিবিউশন নিশ্চিত করা হয়েছে
   Future<void> _initializeAppSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final isEnabled = await _lockService.isLockEnabled();
 
+      // ✅ 'language' কী-তে কোনো মান না থাকলে 'en' (ইংরেজি) সেট করা হবে
+      final savedLang = prefs.getString('language');
+      final lang = savedLang ?? 'en';
+
       if (mounted) {
         setState(() {
-          _language = prefs.getString('language') ?? 'bn';
+          _language = lang;
           _isDarkMode = prefs.getBool('darkMode') ?? false;
           _isLocked = isEnabled;
-          _isLoading = false; // ডাটা লোড সম্পন্ন
+          _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint("Error initializing app settings: $e");
-      // কোনো সমস্যা হলে বা ক্র্যাশ করলে অ্যাপ যেন আটকে না থেকে সরাসরি হোম স্ক্রিনে চলে যায়
       if (mounted) {
         setState(() {
           _isLocked = false;
@@ -155,7 +156,7 @@ class _LockWrapperState extends State<LockWrapper> {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 20),
-              Text('লোড হচ্ছে...'),
+              Text('Loading...'),
             ],
           ),
         ),

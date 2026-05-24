@@ -5,7 +5,14 @@ import '../services/database_service.dart';
 import '../models/transaction_model.dart';
 
 class YearlyStatsScreen extends StatefulWidget {
-  const YearlyStatsScreen({super.key});
+  final String selectedLanguage;
+  final Map<String, Map<String, String>> localizedText;
+
+  const YearlyStatsScreen({
+    super.key,
+    required this.selectedLanguage,
+    required this.localizedText,
+  });
 
   @override
   State<YearlyStatsScreen> createState() => _YearlyStatsScreenState();
@@ -14,12 +21,27 @@ class YearlyStatsScreen extends StatefulWidget {
 class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
   int _selectedYear = DateTime.now().year;
 
-  final List<String> _months = [
-    "জানু", "ফেব্রু", "মার্চ", "এপ্রিল", "মে", "জুন",
-    "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"
-  ];
+  String getText(String key) {
+    return widget.localizedText[widget.selectedLanguage]?[key] ??
+        widget.localizedText['bn']?[key] ??
+        key;
+  }
 
-  final List<Color> _monthColors = [
+  String _getMonthName(int month) {
+    // month is 1-indexed (1 = January)
+    final date = DateTime(_selectedYear, month);
+    String locale;
+    if (widget.selectedLanguage == 'bn') {
+      locale = 'bn_BD';
+    } else if (widget.selectedLanguage == 'ar') {
+      locale = 'ar_SA';
+    } else {
+      locale = 'en_US';
+    }
+    return DateFormat('MMM', locale).format(date);
+  }
+
+  List<Color> get _monthColors => [
     Colors.red.shade300,
     Colors.orange.shade300,
     Colors.amber.shade300,
@@ -39,9 +61,10 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text("বার্ষিক পরিসংখ্যান", style: TextStyle(fontSize: 18)),
+        title: Text(getText('yearly_stats'), style: const TextStyle(fontSize: 18)),
         backgroundColor: Colors.blue.shade800,
         elevation: 0,
+        centerTitle: true,
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [Colors.blue.shade700, Colors.purple.shade700]),
@@ -88,7 +111,6 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
                 const SizedBox(height: 20),
                 _summaryRow(yearlyInc, yearlyExp),
                 const SizedBox(height: 20),
-                // Responsive pie chart section
                 _pieChartSection(yearlyInc, yearlyExp),
                 const SizedBox(height: 20),
                 _tableHeader(),
@@ -100,7 +122,7 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
                   itemBuilder: (context, index) {
                     final month = index + 1;
                     return _monthRow(
-                      _months[index],
+                      _getMonthName(month),
                       monthInc[month] ?? 0,
                       monthExp[month] ?? 0,
                       _monthColors[index],
@@ -127,9 +149,15 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
       ),
       child: DropdownButtonFormField<int>(
         value: _selectedYear,
-        decoration: const InputDecoration(border: InputBorder.none, icon: Icon(Icons.calendar_today)),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          icon: const Icon(Icons.calendar_today),
+        ),
         items: List.generate(10, (i) => DateTime.now().year - 5 + i)
-            .map((y) => DropdownMenuItem(value: y, child: Text("$y সালের রিপোর্ট", style: const TextStyle(fontWeight: FontWeight.w500))))
+            .map((y) => DropdownMenuItem(
+          value: y,
+          child: Text("${getText('year_report')} $y", style: const TextStyle(fontWeight: FontWeight.w500)),
+        ))
             .toList(),
         onChanged: (v) => setState(() => _selectedYear = v!),
       ),
@@ -139,11 +167,11 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
   Widget _summaryRow(double inc, double exp) {
     return Row(
       children: [
-        _summaryCard("মোট আয়", inc, Colors.green),
+        _summaryCard(getText('total_income'), inc, Colors.green),
         const SizedBox(width: 12),
-        _summaryCard("মোট ব্যয়", exp, Colors.red),
+        _summaryCard(getText('total_expense'), exp, Colors.red),
         const SizedBox(width: 12),
-        _summaryCard("সঞ্চয়", inc - exp, Colors.blue),
+        _summaryCard(getText('savings'), inc - exp, Colors.blue),
       ],
     );
   }
@@ -167,7 +195,6 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
     );
   }
 
-  // Responsive pie chart section
   Widget _pieChartSection(double inc, double exp) {
     final total = inc + exp;
     return Container(
@@ -179,14 +206,13 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
       ),
       child: Column(
         children: [
-          const Text("আয়-ব্যয়ের অনুপাত", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(getText('income_expense_ratio'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          // Responsive row: each pie chart takes equal space
           Row(
             children: [
-              Expanded(child: _pieChart("আয়", inc, total, Colors.green)),
-              Expanded(child: _pieChart("ব্যয়", exp, total, Colors.red)),
-              Expanded(child: _pieChart("ব্যালেন্স", inc - exp, inc, Colors.blue)),
+              Expanded(child: _pieChart(getText('income'), inc, total, Colors.green)),
+              Expanded(child: _pieChart(getText('expense'), exp, total, Colors.red)),
+              Expanded(child: _pieChart(getText('balance'), inc - exp, inc, Colors.blue)),
             ],
           ),
         ],
@@ -198,7 +224,6 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
     final percent = total > 0 ? (value / total) * 100 : 0;
     return Column(
       children: [
-        // Responsive size: use LayoutBuilder or fixed but smaller
         SizedBox(
           height: 70,
           width: 70,
@@ -237,17 +262,17 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
         gradient: LinearGradient(colors: [Colors.blue.shade700, Colors.purple.shade700]),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Expanded(flex: 2, child: Text("মাস", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-          Expanded(child: Text("আয়", textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-          Expanded(child: Text("ব্যয়", textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          Expanded(flex: 2, child: Text(getText('month'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          Expanded(child: Text(getText('income_label'), textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          Expanded(child: Text(getText('expense_label'), textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
         ],
       ),
     );
   }
 
-  Widget _monthRow(String name, double inc, double exp, Color color) {
+  Widget _monthRow(String monthName, double inc, double exp, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -258,11 +283,18 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(radius: 14, backgroundColor: color, child: Text(name[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: color,
+            child: Text(monthName.isNotEmpty ? monthName[0] : '?',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
           const SizedBox(width: 12),
-          Expanded(flex: 2, child: Text(name, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 13))),
-          Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))),
-          Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))),
+          Expanded(flex: 2, child: Text(monthName, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 13))),
+          Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right,
+              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))),
+          Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right,
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))),
         ],
       ),
     );
@@ -277,7 +309,7 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
       ),
       child: Row(
         children: [
-          const Expanded(flex: 2, child: Text("মোট:", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+          Expanded(flex: 2, child: Text(getText('total_label'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
           Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
           Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
         ],

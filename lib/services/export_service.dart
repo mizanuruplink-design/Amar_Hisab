@@ -18,16 +18,32 @@ class ExportService {
     }
     try {
       print('🔄 Loading Bangla font from assets...');
-      final fontData = await rootBundle.load(
-        'assets/fonts/NotoSansBengali.ttf',   // 👈 ফাইলের নাম মিলাতে হবে
-      );
-      _cachedBanglaFont = pw.Font.ttf(fontData.buffer.asByteData());
+      // 🟢 ফিক্সড: আপনার pubspec.yaml ফাইলের নামের সাথে মিলিয়ে NotoSansBengali-Regular.ttf করা হলো
+      final fontData = await rootBundle.load('assets/fonts/NotoSansBengali-Regular.ttf');
+      _cachedBanglaFont = pw.Font.ttf(fontData);
       print('✅ Bangla font loaded successfully!');
       return _cachedBanglaFont;
     } catch (e) {
       print('❌ Bangla font loading failed: $e');
       return null;
     }
+  }
+
+  /// পিডিএফে সাপোর্ট করে না এমন ইমোজি ও টাকা সাইন ফিল্টার করার মেথড
+  String _sanitizeText(String text) {
+    return text
+        .replaceAll('🔄', '[Recurring]')
+        .replaceAll('📊', '[Stats]')
+        .replaceAll('📓', '[Notebook]')
+        .replaceAll('⏰', '[Reminder]')
+        .replaceAll('💰', '[Budget]')
+        .replaceAll('🎨', '[Drawing]')
+        .replaceAll('📝', '[Note]')
+        .replaceAll('🔔', '[Reminder]')
+        .replaceAll('✅', '[Done]')
+        .replaceAll('❌', '[Failed]')
+        .replaceAll('⭐', '[Important]')
+        .replaceAll('৳', 'Tk'); // 🟢 ফিক্সড: ৳ চিহ্ন ভেঙে যাওয়া আটকাতে 'Tk' করা হলো
   }
 
   // ==================== PDF এক্সপোর্ট ====================
@@ -51,6 +67,9 @@ class ExportService {
       print('⚠️ Falling back to default font (Bengali will not render)');
     }
 
+    // 🟢 কারেন্সি সিম্বল যদি ৳ হয়, তবে সেটিকে নিরাপদ করতে 'Tk' করা হলো
+    final safeCurrency = currencySymbol == '৳' ? 'Tk' : currencySymbol;
+
     final textStyle = pw.TextStyle(font: banglaFont, fontSize: 10);
     final headerStyle = pw.TextStyle(
       font: banglaFont, fontSize: 18, fontWeight: pw.FontWeight.bold,
@@ -63,10 +82,12 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
+        // 🟢 পুরো পেজের থিমে বাংলা ফন্ট সেট করা হলো যাতে সব উইজেট অটোমেটিক বাংলা পেয়ে যায়
+        theme: pw.ThemeData.withFont(base: banglaFont, bold: banglaFont),
         build: (context) => [
-          pw.Center(child: pw.Text(title, style: headerStyle)),
+          pw.Center(child: pw.Text(_sanitizeText(title), style: headerStyle)),
           pw.SizedBox(height: 5),
-          pw.Center(child: pw.Text(period, style: textStyle)),
+          pw.Center(child: pw.Text(_sanitizeText(period), style: textStyle)),
           pw.SizedBox(height: 20),
 
           // Summary
@@ -84,13 +105,13 @@ class ExportService {
                   style: titleStyle,
                 ),
                 pw.SizedBox(height: 10),
-                _summaryRow('মোট আয়', totalIncome, currencySymbol, PdfColors.green, banglaFont),
-                _summaryRow('মোট ব্যয়', totalExpense, currencySymbol, PdfColors.red, banglaFont),
-                _summaryRow('সঞ্চয়', totalSavings, currencySymbol, PdfColors.blue, banglaFont),
-                _summaryRow('দেনা', totalDebt, currencySymbol, PdfColors.orange, banglaFont),
-                _summaryRow('পাওনা', totalCredit, currencySymbol, PdfColors.purple, banglaFont),
+                _summaryRow('মোট আয়', totalIncome, safeCurrency, PdfColors.green, banglaFont),
+                _summaryRow('মোট ব্যয়', totalExpense, safeCurrency, PdfColors.red, banglaFont),
+                _summaryRow('সঞ্চয়', totalSavings, safeCurrency, PdfColors.blue, banglaFont),
+                _summaryRow('দেনা', totalDebt, safeCurrency, PdfColors.orange, banglaFont),
+                _summaryRow('পাওনা', totalCredit, safeCurrency, PdfColors.purple, banglaFont),
                 pw.Divider(),
-                _summaryRow('ব্যালেন্স', totalIncome - totalExpense, currencySymbol, PdfColors.teal, banglaFont),
+                _summaryRow('ব্যালেন্স', totalIncome - totalExpense, safeCurrency, PdfColors.teal, banglaFont),
               ],
             ),
           ),
@@ -101,11 +122,11 @@ class ExportService {
 
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(1.5),
-              1: const pw.FlexColumnWidth(2.5),
-              2: const pw.FlexColumnWidth(1.5),
-              3: const pw.FlexColumnWidth(1.2),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(1.5),
+              1: pw.FlexColumnWidth(2.5),
+              2: pw.FlexColumnWidth(1.5),
+              3: pw.FlexColumnWidth(1.2),
             },
             children: [
               pw.TableRow(
@@ -125,13 +146,18 @@ class ExportService {
                 } catch (_) {
                   datePart = tx['date']?.toString() ?? '';
                 }
+
+                String noteText = _sanitizeText(tx['note']?.toString() ?? '');
+                String categoryText = _categoryName(tx['category']?.toString() ?? '', language);
+                String amountText = '${isIncome ? "+" : "-"}$safeCurrency ${(tx['amount'] as num?)?.toStringAsFixed(0) ?? '0'}';
+
                 return pw.TableRow(
                   children: [
                     _cell(datePart, false, banglaFont),
-                    _cell(tx['note']?.toString() ?? '', false, banglaFont),
-                    _cell(_categoryName(tx['category']?.toString() ?? '', language), false, banglaFont),
+                    _cell(noteText, false, banglaFont),
+                    _cell(categoryText, false, banglaFont),
                     _cell(
-                      '${isIncome ? "+" : "-"}$currencySymbol${(tx['amount'] as double?)?.toStringAsFixed(0) ?? '0'}',
+                      amountText,
                       false,
                       banglaFont,
                       isIncome ? PdfColors.green : PdfColors.red,
@@ -208,7 +234,7 @@ class ExportService {
     return catNames[key]?[language] ?? catNames[key]?['bn'] ?? key;
   }
 
-  // ==================== শেয়ার / প্রিন্ট ====================
+  // ==================== শেয়ার / প্রিন্ট ====================
   Future<void> shareFile(File file) async {
     await Share.shareXFiles([XFile(file.path)], text: 'আমার হিসেব - রিপোর্ট');
   }

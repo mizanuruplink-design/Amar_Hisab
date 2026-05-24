@@ -22,6 +22,14 @@ class LockService {
     final stored = await _storage.read(key: _pinKey);
     return stored == enteredPin;
   }
+  Future<bool> hasPin() async {
+    final pin = await _storage.read(key: _pinKey);
+    return pin != null && pin.isNotEmpty;
+  }
+
+  Future<String?> getPin() async {
+    return await _storage.read(key: _pinKey);
+  }
 
   // ========== Lock Enabled ==========
   Future<void> setLockEnabled(bool enabled) async {
