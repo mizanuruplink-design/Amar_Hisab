@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import '../services/database_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../services/local_database_service.dart';
 import '../models/transaction_model.dart';
 
 class YearlyStatsScreen extends StatefulWidget {
@@ -28,7 +29,6 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
   }
 
   String _getMonthName(int month) {
-    // month is 1-indexed (1 = January)
     final date = DateTime(_selectedYear, month);
     String locale;
     if (widget.selectedLanguage == 'bn') {
@@ -71,14 +71,10 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<List<TransactionModel>>(
-        stream: DatabaseService().transactionsStream,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final transactions = snapshot.data!;
+      body: ValueListenableBuilder(
+        valueListenable: Hive.box<TransactionModel>('transactions').listenable(),
+        builder: (context, Box<TransactionModel> box, _) {
+          final transactions = box.values.toList();
           double yearlyInc = 0, yearlyExp = 0;
           Map<int, double> monthInc = {};
           Map<int, double> monthExp = {};

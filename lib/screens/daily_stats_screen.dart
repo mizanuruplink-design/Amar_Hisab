@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/database_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../services/pdf_service.dart';
 import '../models/transaction_model.dart';
 
@@ -60,14 +60,10 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<List<TransactionModel>>(
-        stream: DatabaseService().transactionsStream,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final allTransactions = snapshot.data!;
+      body: ValueListenableBuilder(
+        valueListenable: Hive.box<TransactionModel>('transactions').listenable(),
+        builder: (context, Box<TransactionModel> box, _) {
+          final allTransactions = box.values.toList();
           final todayTxs = allTransactions.where((tx) {
             final datePart = tx.date?.split(' ').first ?? '';
             if (datePart != formattedDate) return false;
@@ -147,7 +143,7 @@ class _DailyStatsScreenState extends State<DailyStatsScreen> {
 
               const SizedBox(height: 16),
 
-              // Filter row - NOW WITH TRANSLATED DROPDOWN
+              // Filter row
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(

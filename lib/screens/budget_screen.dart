@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/database_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../services/local_database_service.dart';
 import '../models/budget_model.dart';
 
 class BudgetScreen extends StatefulWidget {
@@ -18,7 +19,7 @@ class BudgetScreen extends StatefulWidget {
 }
 
 class _BudgetScreenState extends State<BudgetScreen> {
-  final DatabaseService _databaseService = DatabaseService();
+  final LocalDatabaseService _db = LocalDatabaseService();
 
   List<Map<String, dynamic>> expenseCategories = [
     {'key': 'gas_bill', 'icon': Icons.electric_bolt, 'color': Colors.red},
@@ -35,221 +36,150 @@ class _BudgetScreenState extends State<BudgetScreen> {
     {'key': 'other', 'icon': Icons.more_horiz, 'color': Colors.grey},
   ];
 
-  // ✅ আপগ্রেডেড getText – সব প্রয়োজনীয় কী-র জন্য ফলব্যাক ট্রান্সলেশন
+  // ==================== LOCALISATION ====================
   String getText(String key) {
-    // প্রথমে লোকালাইজেশন ম্যাপ থেকে খোঁজে
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
 
-    // ফলব্যাক ট্রান্সলেশন (বাংলা, ইংরেজি, আরবি) – কী অনুযায়ী
+    // Fallback
     switch (key) {
-    // শিরোনাম ও বাটন
       case 'budget_management':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট ম্যানেজমেন্ট';
-          case 'ar': return 'إدارة الميزانية';
-          default: return 'Budget Management';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট ম্যানেজমেন্ট';
+        if (widget.selectedLanguage == 'ar') return 'إدارة الميزانية';
+        return 'Budget Management';
       case 'add_budget':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট যোগ করুন';
-          case 'ar': return 'إضافة ميزانية';
-          default: return 'Add Budget';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট যোগ করুন';
+        if (widget.selectedLanguage == 'ar') return 'إضافة ميزانية';
+        return 'Add Budget';
       case 'total_budget_overview':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'মোট বাজেটের সারাংশ';
-          case 'ar': return 'نظرة عامة على إجمالي الميزانية';
-          default: return 'Total Budget Overview';
-        }
+        if (widget.selectedLanguage == 'bn') return 'মোট বাজেটের সারাংশ';
+        if (widget.selectedLanguage == 'ar') return 'نظرة عامة على إجمالي الميزانية';
+        return 'Total Budget Overview';
       case 'category_budget':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'ক্যাটাগরি অনুযায়ী বাজেট';
-          case 'ar': return 'الميزانية حسب الفئة';
-          default: return 'Category-wise Budget';
-        }
+        if (widget.selectedLanguage == 'bn') return 'ক্যাটাগরি অনুযায়ী বাজেট';
+        if (widget.selectedLanguage == 'ar') return 'الميزانية حسب الفئة';
+        return 'Category-wise Budget';
       case 'budget_amount':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেটের পরিমাণ';
-          case 'ar': return 'مبلغ الميزانية';
-          default: return 'Budget Amount';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেটের পরিমাণ';
+        if (widget.selectedLanguage == 'ar') return 'مبلغ الميزانية';
+        return 'Budget Amount';
       case 'select_category':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'ক্যাটাগরি নির্বাচন করুন';
-          case 'ar': return 'اختر الفئة';
-          default: return 'Select Category';
-        }
+        if (widget.selectedLanguage == 'bn') return 'ক্যাটাগরি নির্বাচন করুন';
+        if (widget.selectedLanguage == 'ar') return 'اختر الفئة';
+        return 'Select Category';
       case 'monthly':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'মাসিক';
-          case 'ar': return 'شهرياً';
-          default: return 'Monthly';
-        }
+        if (widget.selectedLanguage == 'bn') return 'মাসিক';
+        if (widget.selectedLanguage == 'ar') return 'شهرياً';
+        return 'Monthly';
       case 'weekly':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'সাপ্তাহিক';
-          case 'ar': return 'أسبوعياً';
-          default: return 'Weekly';
-        }
+        if (widget.selectedLanguage == 'bn') return 'সাপ্তাহিক';
+        if (widget.selectedLanguage == 'ar') return 'أسبوعياً';
+        return 'Weekly';
       case 'yearly':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বার্ষিক';
-          case 'ar': return 'سنوياً';
-          default: return 'Yearly';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বার্ষিক';
+        if (widget.selectedLanguage == 'ar') return 'سنوياً';
+        return 'Yearly';
       case 'add':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'যোগ করুন';
-          case 'ar': return 'إضافة';
-          default: return 'Add';
-        }
+        if (widget.selectedLanguage == 'bn') return 'যোগ করুন';
+        if (widget.selectedLanguage == 'ar') return 'إضافة';
+        return 'Add';
       case 'cancel':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাতিল';
-          case 'ar': return 'إلغاء';
-          default: return 'Cancel';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাতিল';
+        if (widget.selectedLanguage == 'ar') return 'إلغاء';
+        return 'Cancel';
       case 'edit':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'সম্পাদনা';
-          case 'ar': return 'تعديل';
-          default: return 'Edit';
-        }
+        if (widget.selectedLanguage == 'bn') return 'সম্পাদনা';
+        if (widget.selectedLanguage == 'ar') return 'تعديل';
+        return 'Edit';
       case 'delete':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'মুছুন';
-          case 'ar': return 'حذف';
-          default: return 'Delete';
-        }
+        if (widget.selectedLanguage == 'bn') return 'মুছুন';
+        if (widget.selectedLanguage == 'ar') return 'حذف';
+        return 'Delete';
       case 'budget':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট';
-          case 'ar': return 'الميزانية';
-          default: return 'Budget';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট';
+        if (widget.selectedLanguage == 'ar') return 'الميزانية';
+        return 'Budget';
       case 'remaining':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাকি';
-          case 'ar': return 'المتبقي';
-          default: return 'Remaining';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাকি';
+        if (widget.selectedLanguage == 'ar') return 'المتبقي';
+        return 'Remaining';
       case 'used':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'ব্যবহৃত';
-          case 'ar': return 'المستخدم';
-          default: return 'Used';
-        }
+        if (widget.selectedLanguage == 'bn') return 'ব্যবহৃত';
+        if (widget.selectedLanguage == 'ar') return 'المستخدم';
+        return 'Used';
       case 'budget_exceeded':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট অতিক্রম';
-          case 'ar': return 'تجاوز الميزانية';
-          default: return 'Budget Exceeded';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট অতিক্রম';
+        if (widget.selectedLanguage == 'ar') return 'تجاوز الميزانية';
+        return 'Budget Exceeded';
       case 'overspent':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'অতিরিক্ত খরচ';
-          case 'ar': return 'إنفاق زائد';
-          default: return 'Overspent';
-        }
-      case 'over_budget':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'অতিরিক্ত খরচ';
-          case 'ar': return 'تجاوز الميزانية';
-          default: return 'Over Budget';
-        }
+        if (widget.selectedLanguage == 'bn') return 'অতিরিক্ত খরচ';
+        if (widget.selectedLanguage == 'ar') return 'إنفاق زائد';
+        return 'Overspent';
       case 'warning':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'সতর্কতা';
-          case 'ar': return 'تحذير';
-          default: return 'Warning';
-        }
+        if (widget.selectedLanguage == 'bn') return 'সতর্কতা';
+        if (widget.selectedLanguage == 'ar') return 'تحذير';
+        return 'Warning';
       case 'half_used':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'অর্ধেক ব্যবহৃত';
-          case 'ar': return 'نصف المستخدم';
-          default: return 'Half Used';
-        }
+        if (widget.selectedLanguage == 'bn') return 'অর্ধেক ব্যবহৃত';
+        if (widget.selectedLanguage == 'ar') return 'نصف المستخدم';
+        return 'Half Used';
       case 'safe':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'নিরাপদ';
-          case 'ar': return 'آمن';
-          default: return 'Safe';
-        }
+        if (widget.selectedLanguage == 'bn') return 'নিরাপদ';
+        if (widget.selectedLanguage == 'ar') return 'آمن';
+        return 'Safe';
       case 'no_budget_set':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'কোনো বাজেট সেট করা নেই';
-          case 'ar': return 'لم يتم تعيين ميزانية';
-          default: return 'No budget set';
-        }
+        if (widget.selectedLanguage == 'bn') return 'কোনো বাজেট সেট করা নেই';
+        if (widget.selectedLanguage == 'ar') return 'لم يتم تعيين ميزانية';
+        return 'No budget set';
       case 'click_to_add_budget':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট যোগ করতে ক্লিক করুন';
-          case 'ar': return 'انقر لإضافة ميزانية';
-          default: return 'Click to add budget';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট যোগ করতে ক্লিক করুন';
+        if (widget.selectedLanguage == 'ar') return 'انقر لإضافة ميزانية';
+        return 'Click to add budget';
       case 'no_budget_this_month':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'এই মাসের কোনো বাজেট নেই';
-          case 'ar': return 'لا توجد ميزانية لهذا الشهر';
-          default: return 'No budget for this month';
-        }
+        if (widget.selectedLanguage == 'bn') return 'এই মাসের কোনো বাজেট নেই';
+        if (widget.selectedLanguage == 'ar') return 'لا توجد ميزانية لهذا الشهر';
+        return 'No budget for this month';
       case 'budget_added_success':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট সফলভাবে যোগ করা হয়েছে';
-          case 'ar': return 'تمت إضافة الميزانية بنجاح';
-          default: return 'Budget added successfully';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট সফলভাবে যোগ করা হয়েছে';
+        if (widget.selectedLanguage == 'ar') return 'تمت إضافة الميزانية بنجاح';
+        return 'Budget added successfully';
       case 'budget_updated_success':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট আপডেট করা হয়েছে';
-          case 'ar': return 'تم تحديث الميزانية';
-          default: return 'Budget updated successfully';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট আপডেট করা হয়েছে';
+        if (widget.selectedLanguage == 'ar') return 'تم تحديث الميزانية';
+        return 'Budget updated successfully';
       case 'budget_deleted_success':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট মুছে ফেলা হয়েছে';
-          case 'ar': return 'تم حذف الميزانية';
-          default: return 'Budget deleted successfully';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট মুছে ফেলা হয়েছে';
+        if (widget.selectedLanguage == 'ar') return 'تم حذف الميزانية';
+        return 'Budget deleted successfully';
       case 'edit_budget':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট সম্পাদনা';
-          case 'ar': return 'تحرير الميزانية';
-          default: return 'Edit Budget';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট সম্পাদনা';
+        if (widget.selectedLanguage == 'ar') return 'تحرير الميزانية';
+        return 'Edit Budget';
       case 'delete_budget':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'বাজেট মুছুন';
-          case 'ar': return 'حذف الميزانية';
-          default: return 'Delete Budget';
-        }
+        if (widget.selectedLanguage == 'bn') return 'বাজেট মুছুন';
+        if (widget.selectedLanguage == 'ar') return 'حذف الميزانية';
+        return 'Delete Budget';
       case 'delete_budget_confirm':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'আপনি কি বাজেটটি মুছতে চান?';
-          case 'ar': return 'هل تريد حذف هذه الميزانية؟';
-          default: return 'Do you want to delete this budget?';
-        }
+        if (widget.selectedLanguage == 'bn') return 'আপনি কি বাজেটটি মুছতে চান?';
+        if (widget.selectedLanguage == 'ar') return 'هل تريد حذف هذه الميزانية؟';
+        return 'Do you want to delete this budget?';
       case 'yes':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'হ্যাঁ';
-          case 'ar': return 'نعم';
-          default: return 'Yes';
-        }
+        if (widget.selectedLanguage == 'bn') return 'হ্যাঁ';
+        if (widget.selectedLanguage == 'ar') return 'نعم';
+        return 'Yes';
       case 'no':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'না';
-          case 'ar': return 'لا';
-          default: return 'No';
-        }
+        if (widget.selectedLanguage == 'bn') return 'না';
+        if (widget.selectedLanguage == 'ar') return 'لا';
+        return 'No';
       case 'update':
-        switch (widget.selectedLanguage) {
-          case 'bn': return 'আপডেট';
-          case 'ar': return 'تحديث';
-          default: return 'Update';
-        }
+        if (widget.selectedLanguage == 'bn') return 'আপডেট';
+        if (widget.selectedLanguage == 'ar') return 'تحديث';
+        return 'Update';
+      case 'period':
+        if (widget.selectedLanguage == 'bn') return 'মেয়াদ';
+        if (widget.selectedLanguage == 'ar') return 'الفترة';
+        return 'Period';
       default:
-      // কোনো ম্যাচ না পেলে বাংলা ফলব্যাক বা কী-নাম
         return widget.localizedText['bn']?[key] ?? key;
     }
   }
@@ -272,6 +202,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
     }
   }
 
+  void _refresh() => setState(() {});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -280,8 +212,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
         backgroundColor: Colors.blue.shade700,
         elevation: 0,
         title: Text(
-            getText('budget_management'),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+          getText('budget_management'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         leading: IconButton(
@@ -291,7 +223,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       ),
       body: Column(
         children: [
-          // মাস সিলেক্টর
+          // Month selector
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
@@ -332,7 +264,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
           ),
 
-          // বাজেট যোগ বাটন
+          // Add budget button
           Padding(
             padding: const EdgeInsets.all(16),
             child: ElevatedButton.icon(
@@ -348,36 +280,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
           ),
 
-          // বাজেট লিস্ট (ক্যাশড স্ট্রিম)
+          // Budget list (Hive ValueListenableBuilder)
           Expanded(
-            child: StreamBuilder<List<BudgetModel>>(
-              stream: _databaseService.budgetsStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 60),
-                        const SizedBox(height: 10),
-                        Text('Error: ${snapshot.error}'),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () => setState(() {}),
-                          child: Text(getText('retry') ?? 'Retry'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final allBudgets = snapshot.data ?? [];
+            child: ValueListenableBuilder(
+              valueListenable: Hive.box<BudgetModel>('budgets').listenable(),
+              builder: (context, Box<BudgetModel> box, _) {
+                final allBudgets = box.values.toList();
                 final budgets = allBudgets.where((b) => b.month == _selectedMonth).toList();
-
                 if (allBudgets.isEmpty) {
                   return Center(
                     child: Column(
@@ -593,11 +502,16 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   String getBudgetStatusText(String status) {
     switch (status) {
-      case 'অতিরিক্ত খরচ': return getText('over_budget');
-      case 'সতর্কতা': return getText('warning');
-      case 'অর্ধেক ব্যবহৃত': return getText('half_used');
-      case 'নিরাপদ': return getText('safe');
-      default: return status;
+      case 'অতিরিক্ত খরচ':
+        return getText('over_budget');
+      case 'সতর্কতা':
+        return getText('warning');
+      case 'অর্ধেক ব্যবহৃত':
+        return getText('half_used');
+      case 'নিরাপদ':
+        return getText('safe');
+      default:
+        return status;
     }
   }
 
@@ -615,7 +529,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ক্যাটাগরি ড্রপডাউন
+                // Category dropdown
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -647,7 +561,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 ),
                 const SizedBox(height: 15),
 
-                // বাজেটের পরিমাণ
+                // Budget amount
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
@@ -659,7 +573,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 ),
                 const SizedBox(height: 15),
 
-                // পিরিয়ড ড্রপডাউন (মাসিক/সাপ্তাহিক/বার্ষিক)
+                // Period dropdown – now translated
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -712,7 +626,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                       month: _selectedMonth,
                       isActive: true,
                     );
-                    _databaseService.addBudget(budget);
+                    _db.addBudget(budget);
                     Navigator.pop(context);
                     ScaffoldMessenger.of(this.context).showSnackBar(
                       SnackBar(
@@ -763,7 +677,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
               if (amountController.text.isNotEmpty) {
                 double? amount = double.tryParse(amountController.text);
                 if (amount != null && amount > 0) {
-                  _databaseService.updateBudget(budget.id, {'budgetAmount': amount});
+                  _db.updateBudget(budget.id, {'budgetAmount': amount});
                   Navigator.pop(context);
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     SnackBar(
@@ -799,7 +713,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              _databaseService.deleteBudget(id);
+              _db.deleteBudget(id);
               Navigator.pop(context);
               ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(

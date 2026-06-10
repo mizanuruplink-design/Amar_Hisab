@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/lock_service.dart';   // ✅ import the service
+import '../services/lock_service.dart';
 
 class LockScreen extends StatefulWidget {
   final Function(bool) onUnlocked;
@@ -19,7 +19,7 @@ class LockScreen extends StatefulWidget {
 }
 
 class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
-  final LockService _lockService = LockService();  // ✅ uses the imported service
+  final LockService _lockService = LockService();
   final TextEditingController _pinController = TextEditingController();
   final FocusNode _pinFocusNode = FocusNode();
 

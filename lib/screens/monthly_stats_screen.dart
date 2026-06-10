@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/database_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../services/local_database_service.dart';
 import '../services/pdf_service.dart';
 import '../models/transaction_model.dart';
 
@@ -20,6 +21,7 @@ class MonthlyStatsScreen extends StatefulWidget {
 }
 
 class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
+  final LocalDatabaseService _db = LocalDatabaseService();
   DateTime _startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _endDate = DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
   String _filterType = 'all';
@@ -62,14 +64,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<List<TransactionModel>>(
-        stream: DatabaseService().transactionsStream,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final allTransactions = snapshot.data!;
+      body: ValueListenableBuilder(
+        valueListenable: Hive.box<TransactionModel>('transactions').listenable(),
+        builder: (context, Box<TransactionModel> box, _) {
+          final allTransactions = box.values.toList();
           final filteredByDate = allTransactions.where((tx) {
             final datePart = tx.date?.split(' ').first ?? '';
             try {

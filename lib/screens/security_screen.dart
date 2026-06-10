@@ -4,10 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/lock_service.dart';
-import 'package:flutter/services.dart';
 
 class SecurityScreen extends StatefulWidget {
   final String selectedLanguage;
@@ -547,80 +545,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
     if (mounted) _showSnackBar(getText('lock_type_changed'));
   }
 
-  Future<void> _checkForUpdate() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      _showSnackBar(getText('no_internet'));
-      return;
-    }
-    _showSnackBar(getText('checking_updates'));
-    String? remoteVersion;
-    try {
-      final ref = FirebaseDatabase.instance.ref('app_version/current');
-      final snapshot = await ref.once();
-      if (snapshot.snapshot.value != null) {
-        remoteVersion = snapshot.snapshot.value.toString();
-      } else {
-        if (kDebugMode) {
-          _showSnackBar('Debug: Please set app_version/current in Firebase Realtime Database.');
-        }
-      }
-    } catch (e) {
-      _showSnackBar(getText('update_check_error'));
-      return;
-    }
-    if (remoteVersion == null || remoteVersion.isEmpty) {
-      _showSnackBar(getText('update_unable'));
-      return;
-    }
-    if (_isNewerVersion(remoteVersion, _appVersion)) {
-      _showUpdateDialog(remoteVersion);
-    } else {
-      _showSnackBar('${getText('already_latest')} ($_appVersion)');
-    }
-  }
-
-  bool _isNewerVersion(String remote, String current) {
-    final remoteParts = remote.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final currentParts = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    for (int i = 0; i < remoteParts.length; i++) {
-      if (i >= currentParts.length) return true;
-      if (remoteParts[i] > currentParts[i]) return true;
-      if (remoteParts[i] < currentParts[i]) return false;
-    }
-    return remoteParts.length > currentParts.length;
-  }
-
-  void _showUpdateDialog(String newVersion) {
-    showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(getText('update_available')),
-        content: Text('${getText('new_version_msg')} $newVersion'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: Text(getText('later'))),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(c);
-              _launchUrl('https://play.google.com/store/apps/details?id=com.example.amar_hisab');
-            },
-            child: Text(getText('update_now')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      _showSnackBar(getText('cannot_open_url'));
-    }
-  }
-
   void _handleEmailTap(String email) {
     showModalBottomSheet(
       context: context,
@@ -640,7 +564,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 if (await canLaunchUrl(emailUri)) {
                   await launchUrl(emailUri, mode: LaunchMode.externalApplication);
                 } else {
-                  // fallback: copy to clipboard
                   await Clipboard.setData(ClipboardData(text: email));
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -999,7 +922,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // App Lock Card
+          // App Lock Card (unchanged)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1124,7 +1047,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // About Card - FIXED: title now uses getText('about_app')
+          // About Card – removed the update check tile
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1137,7 +1060,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
                 child: Icon(Icons.info_outline, color: Colors.blue.shade700),
               ),
-              title: Text(getText('about_app'), style: const TextStyle(fontWeight: FontWeight.bold)), // <-- FIXED
+              title: Text(getText('about_app'), style: const TextStyle(fontWeight: FontWeight.bold)),
               childrenPadding: const EdgeInsets.all(16),
               children: [
                 Row(
@@ -1163,13 +1086,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 const SizedBox(height: 16),
                 Text(getText('app_description'), style: const TextStyle(height: 1.4)),
                 const SizedBox(height: 20),
-                ListTile(
-                  leading: const Icon(Icons.system_update_alt, color: Colors.blue),
-                  title: Text(getText('check_updates_title')),
-                  subtitle: Text('${getText('current_version')} $_appVersion'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: _checkForUpdate,
-                ),
+                // ❌ Update check tile removed (no Firebase)
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.person_outline, color: Colors.blue),
@@ -1194,7 +1111,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Legal Cards
+          // Legal Cards (unchanged)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1228,7 +1145,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // FAQ Card
+          // FAQ Card (unchanged)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,

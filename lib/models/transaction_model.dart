@@ -1,14 +1,38 @@
+import 'package:hive/hive.dart';
+
+part 'transaction_model.g.dart';
+
+@HiveType(typeId: 0)
 class TransactionModel {
+  @HiveField(0)
   String id;
+
+  @HiveField(1)
   double amount;
+
+  @HiveField(2)
   String type;
+
+  @HiveField(3)
   String category;
+
+  @HiveField(4)
   String date;
+
+  @HiveField(5)
   String? note;
+
+  @HiveField(6)
   String? refundDate;
+
+  @HiveField(7)
   bool isPaid;
+
+  @HiveField(8)
   bool isArchived;
-  String? time;  // 👈 ADD THIS LINE
+
+  @HiveField(9)
+  String? time;
 
   TransactionModel({
     required this.id,
@@ -20,40 +44,6 @@ class TransactionModel {
     this.refundDate,
     this.isPaid = false,
     this.isArchived = false,
-    this.time,  // 👈 ADD THIS LINE (optional)
+    this.time,
   });
-
-  // ডাটাবেসে সেভ করার জন্য Map-এ কনভার্ট (id সহ)
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'amount': amount,
-      'type': type,
-      'category': category,
-      'date': date,
-      'note': note,
-      'refundDate': refundDate,
-      'isPaid': isPaid,
-      'isArchived': isArchived,
-      if (time != null) 'time': time,  // 👈 ADD THIS LINE (only if not null)
-    };
-  }
-
-  // ডাটাবেস থেকে ডাটা পড়ার জন্য Factory মেথড
-  factory TransactionModel.fromMap(String id, Map<dynamic, dynamic> map) {
-    return TransactionModel(
-      id: id,
-      amount: (map['amount'] is num)
-          ? (map['amount'] as num).toDouble()
-          : double.tryParse(map['amount']?.toString() ?? '') ?? 0.0,
-      type: map['type'] ?? 'Expense',
-      category: map['category'] ?? 'General',
-      date: map['date'] ?? '',
-      note: map['note'],
-      refundDate: map['refundDate'],
-      isPaid: map['isPaid'] ?? false,
-      isArchived: map['isArchived'] ?? false,
-      time: map['time'] as String?,  // 👈 ADD THIS LINE
-    );
-  }
 }

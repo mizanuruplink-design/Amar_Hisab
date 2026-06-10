@@ -1,27 +1,33 @@
+import 'package:hive/hive.dart';
+
+part 'note_model.g.dart';
+
+@HiveType(typeId: 3)   // Use a unique typeId (0,1,2 are already used)
 class NoteModel {
-  String? id;
+  @HiveField(0)
+  String id;
+
+  @HiveField(1)
   String title;
+
+  @HiveField(2)
   String content;
+
+  @HiveField(3)
   String date;
-  String? reminderTime; // মিটিং বা অ্যালার্মের সময়
-  int colorValue; // নোটের কালার (যেমন: 0xFFFF8A80)
+
+  @HiveField(4)
+  String? reminderTime;
+
+  @HiveField(5)
+  int colorValue;
 
   NoteModel({
-    this.id,
+    required this.id,
     required this.title,
     required this.content,
     required this.date,
     this.reminderTime,
     required this.colorValue,
   });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'title': title,
-      'content': content,
-      'date': date,
-      'reminderTime': reminderTime,
-      'colorValue': colorValue,
-    };
-  }
 }

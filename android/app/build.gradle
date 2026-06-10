@@ -2,7 +2,6 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'dev.flutter.flutter-gradle-plugin'
-    id 'com.google.gms.google-services'
 }
 
 android {
@@ -22,8 +21,8 @@ android {
 
     defaultConfig {
         applicationId 'com.example.amar_hisab'
-        minSdkVersion flutter.minSdkVersion                              // ✅ fixed – explicit value
-        targetSdk 35
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 36
         versionCode flutter.versionCode
         versionName flutter.versionName
     }
@@ -36,7 +35,7 @@ android {
             keyPassword "android"
         }
         release {
-            // For now using debug signing to allow building (DO NOT use for Play Store)
+            // For testing only – replace before publishing
             storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
             storePassword "android"
             keyAlias "androiddebugkey"
@@ -55,10 +54,23 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+
+    // Force older versions of libraries that require AGP 8.9+ and compileSdk 36
+    implementation 'androidx.browser:browser:1.8.0'
+    implementation 'androidx.activity:activity:1.9.3'
+    implementation 'androidx.activity:activity-ktx:1.9.3'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.navigation:navigation-fragment:2.7.7'
+    implementation 'androidx.navigation:navigation-ui:2.7.7'
 }
 
 flutter {

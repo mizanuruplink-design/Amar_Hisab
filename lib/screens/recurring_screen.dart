@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/database_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../services/local_database_service.dart';
 import '../models/recurring_transaction_model.dart';
 
 class RecurringScreen extends StatefulWidget {
@@ -22,9 +23,8 @@ class RecurringScreen extends StatefulWidget {
 }
 
 class _RecurringScreenState extends State<RecurringScreen> {
-  final DatabaseService _db = DatabaseService();
+  final LocalDatabaseService _db = LocalDatabaseService();
 
-  // ✅ ক্যাটাগরি অনুযায়ী আইকন ও রঙ বের করার হেল্পার
   IconData _getCategoryIcon(String categoryKey, String type) {
     final List<Map<String, dynamic>> categories =
     type == 'Income' ? widget.incomeCategories : widget.expenseCategories;
@@ -49,7 +49,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
 
-    // ফলব্যাক ট্রান্সলেশন (আগের মতোই রাখা হয়েছে)
     switch (key) {
       case 'recurring_transactions':
         switch (widget.selectedLanguage) {
@@ -215,11 +214,6 @@ class _RecurringScreenState extends State<RecurringScreen> {
   String getCategoryName(String key) => getText(key);
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -237,27 +231,10 @@ class _RecurringScreenState extends State<RecurringScreen> {
         onPressed: _showAddRecurringDialog,
         child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: StreamBuilder<List<RecurringTransactionModel>>(
-        stream: _db.recurringStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 60, color: Colors.red),
-                  const SizedBox(height: 10),
-                  Text('Error: ${snapshot.error}'),
-                  const SizedBox(height: 10),
-                  ElevatedButton(onPressed: () => setState(() {}), child: Text(getText('retry'))),
-                ],
-              ),
-            );
-          }
-          final list = snapshot.data ?? [];
+      body: ValueListenableBuilder(
+        valueListenable: Hive.box<RecurringTransactionModel>('recurring').listenable(),
+        builder: (context, Box<RecurringTransactionModel> box, _) {
+          final list = box.values.toList();
           if (list.isEmpty) {
             return Center(
               child: Column(
