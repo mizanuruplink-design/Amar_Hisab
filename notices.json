@@ -1,42 +1,17 @@
-{
-  "date": "2026-06-15",
-  "tournament": "FIFA World Cup 2026",
-  "matches": [
-    {
-      "match_id": 1,
-      "time": "13:00",
-      "timezone": "UTC-5",
-      "team1": "Mexico",
-      "team2": "Poland",
-      "venue": "Estadio Azteca, Mexico City",
-      "group": "Group A"
-    },
-    {
-      "match_id": 2,
-      "time": "16:00",
-      "timezone": "UTC-5",
-      "team1": "USA",
-      "team2": "Wales",
-      "venue": "MetLife Stadium, New York/New Jersey",
-      "group": "Group B"
-    },
-    {
-      "match_id": 3,
-      "time": "19:00",
-      "timezone": "UTC-5",
-      "team1": "Argentina",
-      "team2": "Saudi Arabia",
-      "venue": "AT&T Stadium, Dallas",
-      "group": "Group C"
-    },
-    {
-      "match_id": 4,
-      "time": "22:00",
-      "timezone": "UTC-5",
-      "team1": "France",
-      "team2": "Denmark",
-      "venue": "Levi's Stadium, San Francisco",
-      "group": "Group D"
-    }
-  ]
-}
+[
+  {
+    "title": "⚽ আজকের ফুটবল ম্যাচ (১৫ জুন ২০২৬)",
+    "body": "🇧🇷 ব্রাজিল vs আর্জেন্টিনা 🇦🇷 – রাত ৮:০০টায় (বাংলাদেশ সময়)\n🇫🇷 ফ্রান্স vs জার্মানি 🇩🇪 – রাত ১১:০০টায় (বাংলাদেশ সময়)",
+    "date": "2026-06-15T08:00:00Z"
+  },
+  {
+    "title": "🧪 টেস্ট নোটিশ",
+    "body": "আপনার ইন্টারনেট সংযোগ ও নোটিশ সিস্টেম সঠিকভাবে কাজ করছে!",
+    "date": "2026-06-13T10:00:00Z"
+  },
+  {
+    "title": "📢 নতুন ফিচার সতর্কতা",
+    "body": "শীঘ্রই ব্যাকআপ ও রিস্টোর ফিচার আপডেট হচ্ছে। আপডেট দিতে ভুলবেন না।",
+    "date": "2026-06-10T12:30:00Z"
+  }
+]
