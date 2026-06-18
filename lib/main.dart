@@ -40,32 +40,89 @@ void main() async {
   runApp(const AmarHisabApp());
 }
 
-class AmarHisabApp extends StatelessWidget {
+class AmarHisabApp extends StatefulWidget {
   const AmarHisabApp({super.key});
 
   @override
+  State<AmarHisabApp> createState() => _AmarHisabAppState();
+}
+
+class _AmarHisabAppState extends State<AmarHisabApp> {
+  String _language = 'en';
+  bool _isDarkMode = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppSettings();
+  }
+
+  Future<void> _loadAppSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _language = prefs.getString('language') ?? 'en';
+      _isDarkMode = prefs.getBool('darkMode') ?? false;
+      _isLoading = false;
+    });
+  }
+
+  // 🔄 এই ফাংশনটি HomeScreen থেকে কল হলে পুরো অ্যাপের থিম ও ভাষা সাথে সাথে চেঞ্জ হবে
+  void _updateAppSettings({String? language, bool? isDarkMode}) {
+    setState(() {
+      if (language != null) _language = language;
+      if (isDarkMode != null) _isDarkMode = isDarkMode;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const MaterialApp(
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'আমার হিসাব',
+      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.light),
         useMaterial3: true,
       ),
-      locale: const Locale('en'),                // ✅ default English
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark),
+        useMaterial3: true,
+      ),
+      locale: Locale(_language),
       supportedLocales: const [Locale('bn'), Locale('en'), Locale('ar')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const LockWrapper(),
+      // 🟢 LockWrapper-এ অ্যাপডেটের ফাংশনটি পাস করা হলো
+      home: LockWrapper(
+        language: _language,
+        isDarkMode: _isDarkMode,
+        onSettingsChanged: _updateAppSettings,
+      ),
     );
   }
 }
 
 class LockWrapper extends StatefulWidget {
-  const LockWrapper({super.key});
+  final String language;
+  final bool isDarkMode;
+  final Function({String? language, bool? isDarkMode}) onSettingsChanged; // 🟢 কলব্যাক রিসিভার
+
+  const LockWrapper({
+    super.key,
+    required this.language,
+    required this.isDarkMode,
+    required this.onSettingsChanged,
+  });
 
   @override
   State<LockWrapper> createState() => _LockWrapperState();
@@ -75,22 +132,17 @@ class _LockWrapperState extends State<LockWrapper> {
   final LockService _lockService = LockService();
   bool _isLocked = false;
   bool _isLoading = true;
-  String _language = 'bn';
-  bool _isDarkMode = false;
 
   @override
   void initState() {
     super.initState();
-    _initSettings();
+    _checkLockStatus();
   }
 
-  Future<void> _initSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _checkLockStatus() async {
     final enabled = await _lockService.isLockEnabled();
     setState(() {
       _isLocked = enabled;
-      _language = prefs.getString('language') ?? 'bn';
-      _isDarkMode = prefs.getBool('darkMode') ?? false;
       _isLoading = false;
     });
   }
@@ -105,10 +157,16 @@ class _LockWrapperState extends State<LockWrapper> {
         onUnlocked: (success) {
           if (success) setState(() => _isLocked = false);
         },
-        language: _language,
-        isDarkMode: _isDarkMode,
+        language: widget.language,
+        isDarkMode: widget.isDarkMode,
       );
     }
-    return const HomeScreen();
+
+    // 🟢 HomeScreen ওপেন করার সময় কারেন্ট থিম, ভাষা এবং চেইঞ্জ করার ফাংশনটি পাস করে দিন
+    return HomeScreen(
+      initialLanguage: widget.language,
+      initialDarkMode: widget.isDarkMode,
+      onSettingsChanged: widget.onSettingsChanged,
+    );
   }
 }

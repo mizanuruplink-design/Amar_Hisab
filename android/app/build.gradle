@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace 'com.example.amar_hisab'
-    compileSdk 36
+    compileSdk 36   // ⬅️ changed from 35 to 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId 'com.example.amar_hisab'
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 36
+        targetSdkVersion 36   // optional, but keep consistent
         versionCode flutter.versionCode
         versionName flutter.versionName
     }
@@ -61,16 +61,8 @@ android {
 }
 
 dependencies {
+    // Only keep desugaring – remove all the forced version overrides
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
-
-    // Force older versions of libraries that require AGP 8.9+ and compileSdk 36
-    implementation 'androidx.browser:browser:1.8.0'
-    implementation 'androidx.activity:activity:1.9.3'
-    implementation 'androidx.activity:activity-ktx:1.9.3'
-    implementation 'androidx.core:core:1.13.1'
-    implementation 'androidx.core:core-ktx:1.13.1'
-    implementation 'androidx.navigation:navigation-fragment:2.7.7'
-    implementation 'androidx.navigation:navigation-ui:2.7.7'
 }
 
 flutter {

@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
-    sdk: flutter        # ✅ Added to support Bengali locale
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
   table_calendar: ^3.1.3
@@ -44,8 +44,9 @@ dependencies:
   flutter_native_splash: ^2.4.0
   rxdart: ^0.27.7
   flutter_local_notifications: ^17.1.2
-  timezone: ^0.9.4
-  intl: ^0.20.2                     # ✅ Upgraded to match flutter_localizations
+#  flutter_timezone: ^3.0.1      # ✅ আলাদা প্যাকেজ, রাখা ভালো
+  timezone: ^0.9.4                # ✅ শুধু একবার, সঠিক ভার্সন
+  intl: ^0.20.2
   font_awesome_flutter: ^10.7.0
   google_fonts: ^6.2.1
   fl_chart: ^0.70.0

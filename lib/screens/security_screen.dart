@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/lock_service.dart';
 
 class SecurityScreen extends StatefulWidget {
@@ -33,275 +31,174 @@ class _SecurityScreenState extends State<SecurityScreen> {
   final TextEditingController _confirmPinController = TextEditingController();
   final TextEditingController _oldPinController = TextEditingController();
 
+  // ==================== LOCALIZATION HELPER ====================
   String getText(String key) {
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
 
-    // Full 3‑language fallback
-    switch (key) {
-      case 'security_settings':
-        if (widget.selectedLanguage == 'bn') return 'সিকিউরিটি সেটিংস';
-        if (widget.selectedLanguage == 'ar') return 'إعدادات الأمان';
-        return 'Security Settings';
-      case 'app_lock':
-        if (widget.selectedLanguage == 'bn') return 'অ্যাপ লক';
-        if (widget.selectedLanguage == 'ar') return 'قفل التطبيق';
-        return 'App Lock';
-      case 'enable_pin_code':
-        if (widget.selectedLanguage == 'bn') return 'পিন কোড সক্রিয় করুন';
-        if (widget.selectedLanguage == 'ar') return 'تفعيل رمز PIN';
-        return 'Enable PIN Code';
-      case 'change_pin_code':
-        if (widget.selectedLanguage == 'bn') return 'পিন কোড পরিবর্তন করুন';
-        if (widget.selectedLanguage == 'ar') return 'تغيير رمز PIN';
-        return 'Change PIN Code';
-      case 'disable_pin_code':
-        if (widget.selectedLanguage == 'bn') return 'পিন কোড নিষ্ক্রিয় করুন';
-        if (widget.selectedLanguage == 'ar') return 'تعطيل رمز PIN';
-        return 'Disable PIN Code';
-      case 'biometric_options':
-        if (widget.selectedLanguage == 'bn') return 'বায়োমেট্রিক অপশন';
-        if (widget.selectedLanguage == 'ar') return 'خيارات القياسات الحيوية';
-        return 'Biometric Options';
-      case 'biometric_only':
-        if (widget.selectedLanguage == 'bn') return 'শুধুমাত্র বায়োমেট্রিক';
-        if (widget.selectedLanguage == 'ar') return 'القياسات الحيوية فقط';
-        return 'Biometric Only';
-      case 'pin_and_biometric':
-        if (widget.selectedLanguage == 'bn') return 'পিন + বায়োমেট্রিক';
-        if (widget.selectedLanguage == 'ar') return 'PIN + القياسات الحيوية';
-        return 'PIN + Biometric';
-      case 'pin_required_for_biometric':
-        if (widget.selectedLanguage == 'bn') return 'বায়োমেট্রিক ব্যবহার করতে আগে পিন সেট করুন।';
-        if (widget.selectedLanguage == 'ar') return 'يرجى تعيين رمز PIN أولاً لاستخدام القياسات الحيوية.';
-        return 'Please set a PIN first to use biometric.';
-      case 'lock_type_changed':
-        if (widget.selectedLanguage == 'bn') return 'লক টাইপ পরিবর্তন করা হয়েছে';
-        if (widget.selectedLanguage == 'ar') return 'تم تغيير نوع القفل';
-        return 'Lock type changed';
-      case 'set_pin':
-        if (widget.selectedLanguage == 'bn') return 'পিন সেট করুন';
-        if (widget.selectedLanguage == 'ar') return 'تعيين الرمز';
-        return 'Set PIN';
-      case 'new_pin':
-        if (widget.selectedLanguage == 'bn') return 'নতুন পিন';
-        if (widget.selectedLanguage == 'ar') return 'رمز جديد';
-        return 'New PIN';
-      case 'confirm_pin':
-        if (widget.selectedLanguage == 'bn') return 'পিন নিশ্চিত করুন';
-        if (widget.selectedLanguage == 'ar') return 'تأكيد الرمز';
-        return 'Confirm PIN';
-      case 'pin_set_success':
-        if (widget.selectedLanguage == 'bn') return 'পিন সফলভাবে সেট করা হয়েছে';
-        if (widget.selectedLanguage == 'ar') return 'تم تعيين الرمز بنجاح';
-        return 'PIN set successfully';
-      case 'pin_mismatch':
-        if (widget.selectedLanguage == 'bn') return 'পিন মেলেনি, আবার চেষ্টা করুন';
-        if (widget.selectedLanguage == 'ar') return 'الرمز غير متطابق، حاول مرة أخرى';
-        return 'PIN mismatch, try again';
-      case 'change_pin':
-        if (widget.selectedLanguage == 'bn') return 'পিন পরিবর্তন করুন';
-        if (widget.selectedLanguage == 'ar') return 'تغيير الرمز';
-        return 'Change PIN';
-      case 'old_pin':
-        if (widget.selectedLanguage == 'bn') return 'পুরনো পিন';
-        if (widget.selectedLanguage == 'ar') return 'الرمز القديم';
-        return 'Old PIN';
-      case 'enter_old_pin':
-        if (widget.selectedLanguage == 'bn') return 'পুরনো পিন দিন';
-        if (widget.selectedLanguage == 'ar') return 'أدخل الرمز القديم';
-        return 'Enter old PIN';
-      case 'wrong_old_pin':
-        if (widget.selectedLanguage == 'bn') return 'পুরনো পিন ভুল, আবার চেষ্টা করুন';
-        if (widget.selectedLanguage == 'ar') return 'الرمز القديم خاطئ، حاول مرة أخرى';
-        return 'Wrong old PIN, try again';
-      case 'pin_changed_success':
-        if (widget.selectedLanguage == 'bn') return 'পিন সফলভাবে পরিবর্তিত হয়েছে';
-        if (widget.selectedLanguage == 'ar') return 'تم تغيير الرمز بنجاح';
-        return 'PIN changed successfully';
-      case 'disable_pin_confirm_title':
-        if (widget.selectedLanguage == 'bn') return 'পিন কোড নিষ্ক্রিয় করুন';
-        if (widget.selectedLanguage == 'ar') return 'تعطيل رمز PIN';
-        return 'Disable PIN Code';
-      case 'disable_pin_confirm':
-        if (widget.selectedLanguage == 'bn') return 'আপনি কি পিন কোড নিষ্ক্রিয় করতে চান?';
-        if (widget.selectedLanguage == 'ar') return 'هل تريد تعطيل رمز PIN؟';
-        return 'Do you want to disable PIN code?';
-      case 'pin_disabled':
-        if (widget.selectedLanguage == 'bn') return 'পিন কোড নিষ্ক্রিয় করা হয়েছে';
-        if (widget.selectedLanguage == 'ar') return 'تم تعطيل رمز PIN';
-        return 'PIN code disabled';
-      case 'save':
-        if (widget.selectedLanguage == 'bn') return 'সেভ';
-        if (widget.selectedLanguage == 'ar') return 'حفظ';
-        return 'Save';
-      case 'cancel':
-        if (widget.selectedLanguage == 'bn') return 'বাতিল';
-        if (widget.selectedLanguage == 'ar') return 'إلغاء';
-        return 'Cancel';
-      case 'verify':
-        if (widget.selectedLanguage == 'bn') return 'যাচাই করুন';
-        if (widget.selectedLanguage == 'ar') return 'تحقق';
-        return 'Verify';
-      case 'yes':
-        if (widget.selectedLanguage == 'bn') return 'হ্যাঁ';
-        if (widget.selectedLanguage == 'ar') return 'نعم';
-        return 'Yes';
-      case 'no':
-        if (widget.selectedLanguage == 'bn') return 'না';
-        if (widget.selectedLanguage == 'ar') return 'لا';
-        return 'No';
-      case 'about_app':
-        if (widget.selectedLanguage == 'bn') return 'অ্যাপ সম্পর্কে';
-        if (widget.selectedLanguage == 'ar') return 'عن التطبيق';
-        return 'About App';
-      case 'app_title':
-        if (widget.selectedLanguage == 'bn') return 'আমার হিসাব';
-        if (widget.selectedLanguage == 'ar') return 'محاسبتي';
-        return 'My Accounting';
-      case 'app_description':
-        if (widget.selectedLanguage == 'bn')
-          return 'আপনার দৈনন্দিন আয়-ব্যয় এবং লেনদেনের হিসাব রাখার সহজ অ্যাপ। অফলাইন, ব্যাকআপ ও সুরক্ষা সুবিধা সহ।';
-        if (widget.selectedLanguage == 'ar')
-          return 'تطبيق بسيط لتتبع دخلك ونفقاتك اليومية مع دعم غير متصل بالإنترنت والنسخ الاحتياطي وميزات الأمان.';
-        return 'A simple app to track your daily income, expenses and transactions with offline support, backup and security features.';
-      case 'check_updates_title':
-        if (widget.selectedLanguage == 'bn') return 'আপডেট চেক করুন';
-        if (widget.selectedLanguage == 'ar') return 'التحقق من التحديثات';
-        return 'Check for Updates';
-      case 'current_version':
-        if (widget.selectedLanguage == 'bn') return 'বর্তমান ভার্সন:';
-        if (widget.selectedLanguage == 'ar') return 'الإصدار الحالي:';
-        return 'Current version:';
-      case 'developer':
-        if (widget.selectedLanguage == 'bn') return 'ডেভেলপার';
-        if (widget.selectedLanguage == 'ar') return 'المطور';
-        return 'Developer';
-      case 'support':
-        if (widget.selectedLanguage == 'bn') return 'সাপোর্ট';
-        if (widget.selectedLanguage == 'ar') return 'الدعم';
-        return 'Support';
-      case 'all_rights_reserved':
-        if (widget.selectedLanguage == 'bn') return 'সর্বস্বত্ব সংরক্ষিত';
-        if (widget.selectedLanguage == 'ar') return 'جميع الحقوق محفوظة';
-        return 'All rights reserved';
-      case 'privacy_policy':
-        if (widget.selectedLanguage == 'bn') return 'গোপনীয়তা নীতি';
-        if (widget.selectedLanguage == 'ar') return 'سياسة الخصوصية';
-        return 'Privacy Policy';
-      case 'terms_of_service':
-        if (widget.selectedLanguage == 'bn') return 'সেবার শর্তাবলী';
-        if (widget.selectedLanguage == 'ar') return 'شروط الخدمة';
-        return 'Terms of Service';
-      case 'faq_title':
-        if (widget.selectedLanguage == 'bn') return '🙋‍♂️ সাধারণ জিজ্ঞাসা';
-        if (widget.selectedLanguage == 'ar') return '🙋‍♂️ الأسئلة الشائعة';
-        return '🙋‍♂️ Frequently Asked Questions';
-      case 'faq_q1':
-        if (widget.selectedLanguage == 'bn') return 'অ্যাপটি মূলত কী কী কাজে ব্যবহার করা যাবে?';
-        if (widget.selectedLanguage == 'ar') return 'ما هي الميزات الرئيسية لهذا التطبيق؟';
-        return 'What are the main features of this app?';
-      case 'faq_a1':
-        if (widget.selectedLanguage == 'bn')
-          return 'এই অ্যাপটি আপনার দৈনন্দিন জীবনের অল-ইন-ওয়ান অ্যাসিস্ট্যান্ট। আপনি এখানে ৪টি প্রধান সুবিধা পাবেন:\n\n📊 হিসাব-নিকাশ: আয়-ব্যয়ের হিসাব রাখতে পারেন।\n📓 নোটবুক ও ড্রয়িং: গুরুত্বপূর্ণ তথ্য লিখতে ও আঁকতে পারেন।\n⏰ রিমাইন্ডার: কাজ বা বিলের তারিখ মনে করিয়ে দেবে।\n💰 বাজেট: মাসিক বা সাপ্তাহিক বাজেট সেট করে খরচ নিয়ন্ত্রণ করতে পারেন।';
-        if (widget.selectedLanguage == 'ar')
-          return 'هذا التطبيق هو مساعد شامل. يوفر 4 ميزات رئيسية:\n\n📊 تتبع الدخل والمصروفات\n📓 دفتر الملاحظات والرسم\n⏰ تذكيرات\n💰 تخطيط الميزانية';
-        return 'This app is your all-in-one assistant. It offers 4 main features:\n\n📊 Income/Expense Tracking\n📓 Notebook & Drawing\n⏰ Reminders\n💰 Budget Planning';
-      case 'faq_q2':
-        if (widget.selectedLanguage == 'bn') return 'অ্যাপটি ব্যবহার করতে কি ইন্টারনেট লাগবে?';
-        if (widget.selectedLanguage == 'ar') return 'هل أحتاج إلى الإنترنت لاستخدام التطبيق؟';
-        return 'Do I need internet to use the app?';
-      case 'faq_a2':
-        if (widget.selectedLanguage == 'bn')
-          return 'অ্যাপটি অনলাইন ও অফলাইন দুভাবেই কাজ করে। ইন্টারনেট না থাকলেও লেনদেন, নোট ও রিমাইন্ডার যোগ করতে পারবেন। পরে ইন্টারনেট এলে স্বয়ংক্রিয়ভাবে ক্লাউডে ব্যাকআপ হবে।';
-        if (widget.selectedLanguage == 'ar')
-          return 'التطبيق يعمل عبر الإنترنت وغير متصل. بدون إنترنت، لا يزال بإمكانك إضافة المعاملات والملاحظات والتذكيرات. عندما تتصل بالإنترنت، تتم مزامنة كل شيء تلقائياً مع السحابة.';
-        return 'The app works online and offline. Without internet, you can still add transactions, notes and reminders. When you go online, everything syncs automatically to the cloud.';
-      case 'faq_q3':
-        if (widget.selectedLanguage == 'bn') return 'আমার ফোনের ডাটা হারিয়ে যাওয়ার ভয় আছে কি?';
-        if (widget.selectedLanguage == 'ar') return 'هل سأفقد بياناتي إذا غيرت هاتفي؟';
-        return 'Will I lose my data if I change my phone?';
-      case 'faq_a3':
-        if (widget.selectedLanguage == 'bn')
-          return 'না। আপনার ডাটা অনলাইন সিঙ্ক সুবিধায় সুরক্ষিত থাকে। ফোন পরিবর্তন বা অ্যাপ আনইনস্টল করলেও একই অ্যাকাউন্টে লগইন করে সব ডাটা ফিরে পাবেন।';
-        if (widget.selectedLanguage == 'ar')
-          return 'لا. يتم تخزين بياناتك بأمان في حسابك. بعد تسجيل الدخول على جهاز جديد، سيتم استعادة جميع سجلاتك.';
-        return 'No. Your data is safely stored in your account. After logging in on a new device, all your records will be restored.';
-      case 'faq_q4':
-        if (widget.selectedLanguage == 'bn') return 'রিমাইন্ডার ফিচারটি কীভাবে কাজ করে?';
-        if (widget.selectedLanguage == 'ar') return 'كيف تعمل ميزة التذكير؟';
-        return 'How does the reminder feature work?';
-      case 'faq_a4':
-        if (widget.selectedLanguage == 'bn')
-          return 'আপনি নির্দিষ্ট দিন ও সময়ে কাজের রিমাইন্ডার সেট করতে পারেন। সেই সময় পুশ নোটিফিকেশনের মাধ্যমে অ্যাপ আপনাকে মনে করিয়ে দেবে।';
-        if (widget.selectedLanguage == 'ar')
-          return 'يمكنك تعيين تذكير لأي مهمة بتاريخ ووقت محددين. في الوقت المحدد، سيقوم التطبيق بإعلامك عبر إشعار.';
-        return 'You can set a reminder for any task with a specific date and time. At the scheduled time, the app will notify you via push notification.';
-      case 'faq_q5':
-        if (widget.selectedLanguage == 'bn') return 'বাজেট ফিচারটির সুবিধা কী?';
-        if (widget.selectedLanguage == 'ar') return 'ما فائدة ميزة الميزانية؟';
-        return 'What is the benefit of the budget feature?';
-      case 'faq_a5':
-        if (widget.selectedLanguage == 'bn')
-          return 'ক্যাটাগরি ভিত্তিক সর্বোচ্চ খরচের সীমা নির্ধারণ করে আপনি অতিরিক্ত খরচ নিয়ন্ত্রণ করতে পারবেন। এটি সঞ্চয় করতে সাহায্য করে।';
-        if (widget.selectedLanguage == 'ar')
-          return 'يمكنك تعيين حدود الإنفاق لكل فئة للتحكم في نفقاتك. هذا يساعدك على توفير المال.';
-        return 'You can set spending limits per category to control your expenses. This helps you save money.';
-      case 'faq_q6':
-        if (widget.selectedLanguage == 'bn') return 'নোটবুকে কি ছবি বা ড্রয়িং যোগ করা যায়?';
-        if (widget.selectedLanguage == 'ar') return 'هل يمكنني إضافة صور أو رسومات إلى ملاحظاتي؟';
-        return 'Can I add images or drawings to my notes?';
-      case 'faq_a6':
-        if (widget.selectedLanguage == 'bn')
-          return 'হ্যাঁ। আপনি টেক্সট নোটের সাথে ক্যামেরা বা গ্যালারি থেকে ছবি যোগ করতে পারেন এবং আঙ্গুল দিয়ে স্কেচ বা ড্রয়িং করতে পারেন।';
-        if (widget.selectedLanguage == 'ar')
-          return 'نعم. يمكنك إرفاق صور من الكاميرا / المعرض وكذلك الرسم أو التخطيط على اللوحة داخل دفتر الملاحظات.';
-        return 'Yes. You can attach images from camera/gallery and also draw or sketch on the canvas inside the notebook.';
-      case 'no_internet':
-        if (widget.selectedLanguage == 'bn') return 'ইন্টারনেট সংযোগ নেই। নেটওয়ার্ক চেক করুন।';
-        if (widget.selectedLanguage == 'ar') return 'لا يوجد اتصال بالإنترنت. يرجى التحقق من شبكتك.';
-        return 'No internet connection. Please check your network.';
-      case 'checking_updates':
-        if (widget.selectedLanguage == 'bn') return 'আপডেট চেক করা হচ্ছে...';
-        if (widget.selectedLanguage == 'ar') return 'جارٍ التحقق من التحديثات...';
-        return 'Checking for updates...';
-      case 'update_check_error':
-        if (widget.selectedLanguage == 'bn') return 'আপডেট চেক করা যায়নি। ইন্টারনেট সংযোগ নিশ্চিত করুন।';
-        if (widget.selectedLanguage == 'ar') return 'تعذر التحقق من التحديثات. يرجى التأكد من وجود اتصال بالإنترنت.';
-        return 'Could not check for updates. Please ensure you have an internet connection.';
-      case 'update_unable':
-        if (widget.selectedLanguage == 'bn') return 'ভার্সন তথ্য পাওয়া যায়নি। পরে আবার চেষ্টা করুন।';
-        if (widget.selectedLanguage == 'ar') return 'تعذر الحصول على معلومات الإصدار. يرجى المحاولة لاحقًا.';
-        return 'Unable to get version info. Please try again later.';
-      case 'already_latest':
-        if (widget.selectedLanguage == 'bn') return 'আপনি সর্বশেষ ভার্সনে আছেন';
-        if (widget.selectedLanguage == 'ar') return 'أنت على أحدث إصدار';
-        return 'You are on the latest version';
-      case 'update_available':
-        if (widget.selectedLanguage == 'bn') return 'নতুন আপডেট পাওয়া গেছে!';
-        if (widget.selectedLanguage == 'ar') return 'تحديث متوفر!';
-        return 'Update Available!';
-      case 'new_version_msg':
-        if (widget.selectedLanguage == 'bn') return 'নতুন ভার্সন উপলব্ধ:';
-        if (widget.selectedLanguage == 'ar') return 'إصدار جديد متاح:';
-        return 'A new version is available:';
-      case 'later':
-        if (widget.selectedLanguage == 'bn') return 'পরে দেখুন';
-        if (widget.selectedLanguage == 'ar') return 'لاحقًا';
-        return 'Later';
-      case 'update_now':
-        if (widget.selectedLanguage == 'bn') return 'এখন আপডেট করুন';
-        if (widget.selectedLanguage == 'ar') return 'تحديث الآن';
-        return 'Update Now';
-      case 'cannot_open_url':
-        if (widget.selectedLanguage == 'bn') return 'ইউআরএল খোলা যায়নি';
-        if (widget.selectedLanguage == 'ar') return 'لا يمكن فتح الرابط';
-        return 'Cannot open URL';
-      default:
-        return key;
-    }
+    final fallback = {
+      'bn': {
+        'security_settings': 'সিকিউরিটি সেটিংস',
+        'app_lock': 'অ্যাপ লক',
+        'enable_pin_code': 'পিন কোড সক্রিয় করুন',
+        'change_pin_code': 'পিন কোড পরিবর্তন করুন',
+        'disable_pin_code': 'পিন কোড নিষ্ক্রিয় করুন',
+        'biometric_options': 'বায়োমেট্রিক অপশন',
+        'biometric_only': 'শুধুমাত্র বায়োমেট্রিক',
+        'pin_and_biometric': 'পিন + বায়োমেট্রিক',
+        'pin_required_for_biometric': 'বায়োমেট্রিক ব্যবহার করতে আগে পিন সেট করুন।',
+        'lock_type_changed': 'লক টাইপ পরিবর্তন করা হয়েছে',
+        'set_pin': 'পিন সেট করুন',
+        'new_pin': 'নতুন পিন',
+        'confirm_pin': 'পিন নিশ্চিত করুন',
+        'pin_set_success': 'পিন সফলভাবে সেট করা হয়েছে',
+        'pin_mismatch': 'পিন মেলেনি, আবার চেষ্টা করুন',
+        'change_pin': 'পিন পরিবর্তন করুন',
+        'old_pin': 'পুরনো পিন',
+        'enter_old_pin': 'পুরনো পিন দিন',
+        'wrong_old_pin': 'পুরনো পিন ভুল, আবার চেষ্টা করুন',
+        'pin_changed_success': 'পিন সফলভাবে পরিবর্তিত হয়েছে',
+        'disable_pin_confirm_title': 'পিন কোড নিষ্ক্রিয় করুন',
+        'disable_pin_confirm': 'আপনি কি পিন কোড নিষ্ক্রিয় করতে চান?',
+        'pin_disabled': 'পিন কোড নিষ্ক্রিয় করা হয়েছে',
+        'save': 'সেভ',
+        'cancel': 'বাতিল',
+        'verify': 'যাচাই করুন',
+        'yes': 'হ্যাঁ',
+        'no': 'না',
+        'about_app': 'অ্যাপ সম্পর্কে',
+        'app_title': 'আমার হিসাব',
+        'app_description': 'আমার হিসাব (Amar Hisab) হলো একটি আধুনিক, দ্রুত এবং অফলাইন-ফার্স্ট পার্সোনাল ফাইন্যান্স ম্যানেজমেন্ট ট্র্যাকার, যেখানে কোনো ঝামেলা ছাড়াই আপনি আপনার দৈনিক আয়-ব্যয়, বাজেট ও হিসাব-নিকাশ ট্র্যাক করতে পারবেন। কোনো সাইন-ইন বা অ্যাকাউন্ট খোলার ঝামেলা নেই। অ্যাপটি ওপেন করেই সরাসরি হিসাব শুরু করতে পারবেন। আপনার সমস্ত ডেটা সম্পূর্ণ সুরক্ষিতভাবে আপনার নিজের ফোনেই (Hive Database-এ) সেভ থাকে। চাইলে ১ ক্লিকে Google Drive-এ ব্যাকআপ রাখতে পারেন।',
+        'current_version': 'বর্তমান ভার্সন:',
+        'developer': 'ডেভেলপার',
+        'support': 'সাপোর্ট',
+        'all_rights_reserved': 'সর্বস্বত্ব সংরক্ষিত',
+        'privacy_policy': 'গোপনীয়তা নীতি',
+        'terms_of_service': 'সেবার শর্তাবলী',
+        'faq_title': '🙋‍♂️ সাধারণ জিজ্ঞাসা',
+        'faq_q1': 'অ্যাপটি ব্যবহার করতে কি জিমেইল দিয়ে লগইন করতে হবে?',
+        'faq_a1': 'না, "আমার হিসাব" অ্যাপটি ব্যবহার করার জন্য কোনো জিমেইল আইডি বা অ্যাকাউন্ট খোলার প্রয়োজন নেই। অ্যাপটি ডাউনলোড করেই সরাসরি হিসাব রাখা শুরু করতে পারবেন।',
+        'faq_q2': 'আমার ডেটাগুলো কোথায় সেভ থাকে?',
+        'faq_a2': 'আপনার সমস্ত ডেটা সম্পূর্ণ অফলাইনে আপনার নিজের মোবাইল ফোনের মেমোরিতে (Hive Database) সেভ থাকে। কোনো অনলাইন সার্ভারে আপনার ডেটা পাঠানো হয় না।',
+        'faq_q3': 'অ্যাপ আনইনস্টল হয়ে গেলে কি আমার ডেটা ফিরে পাবো?',
+        'faq_a3': 'অ্যাপটি যদি গুগল ড্রাইভে ব্যাকআপ নেওয়া না থাকে, তবে অ্যাপ আনইনস্টল বা ফোন রিসেট দিলে লোকাল ডেটা সম্পূর্ণ ডিলিট হয়ে যাবে। যেহেতু আমরা কোনো ইউজার ডেটা সার্ভারে রাখি না, তাই ডেটা হারিয়ে গেলে তা রিকভার করার কোনো সুযোগ আমাদের কাছে নেই।',
+        'faq_q4': 'গুগল ড্রাইভ ব্যাকআপ কিভাবে কাজ করে?',
+        'faq_a4': 'অ্যাপের ব্যাকআপ সেকশনে গিয়ে আপনি আপনার যেকোনো একটি গুগল অ্যাকাউন্ট সিলেক্ট করে প্রথমবার ম্যানুয়ালি ব্যাকআপ সাকসেসফুল করবেন। একবার ড্রাইভের সাথে কানেক্ট হয়ে গেলে, পরবর্তীতে আপনার ফোনে ইন্টারনেট কানেকশন আসা মাত্রই অ্যাপটি ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে (Auto-Backup) আপনার লেটেস্ট ডেটা ড্রাইভে সেভ করে রাখবে।',
+        'faq_q5': 'অটো-ব্যাকআপ হওয়ার জন্য কি প্রতিবার জিমেইল সিলেক্ট করতে হবে?',
+        'faq_a5': 'না। জিমেইল অ্যাকাউন্ট এবং ড্রাইভের পারমিশন বা স্কোপ শুধুমাত্র প্রথমবার ব্যাকআপ নেওয়ার সময় একবারই দিতে হবে। এরপর থেকে ইন্টারনেট পেলেই অ্যাপ নিজে থেকেই অটো-ব্যাকআপের কাজ সম্পন্ন করবে।',
+        'faq_q6': 'আমার ডেটা নিরাপদ রাখার দায়িত্ব কার?',
+        'faq_a6': 'যেহেতু ডেটা আপনার নিজের ডিভাইসে থাকে, তাই এর সুরক্ষার দায়িত্ব সম্পূর্ণ আপনার। নিয়মিত ব্যাকআপ নেওয়ার পরামর্শ দেওয়া হচ্ছে।',
+      },
+      'en': {
+        'security_settings': 'Security Settings',
+        'app_lock': 'App Lock',
+        'enable_pin_code': 'Enable PIN Code',
+        'change_pin_code': 'Change PIN Code',
+        'disable_pin_code': 'Disable PIN Code',
+        'biometric_options': 'Biometric Options',
+        'biometric_only': 'Biometric Only',
+        'pin_and_biometric': 'PIN + Biometric',
+        'pin_required_for_biometric': 'Please set a PIN first to use biometric.',
+        'lock_type_changed': 'Lock type changed',
+        'set_pin': 'Set PIN',
+        'new_pin': 'New PIN',
+        'confirm_pin': 'Confirm PIN',
+        'pin_set_success': 'PIN set successfully',
+        'pin_mismatch': 'PIN mismatch, try again',
+        'change_pin': 'Change PIN',
+        'old_pin': 'Old PIN',
+        'enter_old_pin': 'Enter old PIN',
+        'wrong_old_pin': 'Wrong old PIN, try again',
+        'pin_changed_success': 'PIN changed successfully',
+        'disable_pin_confirm_title': 'Disable PIN Code',
+        'disable_pin_confirm': 'Do you want to disable PIN code?',
+        'pin_disabled': 'PIN code disabled',
+        'save': 'Save',
+        'cancel': 'Cancel',
+        'verify': 'Verify',
+        'yes': 'Yes',
+        'no': 'No',
+        'about_app': 'About App',
+        'app_title': 'My Accounting',
+        'app_description': 'Amar Hisab is a modern, fast, offline-first personal finance management tracker. No sign-in or account creation required. All your data is stored securely on your device (Hive database). You can backup to Google Drive with one click.',
+        'current_version': 'Current version:',
+        'developer': 'Developer',
+        'support': 'Support',
+        'all_rights_reserved': 'All rights reserved',
+        'privacy_policy': 'Privacy Policy',
+        'terms_of_service': 'Terms of Service',
+        'faq_title': '🙋‍♂️ Frequently Asked Questions',
+        'faq_q1': 'Do I need to log in with Gmail to use the app?',
+        'faq_a1': 'No, "Amar Hisab" does not require any Gmail ID or account creation. You can start tracking immediately after download.',
+        'faq_q2': 'Where is my data stored?',
+        'faq_a2': 'All your data is stored completely offline on your own device (Hive database). No data is sent to any online server.',
+        'faq_q3': 'What happens if I uninstall the app?',
+        'faq_a3': 'If you have not backed up to Google Drive, uninstalling or resetting your phone will permanently delete local data. Since we do not store user data on servers, lost data cannot be recovered.',
+        'faq_q4': 'How does Google Drive backup work?',
+        'faq_a4': 'Go to the backup section, select a Google account, and perform the first manual backup. Once connected, whenever internet is available, the app will automatically backup your latest data.',
+        'faq_q5': 'Do I need to select Google account every time for auto-backup?',
+        'faq_a5': 'No. You only need to grant permission once. After that, the app will auto-backup whenever internet is available.',
+        'faq_q6': 'Who is responsible for my data security?',
+        'faq_a6': 'Since data resides on your device, you are responsible for its security. Regular backups are recommended.',
+      },
+      'ar': {
+        'security_settings': 'إعدادات الأمان',
+        'app_lock': 'قفل التطبيق',
+        'enable_pin_code': 'تفعيل رمز PIN',
+        'change_pin_code': 'تغيير رمز PIN',
+        'disable_pin_code': 'تعطيل رمز PIN',
+        'biometric_options': 'خيارات القياسات الحيوية',
+        'biometric_only': 'القياسات الحيوية فقط',
+        'pin_and_biometric': 'PIN + القياسات الحيوية',
+        'pin_required_for_biometric': 'يرجى تعيين رمز PIN أولاً لاستخدام القياسات الحيوية.',
+        'lock_type_changed': 'تم تغيير نوع القفل',
+        'set_pin': 'تعيين الرمز',
+        'new_pin': 'رمز جديد',
+        'confirm_pin': 'تأكيد الرمز',
+        'pin_set_success': 'تم تعيين الرمز بنجاح',
+        'pin_mismatch': 'الرمز غير متطابق، حاول مرة أخرى',
+        'change_pin': 'تغيير الرمز',
+        'old_pin': 'الرمز القديم',
+        'enter_old_pin': 'أدخل الرمز القديم',
+        'wrong_old_pin': 'الرمز القديم خاطئ، حاول مرة أخرى',
+        'pin_changed_success': 'تم تغيير الرمز بنجاح',
+        'disable_pin_confirm_title': 'تعطيل رمز PIN',
+        'disable_pin_confirm': 'هل تريد تعطيل رمز PIN؟',
+        'pin_disabled': 'تم تعطيل رمز PIN',
+        'save': 'حفظ',
+        'cancel': 'إلغاء',
+        'verify': 'تحقق',
+        'yes': 'نعم',
+        'no': 'لا',
+        'about_app': 'عن التطبيق',
+        'app_title': 'محاسبتي',
+        'app_description': 'تطبيق سريع وحديث لإدارة التمويل الشخصي دون الحاجة إلى تسجيل الدخول. يتم تخزين جميع بياناتك محليًا على جهازك.',
+        'current_version': 'الإصدار الحالي:',
+        'developer': 'المطور',
+        'support': 'الدعم',
+        'all_rights_reserved': 'جميع الحقوق محفوظة',
+        'privacy_policy': 'سياسة الخصوصية',
+        'terms_of_service': 'شروط الخدمة',
+        'faq_title': '🙋‍♂️ الأسئلة الشائعة',
+        'faq_q1': 'هل أحتاج إلى تسجيل الدخول باستخدام Gmail لاستخدام التطبيق؟',
+        'faq_a1': 'لا، التطبيق لا يتطلب أي معرف Gmail أو إنشاء حساب. يمكنك البدء فورًا بعد التثبيت.',
+        'faq_q2': 'أين يتم تخزين بياناتي؟',
+        'faq_a2': 'يتم تخزين جميع بياناتك في وضع عدم الاتصال على جهازك الخاص (قاعدة بيانات Hive). لا يتم إرسال أي بيانات إلى أي خادم عبر الإنترنت.',
+        'faq_q3': 'ماذا يحدث إذا قمت بإلغاء تثبيت التطبيق؟',
+        'faq_a3': 'إذا لم تقم بعمل نسخة احتياطية على Google Drive، فإن إلغاء التثبيت أو إعادة ضبط الهاتف سيؤدي إلى حذف البيانات المحلية بالكامل. نظرًا لأننا لا نخزن بيانات المستخدم على الخوادم، فلا يمكن استرداد البيانات المفقودة.',
+        'faq_q4': 'كيف يعمل النسخ الاحتياطي على Google Drive؟',
+        'faq_a4': 'اذهب إلى قسم النسخ الاحتياطي، اختر حساب Google، وقم بأول نسخة احتياطية يدوية. بمجرد الاتصال، سيقوم التطبيق تلقائيًا بنسخ أحدث بياناتك احتياطيًا كلما كان الإنترنت متاحًا.',
+        'faq_q5': 'هل أحتاج إلى تحديد حساب Google في كل مرة للنسخ الاحتياطي التلقائي؟',
+        'faq_a5': 'لا. تحتاج فقط إلى منح الإذن مرة واحدة. بعد ذلك، سيقوم التطبيق بالنسخ الاحتياطي التلقائي كلما كان الإنترنت متاحًا.',
+        'faq_q6': 'من المسؤول عن أمان بياناتي؟',
+        'faq_a6': 'بما أن البيانات موجودة على جهازك، فأنت مسؤول عن أمانها. يوصى بعمل نسخ احتياطية منتظمة.',
+      },
+    };
+
+    return fallback[widget.selectedLanguage]?[key] ?? fallback['en']?[key] ?? key;
   }
 
+  // ==================== LIFECYCLE ====================
   @override
   void initState() {
     super.initState();
@@ -318,15 +215,17 @@ class _SecurityScreenState extends State<SecurityScreen> {
     super.dispose();
   }
 
-  void _loadSettings() async {
+  Future<void> _loadSettings() async {
     final enabled = await _lockService.isLockEnabled();
     final hasBio = await _lockService.isBiometricAvailable();
     final pinExists = await _lockService.hasPin();
-    if (mounted) setState(() {
-      _lockEnabled = enabled && pinExists;
-      _hasBiometric = hasBio;
-      _hasPinSaved = pinExists;
-    });
+    if (mounted) {
+      setState(() {
+        _lockEnabled = enabled && pinExists;
+        _hasBiometric = hasBio;
+        _hasPinSaved = pinExists;
+      });
+    }
   }
 
   Future<void> _checkIfPinExists() async {
@@ -336,10 +235,12 @@ class _SecurityScreenState extends State<SecurityScreen> {
 
   Future<void> _loadAppVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
-    if (mounted) setState(() {
-      _appVersion = packageInfo.version;
-      _buildNumber = packageInfo.buildNumber;
-    });
+    if (mounted) {
+      setState(() {
+        _appVersion = packageInfo.version;
+        _buildNumber = packageInfo.buildNumber;
+      });
+    }
   }
 
   void _showSnackBar(String message) {
@@ -348,6 +249,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
+  // ==================== PIN MANAGEMENT (unchanged) ====================
   Future<void> _showPinSetupDialog() async {
     _newPinController.clear();
     _confirmPinController.clear();
@@ -415,29 +317,27 @@ class _SecurityScreenState extends State<SecurityScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(getText('change_pin'), style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _newPinController,
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                maxLength: 4,
-                decoration: InputDecoration(labelText: getText('new_pin'), border: const OutlineInputBorder()),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _confirmPinController,
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                maxLength: 4,
-                decoration: InputDecoration(labelText: getText('confirm_pin'), border: const OutlineInputBorder()),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              ),
-            ],
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _newPinController,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 4,
+              decoration: InputDecoration(labelText: getText('new_pin'), border: const OutlineInputBorder()),
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirmPinController,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 4,
+              decoration: InputDecoration(labelText: getText('confirm_pin'), border: const OutlineInputBorder()),
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(getText('cancel'))),
@@ -545,19 +445,18 @@ class _SecurityScreenState extends State<SecurityScreen> {
     if (mounted) _showSnackBar(getText('lock_type_changed'));
   }
 
+  // ==================== EMAIL & CLIPBOARD ====================
   void _handleEmailTap(String email) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.email, color: Colors.blue),
-              title: const Text('Open Email App'),
+              title: Text(getText('support')),
               onTap: () async {
                 Navigator.pop(ctx);
                 final Uri emailUri = Uri(scheme: 'mailto', path: email);
@@ -565,25 +464,17 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   await launchUrl(emailUri, mode: LaunchMode.externalApplication);
                 } else {
                   await Clipboard.setData(ClipboardData(text: email));
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Email copied to clipboard')),
-                    );
-                  }
+                  _showSnackBar('Email copied to clipboard');
                 }
               },
             ),
             ListTile(
               leading: const Icon(Icons.copy, color: Colors.green),
-              title: const Text('Copy Email Address'),
+              title: Text('Copy Email Address'),
               onTap: () async {
                 Navigator.pop(ctx);
                 await Clipboard.setData(ClipboardData(text: email));
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Email copied to clipboard')),
-                  );
-                }
+                _showSnackBar('Email copied to clipboard');
               },
             ),
           ],
@@ -592,7 +483,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
-  // PRIVACY POLICY HTML (unchanged, kept as in your original)
+  // ==================== LEGAL DOCUMENTS (UPDATED HTML) ====================
   void _showPrivacyPolicy() {
     String htmlContent;
     if (widget.selectedLanguage == 'bn') {
@@ -603,144 +494,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
       htmlContent = _getPrivacyPolicyEnglish();
     }
     _showWebViewDialog(getText('privacy_policy'), htmlContent);
-  }
-
-  String _getPrivacyPolicyBangla() {
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
-        h1, h2 { color: #1976D2; }
-        p, li { margin: 10px 0; }
-        ul { padding-left: 20px; }
-        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
-        .last-updated { color: #555; font-style: italic; margin-bottom: 20px; }
-      </style>
-    </head>
-    <body>
-      <h1>গোপনীয়তা নীতি</h1>
-      <p class="last-updated"><strong>কার্যকর তারিখ:</strong> ২১ মে ২০২৬</p>
-      <p>মোঃ মিজানুর রহমান <strong>"আমার হিসাব - দৈনিক আয় ব্যয় হিসাব"</strong> অ্যাপটি একটি বিজ্ঞাপন সমর্থিত অ্যাপ হিসেবে তৈরি করেছেন। এই সেবা বিনামূল্যে প্রদান করা হয় এবং এটি ব্যবহারের জন্য যেমন আছে তেমনই প্রদান করা হয়েছে।</p>
-      <h2>তথ্য সংগ্রহ ও ব্যবহার</h2>
-      <p>আমাদের সেবা ব্যবহারের সময়, আমরা আপনাকে কিছু ব্যক্তিগত তথ্য প্রদান করতে বলতে পারি যা আমরা সেবা উন্নত করতে ব্যবহার করি। আমরা আপনার তথ্য গোপনীয়তার নীতি ব্যতীত অন্য কোনো উদ্দেশ্যে ব্যবহার বা শেয়ার করি না।</p>
-      <p>অ্যাপটি নিম্নলিখিত ডাটা ও অনুমতি ব্যবহার করে:</p>
-      <ul>
-        <li><strong>প্রমাণীকরণ ও পরিচয়:</strong> আপনার ইমেল ঠিকানা এবং Google প্রোফাইল তথ্য (Firebase Authentication এর মাধ্যমে) যাতে আপনার ডাটা নিরাপদে আলাদা থাকে।</li>
-        <li><strong>আর্থিক ও বাজেট ডাটা:</strong> আপনি নিজে পরিচালিত আয়, ব্যয় ও বাজেটের সীমা।</li>
-        <li><strong>নোটবুক, ড্রয়িং ও নোট:</strong> আপনার তৈরি টেক্সট নোট ও স্কেচ।</li>
-        <li><strong>ডিভাইস স্টোরেজ ও মিডিয়া অ্যাক্সেস:</strong> প্রোফাইল ছবি ও সংযুক্তি সংরক্ষণ করতে।</li>
-        <li><strong>লোকাল নোটিফিকেশন ও অ্যালার্ম:</strong> রিমাইন্ডার ও বাজেট বিজ্ঞপ্তির জন্য।</li>
-      </ul>
-      <h2>তৃতীয় পক্ষের সেবা</h2>
-      <ul><li>Google Play Services</li><li>AdMob</li><li>Google Analytics for Firebase</li><li>Firebase Crashlytics</li></ul>
-      <h2>ডাটা নিরাপত্তা</h2>
-      <p>আপনার ডাটা ফায়ারবেস ক্লাউডে সুরক্ষিত SSL টানেলের মাধ্যমে সংরক্ষণ করা হয়। সম্পূর্ণ নিরাপত্তা নিশ্চিত করা সম্ভব নয়, তবে আমরা যথাসাধ্য চেষ্টা করি।</p>
-      <h2>শিশুদের গোপনীয়তা</h2>
-      <p>আমাদের সেবা ১৩ বছরের কম বয়সী শিশুদের উদ্দেশ্যে নয়। আমরা জেনেশুনে শিশুদের ব্যক্তিগত তথ্য সংগ্রহ করি না।</p>
-      <h2>এই নীতির পরিবর্তন</h2>
-      <p>আমরা আমাদের গোপনীয়তা নীতি সময়ে সময়ে আপডেট করতে পারি। এই পৃষ্ঠায় নিয়মিত চোখ রাখার পরামর্শ দেওয়া হয়।</p>
-      <h2>যোগাযোগ</h2>
-      <p>আপনার কোনো প্রশ্ন থাকলে ইমেইল করুন: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© ২০২৪-২০২৬ আমার হিসাব। সর্বস্বত্ব সংরক্ষিত।</div>
-    </body>
-    </html>
-    """;
-  }
-
-  String _getPrivacyPolicyEnglish() {
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
-        h1, h2 { color: #1976D2; }
-        p, li { margin: 10px 0; }
-        ul { padding-left: 20px; }
-        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
-        .last-updated { color: #555; font-style: italic; margin-bottom: 20px; }
-      </style>
-    </head>
-    <body>
-      <h1>Privacy Policy</h1>
-      <p class="last-updated"><strong>Effective date:</strong> 21 May 2026</p>
-      <p>Md. Mizanur Rahman built the <strong>"আমার হিসাব - দৈনিক আয় ব্যয় হিসাব"</strong> app as an Ad Supported app. This SERVICE is provided at no cost and is intended for use as is.</p>
-      <h2>Information Collection and Use</h2>
-      <p>For a better experience, while using our Service, we may require you to provide certain personally identifiable information. The information we request will be retained and used as described in this privacy policy.</p>
-      <p>The app uses the following data and permissions:</p>
-      <ul>
-        <li><strong>Authentication & Identity:</strong> Email address and Google profile info via Firebase Authentication.</li>
-        <li><strong>Financial & Budget Data:</strong> Income, expenses, budget limits managed by you.</li>
-        <li><strong>Notebook, Drawings & Notes:</strong> Text notes and sketches you create.</li>
-        <li><strong>Device Storage & Media Access:</strong> To save profile pictures and attachments.</li>
-        <li><strong>Local Notifications & Alarms:</strong> For reminders and budget alerts.</li>
-      </ul>
-      <h2>Third-Party Services</h2>
-      <ul><li>Google Play Services</li><li>AdMob</li><li>Google Analytics for Firebase</li><li>Firebase Crashlytics</li></ul>
-      <h2>Data Security</h2>
-      <p>Your data is stored in Firebase Cloud via encrypted SSL tunnels. While no method is 100% secure, we strive to protect your information.</p>
-      <h2>Children's Privacy</h2>
-      <p>Our Service does not address anyone under the age of 13. We do not knowingly collect personal information from children.</p>
-      <h2>Changes to This Policy</h2>
-      <p>We may update our Privacy Policy from time to time. You are advised to review this page periodically.</p>
-      <h2>Contact</h2>
-      <p>If you have any questions, please email us at: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© 2024-2026 আমার হিসাব. All rights reserved.</div>
-    </body>
-    </html>
-    """;
-  }
-
-  String _getPrivacyPolicyArabic() {
-    return """
-    <!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
-        h1, h2 { color: #1976D2; }
-        p, li { margin: 10px 0; }
-        ul { padding-left: 20px; }
-        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
-        .last-updated { color: #555; font-style: italic; margin-bottom: 20px; }
-      </style>
-    </head>
-    <body>
-      <h1>سياسة الخصوصية</h1>
-      <p class="last-updated"><strong>تاريخ السريان:</strong> ٢١ مايو ٢٠٢٦</p>
-      <p>قام السيد / Md. Mizanur Rahman ببناء تطبيق <strong>"আমার হিসাব - দৈনিক আয় ب্যয় হিসاب"</strong> كتطبيق يدعم الإعلانات. يتم تقديم هذه الخدمة مجانًا وهي مخصصة للاستخدام كما هي.</p>
-      <h2>جمع المعلومات واستخدامها</h2>
-      <p>لتجربة أفضل، أثناء استخدام خدمتنا، قد نطلب منك تقديم بعض المعلومات الشخصية. سنحتفظ بالمعلومات التي نطلبها ونستخدمها كما هو موضح في سياسة الخصوصية هذه.</p>
-      <p>يستخدم التطبيق البيانات والأذونات التالية:</p>
-      <ul>
-        <li><strong>المصادقة والهوية:</strong> عنوان البريد الإلكتروني ومعلومات ملف Google عبر Firebase Authentication.</li>
-        <li><strong>البيانات المالية والميزانية:</strong> الدخل والمصروفات وحدود الميزانية التي تديرها.</li>
-        <li><strong>دفتر الملاحظات والرسومات والملاحظات:</strong> الملاحظات النصية والرسومات التي تنشئها.</li>
-        <li><strong>الوصول إلى التخزين والوسائط:</strong> لحفظ الصور الشخصية والمرفقات.</li>
-        <li><strong>الإشعارات المحلية والتنبيهات:</strong> للتذكيرات وتنبيهات الميزانية.</li>
-      </ul>
-      <h2>خدمات الطرف الثالث</h2>
-      <ul><li>Google Play Services</li><li>AdMob</li><li>Google Analytics for Firebase</li><li>Firebase Crashlytics</li></ul>
-      <h2>أمان البيانات</h2>
-      <p>يتم تخزين بياناتك في سحابة Firebase عبر أنفاق SSL مشفرة. على الرغم من عدم وجود طريقة آمنة بنسبة 100٪، فإننا نسعى جاهدين لحماية معلوماتك.</p>
-      <h2>خصوصية الأطفال</h2>
-      <p>خدمتنا لا تخاطب أي شخص تحت سن ١٣ عامًا. نحن لا نجمع معلومات شخصية من الأطفال عن قصد.</p>
-      <h2>تغييرات هذه السياسة</h2>
-      <p>قد نقوم بتحديث سياسة الخصوصية الخاصة بنا من وقت لآخر. ننصحك بمراجعة هذه الصفحة بشكل دوري.</p>
-      <h2>اتصل بنا</h2>
-      <p>إذا كان لديك أي أسئلة، يرجى مراسلتنا عبر البريد الإلكتروني: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসاب. جميع الحقوق محفوظة.</div>
-    </body>
-    </html>
-    """;
   }
 
   void _showTermsOfService() {
@@ -755,129 +508,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
     _showWebViewDialog(getText('terms_of_service'), htmlContent);
   }
 
-  String _getTermsBangla() {
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
-        h1, h2 { color: #1976D2; }
-        p, li { margin: 10px 0; }
-        ul { padding-left: 20px; }
-        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
-        .last-updated { color: #555; font-style: italic; margin-bottom: 20px; }
-      </style>
-    </head>
-    <body>
-      <h1>সেবার শর্তাবলী</h1>
-      <p class="last-updated"><strong>শেষ সংশোধন:</strong> ২১ মে ২০২৬</p>
-      <h2>১. শর্তাবলীর স্বীকৃতি</h2>
-      <p><strong>"আমার হিসাব"</strong> অ্যাপ্লিকেশনটি ডাউনলোড, ইনস্টল বা ব্যবহার করার মাধ্যমে আপনি এই সেবার শর্তাবলীতে বাধ্য হতে সম্মতি জানাচ্ছেন। যদি একমত না হন, অনুগ্রহ করে অ্যাপ ব্যবহার করবেন না।</p>
-      <h2>২. সেবার বিবরণ</h2>
-      <p>এই অ্যাপটি ব্যক্তিগত আর্থিক ব্যবস্থাপনার জন্য। বৈশিষ্ট্যসমূহ: আয়-ব্যয় ট্র্যাকিং, বাজেট ব্যবস্থাপনা, দেনা-পাওনা হিসাব, নোট ও ড্রয়িং, রিমাইন্ডার, অফলাইন সাপোর্ট এবং ক্লাউড সিঙ্ক।</p>
-      <h2>৩. ব্যবহারকারীর অ্যাকাউন্ট</h2>
-      <p>আপনার ইমেইল দিয়ে সাইন-ইন প্রয়োজন। আপনার অ্যাকাউন্টের নিরাপত্তা ও কার্যকলাপের দায়িত্ব আপনার।</p>
-      <h2>৪. ব্যবহারকারীর ডাটা ও গোপনীয়তা</h2>
-      <p>আপনার ডাটা ফায়ারবেস ক্লাউডে সুরক্ষিত থাকে। গোপনীয়তা নীতিতে বিস্তারিত জানুন।</p>
-      <h2>৫. ব্যবহারের সীমাবদ্ধতা</h2>
-      <p>আপনি অ্যাপ ব্যবহার করে কোনো অবৈধ কাজ, সার্ভারে আক্রমণ, বা দূষিত কোড ছড়াতে পারবেন না।</p>
-      <h2>৬. দায়িত্ব অস্বীকার</h2>
-      <p>অ্যাপ "যেমন আছে, তেমনই" প্রদান করা হয়। ডাটা হারানো বা আর্থিক ক্ষতির জন্য ডেভেলপার দায়ী নয়।</p>
-      <h2>৭. শর্তাবলী পরিবর্তন</h2>
-      <p>ডেভেলপার যেকোনো সময় শর্তাবলী পরিবর্তন করতে পারেন। পরিবর্তনের পরে অ্যাপ ব্যবহার চালিয়ে যাওয়া মানে সম্মতি।</p>
-      <h2>৮. যোগাযোগ</h2>
-      <p>প্রশ্ন থাকলে ইমেইল করুন: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© ২০২৪-২০২৬ আমার হিসাব। সর্বস্বত্ব সংরক্ষিত।</div>
-    </body>
-    </html>
-    """;
-  }
-
-  String _getTermsEnglish() {
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
-        h1, h2 { color: #1976D2; }
-        p, li { margin: 10px 0; }
-        ul { padding-left: 20px; }
-        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
-        .last-updated { color: #555; font-style: italic; margin-bottom: 20px; }
-      </style>
-    </head>
-    <body>
-      <h1>Terms of Service</h1>
-      <p class="last-updated"><strong>Last updated:</strong> 21 May 2026</p>
-      <h2>1. Acceptance of Terms</h2>
-      <p>By downloading, installing or using <strong>"আমার হিসাব"</strong> application, you agree to be bound by these Terms. If you do not agree, do not use the app.</p>
-      <h2>2. Description of Service</h2>
-      <p>This app provides personal finance management features: income/expense tracking, budget management, debt/credit records, notes & drawing, reminders, offline support and cloud sync.</p>
-      <h2>3. User Account</h2>
-      <p>You must sign in with a valid email. You are responsible for your account security and activities.</p>
-      <h2>4. User Data & Privacy</h2>
-      <p>Your data is stored securely in Firebase Cloud. See our Privacy Policy for details.</p>
-      <h2>5. Acceptable Use</h2>
-      <p>You may not use the app for illegal purposes, attack servers, or spread malicious code.</p>
-      <h2>6. Disclaimer of Warranties</h2>
-      <p>The app is provided "AS IS". The developer is not liable for data loss or financial damages.</p>
-      <h2>7. Changes to Terms</h2>
-      <p>We may update these Terms at any time. Continued use constitutes acceptance.</p>
-      <h2>8. Contact</h2>
-      <p>Email: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© 2024-2026 আমার হিসاب. All rights reserved.</div>
-    </body>
-    </html>
-    """;
-  }
-
-  String _getTermsArabic() {
-    return """
-    <!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
-        h1, h2 { color: #1976D2; }
-        p, li { margin: 10px 0; }
-        ul { padding-left: 20px; }
-        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
-        .last-updated { color: #555; font-style: italic; margin-bottom: 20px; }
-      </style>
-    </head>
-    <body>
-      <h1>شروط الخدمة</h1>
-      <p class="last-updated"><strong>آخر تحديث:</strong> ٢١ مايو ٢٠٢٦</p>
-      <h2>١. قبول الشروط</h2>
-      <p>بتحميل أو تثبيت أو استخدام تطبيق <strong>"আমার হিসাব"</strong>، فإنك توافق على الالتزام بهذه الشروط. إذا كنت لا توافق، فلا تستخدم التطبيق.</p>
-      <h2>٢. وصف الخدمة</h2>
-      <p>يقدم هذا التطبيق إدارة مالية شخصية: تتبع الدخل والمصروفات، إدارة الميزانية، سجلات الديون والائتمانات، الملاحظات والرسم، التذكيرات، الدعم دون اتصال بالإنترنت والمزامنة السحابية.</p>
-      <h2>٣. حساب المستخدم</h2>
-      <p>يجب عليك تسجيل الدخول ببريد إلكتروني صالح. أنت مسؤول عن أمان حسابك وأنشطتك.</p>
-      <h2>٤. بيانات المستخدم والخصوصية</h2>
-      <p>يتم تخزين بياناتك بشكل آمن في سحابة Firebase. راجع سياسة الخصوصية للحصول على التفاصيل.</p>
-      <h2>٥. الاستخدام المقبول</h2>
-      <p>لا يجوز لك استخدام التطبيق لأغراض غير قانونية، أو مهاجمة الخوادم، أو نشر تعليمات برمجية ضارة.</p>
-      <h2>٦. إخلاء المسؤولية</h2>
-      <p>يتم تقديم التطبيق "كما هو". المطور غير مسؤول عن فقدان البيانات أو الأضرار المالية.</p>
-      <h2>٧. تغييرات الشروط</h2>
-      <p>قد نقوم بتحديث هذه الشروط في أي وقت. الاستمرار في استخدام التطبيق يعني القبول.</p>
-      <h2>٨. اتصل بنا</h2>
-      <p>البريد الإلكتروني: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসاب. جميع الحقوق محفوظة.</div>
-    </body>
-    </html>
-    """;
-  }
-
   void _showWebViewDialog(String title, String htmlContent) {
     showDialog(
       context: context,
@@ -890,9 +520,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             appBar: AppBar(
               title: Text(title),
               automaticallyImplyLeading: false,
-              actions: [
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-              ],
+              actions: [IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context))],
             ),
             body: WebViewWidget(
               controller: WebViewController()
@@ -905,6 +533,199 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
+  // ----- Privacy Policy (Bengali) - Updated -----
+  String _getPrivacyPolicyBangla() {
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    </head>
+    <body>
+      <h1>গোপনীয়তা নীতি</h1>
+      <p><strong>সর্বশেষ আপডেট:</strong> জুন ২০২৬</p>
+      
+      <h2>১. ডেটা সংগ্রহ (Data Collection)</h2>
+      <p>"আমার হিসাব" অ্যাপটি ব্যবহার করার জন্য কোনো জিমেইল আইডি, নাম, ফোন নম্বর বা ব্যক্তিগত তথ্য দিয়ে সাইন-ইন বা অ্যাকাউন্ট তৈরি করার প্রয়োজন নেই। অ্যাপটি ব্যবহারকারীর কোনো ব্যক্তিগত তথ্য আমাদের নিজস্ব কোনো সার্ভারে সংগ্রহ বা সংরক্ষণ করে না।</p>
+      
+      <h2>২. ডেটা স্টোরেজ ও নিরাপত্তা (Data Storage & Security)</h2>
+      <p>আপনার ইনপুট করা সমস্ত লেনদেন, বাজেট এবং হিসাবের ডেটা সম্পূর্ণ অফলাইনে আপনার ডিভাইসের লোকাল স্টোরেজে (Hive Database) সংরক্ষিত থাকে। যেহেতু ডেটা আপনার নিজের ডিভাইসে থাকে, তাই এর সুরক্ষার দায়িত্ব সম্পূর্ণ আপনার।</p>
+      
+      <h2>৩. গুগল ড্রাইভ ব্যাকআপ (Google Drive Backup)</h2>
+      <p>অ্যাপটিতে অনলাইন ব্যাকআপের জন্য Google Drive API ব্যবহার করা হয়েছে। ব্যবহারকারী যখন ব্যাকআপ অপশনটি চালু করবেন, তখন অ্যাপটি সরাসরি ব্যবহারকারীর নিজস্ব গুগল ড্রাইভে একটি এনক্রিপ্টেড ব্যাকআপ ফাইল তৈরি করবে। এই ফাইলের কোনো অ্যাক্সেস আমাদের (ডেভেলপারের) কাছে থাকে না।</p>
+      
+      <h2>৪. থার্ড-পার্টি সার্ভিস (Third-Party Services)</h2>
+      <p>অ্যাপটি ব্যাকআপ ফিচার সচল করার জন্য Google Sign-In এবং Google Drive SDK ব্যবহার করে। এই সার্ভিসগুলোর গোপনীয়তা নীতি গুগলের নিজস্ব পলিসি দ্বারা নিয়ন্ত্রিত হয়।</p>
+      
+      <h2>যোগাযোগ</h2>
+      <p>যেকোনো প্রশ্নে ইমেইল করুন: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
+      <div class="footer">© ২০২৪-২০২৬ আমার হিসাব</div>
+    </body>
+    </html>
+    """;
+  }
+
+  // ----- Privacy Policy (English) - Updated -----
+  String _getPrivacyPolicyEnglish() {
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    </head>
+    <body>
+      <h1>Privacy Policy</h1>
+      <p><strong>Last updated:</strong> June 2026</p>
+      
+      <h2>1. Data Collection</h2>
+      <p>No sign-in or account creation is required to use "Amar Hisab". The app does not collect any personal information such as email, name, or phone number. No user data is sent to our own servers.</p>
+      
+      <h2>2. Data Storage & Security</h2>
+      <p>All transactions, budgets, and accounting data are stored completely offline on your device (Hive database). Since data resides on your device, you are solely responsible for its security.</p>
+      
+      <h2>3. Google Drive Backup</h2>
+      <p>The app uses Google Drive API for online backup. When you enable backup, the app creates an encrypted backup file directly in your personal Google Drive. The developer has no access to this file.</p>
+      
+      <h2>4. Third‑Party Services</h2>
+      <p>This app uses Google Sign-In and Google Drive SDK for backup functionality. Those services are governed by Google's own privacy policies.</p>
+      
+      <h2>Contact</h2>
+      <p>Email: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
+      <div class="footer">© 2024-2026 আমার হিসাব</div>
+    </body>
+    </html>
+    """;
+  }
+
+  // ----- Privacy Policy (Arabic) - Updated (simplified, based on English) -----
+  String _getPrivacyPolicyArabic() {
+    return """
+    <!DOCTYPE html>
+    <html dir="rtl">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    </head>
+    <body>
+      <h1>سياسة الخصوصية</h1>
+      <p><strong>آخر تحديث:</strong> يونيو ٢٠٢٦</p>
+      
+      <h2>١. جمع البيانات</h2>
+      <p>لا حاجة لتسجيل الدخول أو إنشاء حساب لاستخدام "محاسبتي". لا يجمع التطبيق أي معلومات شخصية مثل البريد الإلكتروني أو الاسم أو رقم الهاتف. لا يتم إرسال أي بيانات مستخدم إلى خوادمنا الخاصة.</p>
+      
+      <h2>٢. تخزين البيانات وأمانها</h2>
+      <p>يتم تخزين جميع المعاملات والميزانيات والبيانات المحاسبية دون اتصال بالإنترنت على جهازك (قاعدة بيانات Hive). نظرًا لأن البيانات موجودة على جهازك، فأنت وحدك المسؤول عن أمانها.</p>
+      
+      <h2>٣. النسخ الاحتياطي على Google Drive</h2>
+      <p>يستخدم التطبيق واجهة برمجة تطبيقات Google Drive للنسخ الاحتياطي عبر الإنترنت. عند تمكين النسخ الاحتياطي، يقوم التطبيق بإنشاء ملف نسخ احتياطي مشفر مباشرة في Google Drive الشخصي الخاص بك. المطور لا يمكنه الوصول إلى هذا الملف.</p>
+      
+      <h2>٤. خدمات الطرف الثالث</h2>
+      <p>يستخدم هذا التطبيق تسجيل الدخول عبر Google و Google Drive SDK لوظيفة النسخ الاحتياطي. تخضع هذه الخدمات لسياسات الخصوصية الخاصة بشركة Google.</p>
+      
+      <h2>اتصل بنا</h2>
+      <p>البريد الإلكتروني: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
+      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসাব</div>
+    </body>
+    </html>
+    """;
+  }
+
+  // ----- Terms of Service (Bengali) - Updated -----
+  String _getTermsBangla() {
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    </head>
+    <body>
+      <h1>সেবার শর্তাবলী</h1>
+      <p><strong>সর্বশেষ সংশোধন:</strong> জুন ২০২৬</p>
+      
+      <h2>১. অ্যাপের ব্যবহার</h2>
+      <p>"আমার হিসাব" অ্যাপটি ব্যক্তিগত ব্যবহারের জন্য সম্পূর্ণ ফ্রি। অ্যাপটি কোনো অ্যাকাউন্ট ছাড়াই সরাসরি ব্যবহার করা যাবে।</p>
+      
+      <h2>২. ব্যবহারকারীর ডেটার দায়বদ্ধতা (গুরুত্বপূর্ণ)</h2>
+      <p>আমরা (অ্যাপ কর্তৃপক্ষ বা ডেভেলপার) ব্যবহারকারীর কোনো ডেটার দায়িত্ব বা দায়বদ্ধতা গ্রহণ করি না। আপনার ফোনের সমস্ত ডেটা লোকাল ডিভাইসে থাকে। ফোন হারিয়ে গেলে, অ্যাপ আনইনস্টল করলে, ফোন রিসেট দিলে বা ডিভাইস ড্যামেজ হলে যদি কোনো ডেটা হারিয়ে যায়, তবে তার জন্য ডেভেলপার কোনোভাবেই দায়ী থাকবে না। ব্যবহারকারীকে নিজ দায়িত্বে ব্যাকআপ ফাইল শেয়ার বা ড্রাইভে সংরক্ষণ করে রাখতে হবে।</p>
+      
+      <h2>৩. ব্যাকআপ ও অটো-ব্যাকআপ</h2>
+      <p>ব্যবহারকারী যদি তার ডেটা সুরক্ষিত রাখতে চান, তবে তাকে অবশ্যই গুগল ড্রাইভ বা লোকাল ব্যাকআপ ফিচারটি ব্যবহার করতে হবে। প্রথমবার সফলভাবে ড্রাইভে ব্যাকআপ নেওয়ার পর, ইন্টারনেট কানেকশন (WiFi বা Mobile Data) সক্রিয় থাকলে অ্যাপটি স্বয়ংক্রিয়ভাবে (Auto Backup) ডেটা আপডেট করে নেবে। তবে নেটওয়ার্ক সমস্যার কারণে ব্যাকআপ ফেইল হলে তার দায় ব্যবহারকারীর।</p>
+      
+      <h2>৪. পরিবর্তন ও সংশোধন</h2>
+      <p>কর্তৃপক্ষ যেকোনো সময় অ্যাপের শর্তাবলী পরিবর্তন করার অধিকার সংরক্ষণ করে।</p>
+      
+      <h2>যোগাযোগ</h2>
+      <p>ইমেইল: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
+      <div class="footer">© ২০২৪-২০২৬ আমার হিসাব</div>
+    </body>
+    </html>
+    """;
+  }
+
+  // ----- Terms of Service (English) - Updated -----
+  String _getTermsEnglish() {
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    </head>
+    <body>
+      <h1>Terms of Service</h1>
+      <p><strong>Last updated:</strong> June 2026</p>
+      
+      <h2>1. App Usage</h2>
+      <p>"Amar Hisab" is completely free for personal use. No account is required to use the app.</p>
+      
+      <h2>2. User Data Responsibility (CRITICAL)</h2>
+      <p>We (the app authority or developer) do not accept any responsibility or liability for user data. All data resides locally on your device. If you lose your phone, uninstall the app, factory reset your device, or suffer device damage, any data loss is not the developer's responsibility. It is your sole responsibility to keep backup files shared or stored on Drive.</p>
+      
+      <h2>3. Backup & Auto-Backup</h2>
+      <p>If you wish to protect your data, you must use the Google Drive or local backup feature. After the first successful Drive backup, whenever internet (WiFi or mobile data) is available, the app will automatically update your backup. However, the user is responsible for any backup failure due to network issues.</p>
+      
+      <h2>4. Modifications</h2>
+      <p>The authority reserves the right to modify the app's terms at any time.</p>
+      
+      <h2>Contact</h2>
+      <p>Email: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
+      <div class="footer">© 2024-2026 আমার হিসাব</div>
+    </body>
+    </html>
+    """;
+  }
+
+  // ----- Terms of Service (Arabic) - Updated (simplified) -----
+  String _getTermsArabic() {
+    return """
+    <!DOCTYPE html>
+    <html dir="rtl">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    </head>
+    <body>
+      <h1>شروط الخدمة</h1>
+      <p><strong>آخر تحديث:</strong> يونيو ٢٠٢٦</p>
+      
+      <h2>١. استخدام التطبيق</h2>
+      <p>تطبيق "محاسبتي" مجاني تمامًا للاستخدام الشخصي. لا يلزم وجود حساب لاستخدام التطبيق.</p>
+      
+      <h2>٢. مسؤولية بيانات المستخدم (هام للغاية)</h2>
+      <p>نحن (سلطة التطبيق أو المطور) لا نتحمل أي مسؤولية أو التزام تجاه بيانات المستخدم. توجد جميع البيانات محليًا على جهازك. إذا فقدت هاتفك، أو ألغيت تثبيت التطبيق، أو أعدت ضبط المصنع لجهازك، أو تعرض جهازك للتلف، فإن فقدان البيانات ليس مسؤولية المطور. تقع على عاتقك وحدك مسؤولية الاحتفاظ بنسخ احتياطية من الملفات المشتركة أو المخزنة على Drive.</p>
+      
+      <h2>٣. النسخ الاحتياطي والتلقائي</h2>
+      <p>إذا كنت ترغب في حماية بياناتك، فيجب عليك استخدام ميزة النسخ الاحتياطي على Google Drive أو المحلي. بعد أول نسخة احتياطية ناجحة على Drive، كلما كان الإنترنت (WiFi أو بيانات الجوال) متاحًا، سيقوم التطبيق تلقائيًا بتحديث نسختك الاحتياطية. ومع ذلك، يتحمل المستخدم مسؤولية أي فشل في النسخ الاحتياطي بسبب مشاكل الشبكة.</p>
+      
+      <h2>٤. التعديلات</h2>
+      <p>تحتفظ السلطة بالحق في تعديل شروط التطبيق في أي وقت.</p>
+      
+      <h2>اتصل بنا</h2>
+      <p>البريد الإلكتروني: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
+      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসাব</div>
+    </body>
+    </html>
+    """;
+  }
+
+  // ==================== BUILD ====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1047,7 +868,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // About Card – removed the update check tile
+          // About App Card (updated description from fallback)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1077,7 +898,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                         children: [
                           Text(getText('app_title'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text('Version $_appVersion', style: TextStyle(color: Colors.grey[600])),
+                          Text('${getText('current_version')} $_appVersion', style: TextStyle(color: Colors.grey[600])),
                         ],
                       ),
                     ),
@@ -1086,7 +907,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 const SizedBox(height: 16),
                 Text(getText('app_description'), style: const TextStyle(height: 1.4)),
                 const SizedBox(height: 20),
-                // ❌ Update check tile removed (no Firebase)
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.person_outline, color: Colors.blue),
@@ -1111,7 +931,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Legal Cards (unchanged)
+          // Legal Documents Card
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -1145,7 +965,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // FAQ Card (unchanged)
+          // FAQ Card (updated Q/A from fallback)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
