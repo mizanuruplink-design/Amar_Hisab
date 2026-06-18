@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../services/local_database_service.dart';
@@ -36,7 +37,40 @@ class _BudgetScreenState extends State<BudgetScreen> {
     {'key': 'other', 'icon': Icons.more_horiz, 'color': Colors.grey},
   ];
 
-  // ==================== LOCALISATION ====================
+  // ==================== DIGIT CONVERSION HELPERS ====================
+  String _convertToEnglishDigits(String input) {
+    const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(bengali[i], english[i]);
+      input = input.replaceAll(arabic[i], english[i]);
+    }
+    return input;
+  }
+
+  String _convertToScriptDigits(String input) {
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    List<String> target;
+    if (widget.selectedLanguage == 'bn') {
+      target = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    } else if (widget.selectedLanguage == 'ar') {
+      target = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    } else {
+      return input;
+    }
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(english[i], target[i]);
+    }
+    return input;
+  }
+
+  String _formatAmount(double amount) {
+    String formatted = amount.toStringAsFixed(0);
+    return _convertToScriptDigits(formatted);
+  }
+
+  // ==================== LOCALIZATION ====================
   String getText(String key) {
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
@@ -357,8 +391,14 @@ class _BudgetScreenState extends State<BudgetScreen> {
         children: [
           Text(getText('total_budget_overview'), style: const TextStyle(color: Colors.white70, fontSize: 14)),
           const SizedBox(height: 10),
-          Text('৳ ${totalSpent.toStringAsFixed(0)} / ৳ ${totalBudget.toStringAsFixed(0)}',
-              style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('${_formatAmount(totalSpent)}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+              const Text(' / ', style: TextStyle(color: Colors.white70, fontSize: 22)),
+              Text('${_formatAmount(totalBudget)}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+            ],
+          ),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
@@ -413,7 +453,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     children: [
                       Text(getCategoryName(budget.category),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('${getText('budget')}: ৳ ${budget.budgetAmount.toStringAsFixed(0)}',
+                      Text('${getText('budget')}: ${_formatAmount(budget.budgetAmount)}',
                           style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                     ],
                   ),
@@ -421,7 +461,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('৳ ${budget.spentAmount.toStringAsFixed(0)}',
+                    Text(_formatAmount(budget.spentAmount),
                         style: TextStyle(fontWeight: FontWeight.bold, color: progressColor)),
                     Text(getBudgetStatusText(budget.statusText),
                         style: TextStyle(fontSize: 11, color: progressColor)),
@@ -469,7 +509,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
               children: [
                 Text('${budget.spentPercentage.toStringAsFixed(1)}%',
                     style: TextStyle(fontWeight: FontWeight.bold, color: progressColor)),
-                Text('${getText('remaining')}: ৳ ${budget.remainingAmount.toStringAsFixed(0)}',
+                Text('${getText('remaining')}: ${_formatAmount(budget.remainingAmount)}',
                     style: TextStyle(color: Colors.grey[600])),
               ],
             ),
@@ -487,7 +527,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        '${getText('budget_exceeded')}! ${getText('overspent')} ৳ ${(budget.spentAmount - budget.budgetAmount).toStringAsFixed(0)}',
+                        '${getText('budget_exceeded')}! ${getText('overspent')} ${_formatAmount(budget.spentAmount - budget.budgetAmount)}',
                         style: const TextStyle(color: Colors.red, fontSize: 12),
                       ),
                     ),
@@ -503,7 +543,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   String getBudgetStatusText(String status) {
     switch (status) {
       case 'অতিরিক্ত খরচ':
-        return getText('over_budget');
+        return getText('overspent');
       case 'সতর্কতা':
         return getText('warning');
       case 'অর্ধেক ব্যবহৃত':
@@ -561,10 +601,23 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 ),
                 const SizedBox(height: 15),
 
-                // Budget amount
+                // Budget amount (বাংলা/আরবি ডিজিট সাপোর্ট)
                 TextField(
                   controller: amountController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+                    ),
+                    // টাইপ করার সময় ডিজিট স্ক্রিপ্টে দেখাবে (ঐচ্ছিক)
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String converted = _convertToScriptDigits(newValue.text);
+                      return newValue.copyWith(
+                        text: converted,
+                        selection: TextSelection.collapsed(offset: converted.length),
+                      );
+                    }),
+                  ],
                   decoration: InputDecoration(
                     labelText: getText('budget_amount'),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -573,7 +626,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 ),
                 const SizedBox(height: 15),
 
-                // Period dropdown – now translated
+                // Period dropdown
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -615,7 +668,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ElevatedButton(
               onPressed: () {
                 if (amountController.text.isNotEmpty) {
-                  double? amount = double.tryParse(amountController.text);
+                  final rawAmount = _convertToEnglishDigits(amountController.text);
+                  double? amount = double.tryParse(rawAmount);
                   if (amount != null && amount > 0) {
                     BudgetModel budget = BudgetModel(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -652,7 +706,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   void _showEditBudgetDialog(BudgetModel budget) {
-    final amountController = TextEditingController(text: budget.budgetAmount.toString());
+    final amountController = TextEditingController(
+      text: _convertToScriptDigits(budget.budgetAmount.toStringAsFixed(0)),
+    );
 
     showDialog(
       context: context,
@@ -660,7 +716,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
         title: Text(getText('edit_budget'), style: const TextStyle(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: amountController,
-          keyboardType: TextInputType.number,
+          keyboardType: TextInputType.text,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(
+              RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+            ),
+            TextInputFormatter.withFunction((oldValue, newValue) {
+              String converted = _convertToScriptDigits(newValue.text);
+              return newValue.copyWith(
+                text: converted,
+                selection: TextSelection.collapsed(offset: converted.length),
+              );
+            }),
+          ],
           decoration: InputDecoration(
             labelText: getText('budget_amount'),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -675,7 +743,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ElevatedButton(
             onPressed: () {
               if (amountController.text.isNotEmpty) {
-                double? amount = double.tryParse(amountController.text);
+                final rawAmount = _convertToEnglishDigits(amountController.text);
+                double? amount = double.tryParse(rawAmount);
                 if (amount != null && amount > 0) {
                   _db.updateBudget(budget.id, {'budgetAmount': amount});
                   Navigator.pop(context);

@@ -27,6 +27,40 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   String _filterType = 'all';
   bool _isExporting = false;
 
+  // ==================== DIGIT CONVERSION HELPERS ====================
+  String _convertToEnglishDigits(String input) {
+    const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(bengali[i], english[i]);
+      input = input.replaceAll(arabic[i], english[i]);
+    }
+    return input;
+  }
+
+  String _convertToScriptDigits(String input) {
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    List<String> target;
+    if (widget.selectedLanguage == 'bn') {
+      target = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    } else if (widget.selectedLanguage == 'ar') {
+      target = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    } else {
+      return input;
+    }
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(english[i], target[i]);
+    }
+    return input;
+  }
+
+  String _formatAmount(double amount) {
+    String formatted = amount.toStringAsFixed(0);
+    return _convertToScriptDigits(formatted);
+  }
+
+  // ==================== LOCALIZATION ====================
   String getText(String key) {
     return widget.localizedText[widget.selectedLanguage]?[key] ??
         widget.localizedText['bn']?[key] ??
@@ -112,6 +146,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                             initialDate: _startDate,
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2030),
+                            locale: Locale(widget.selectedLanguage), // ✅ ভাষা সাপোর্ট
                           );
                           if (picked != null && picked.isBefore(_endDate.add(const Duration(days: 1)))) {
                             setState(() => _startDate = picked);
@@ -132,6 +167,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                             initialDate: _endDate,
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2030),
+                            locale: Locale(widget.selectedLanguage), // ✅ ভাষা সাপোর্ট
                           );
                           if (picked != null && picked.isAfter(_startDate.subtract(const Duration(days: 1)))) {
                             setState(() => _endDate = picked);
@@ -171,6 +207,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
               const SizedBox(height: 12),
 
+              // Summary cards (ডিজিট কনভার্ট সহ)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
@@ -208,6 +245,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               ),
               const Divider(),
 
+              // Transaction list (ডিজিট কনভার্ট সহ)
               Expanded(
                 child: filteredList.isEmpty
                     ? _emptyState()
@@ -237,7 +275,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                         title: Text(tx.note ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(displayDateOnly),
                         trailing: Text(
-                          "৳ ${tx.amount.toInt()}",
+                          _formatAmount(tx.amount), // ✅ ডিজিট কনভার্ট
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: isIncome ? Colors.green : Colors.red,
@@ -329,7 +367,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             Text(title, style: const TextStyle(color: Colors.white, fontSize: 12)),
             const SizedBox(height: 4),
             Text(
-              "৳ ${amount.toInt()}",
+              _formatAmount(amount), // ✅ ডিজিট কনভার্ট
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ],

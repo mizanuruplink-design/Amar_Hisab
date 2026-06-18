@@ -22,6 +22,45 @@ class YearlyStatsScreen extends StatefulWidget {
 class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
   int _selectedYear = DateTime.now().year;
 
+  // ==================== DIGIT CONVERSION HELPERS ====================
+  String _convertToEnglishDigits(String input) {
+    const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(bengali[i], english[i]);
+      input = input.replaceAll(arabic[i], english[i]);
+    }
+    return input;
+  }
+
+  String _convertToScriptDigits(String input) {
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    List<String> target;
+    if (widget.selectedLanguage == 'bn') {
+      target = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    } else if (widget.selectedLanguage == 'ar') {
+      target = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    } else {
+      return input;
+    }
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(english[i], target[i]);
+    }
+    return input;
+  }
+
+  String _formatAmount(double amount) {
+    String formatted = amount.toStringAsFixed(0);
+    return _convertToScriptDigits(formatted);
+  }
+
+  String _formatPercentage(double value) {
+    String formatted = value.toStringAsFixed(0);
+    return _convertToScriptDigits(formatted);
+  }
+
+  // ==================== LOCALIZATION ====================
   String getText(String key) {
     return widget.localizedText[widget.selectedLanguage]?[key] ??
         widget.localizedText['bn']?[key] ??
@@ -184,7 +223,10 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
           children: [
             Text(title, style: const TextStyle(color: Colors.white, fontSize: 12)),
             const SizedBox(height: 4),
-            Text("৳ ${amount.toInt()}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              _formatAmount(amount), // ✅ ডিজিট কনভার্ট
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ],
         ),
       ),
@@ -217,7 +259,7 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
   }
 
   Widget _pieChart(String label, double value, double total, Color color) {
-    final percent = total > 0 ? (value / total) * 100 : 0;
+    final percent = total > 0 ? (value / total) * 100 : 0.0;
     return Column(
       children: [
         SizedBox(
@@ -246,7 +288,10 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
         ),
         const SizedBox(height: 6),
         Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-        Text("${percent.toStringAsFixed(0)}%", style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 12)),
+        Text(
+          "${_formatPercentage(percent)}%", // ✅ ডিজিট কনভার্ট
+          style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 12),
+        ),
       ],
     );
   }
@@ -287,10 +332,16 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(flex: 2, child: Text(monthName, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 13))),
-          Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))),
-          Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))),
+          Expanded(child: Text(
+            _formatAmount(inc), // ✅ ডিজিট কনভার্ট
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
+          )),
+          Expanded(child: Text(
+            _formatAmount(exp), // ✅ ডিজিট কনভার্ট
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+          )),
         ],
       ),
     );
@@ -306,8 +357,16 @@ class _YearlyStatsScreenState extends State<YearlyStatsScreen> {
       child: Row(
         children: [
           Expanded(flex: 2, child: Text(getText('total_label'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
-          Expanded(child: Text("৳ ${inc.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-          Expanded(child: Text("৳ ${exp.toInt()}", textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          Expanded(child: Text(
+            _formatAmount(inc), // ✅ ডিজিট কনভার্ট
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          )),
+          Expanded(child: Text(
+            _formatAmount(exp), // ✅ ডিজিট কনভার্ট
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          )),
         ],
       ),
     );

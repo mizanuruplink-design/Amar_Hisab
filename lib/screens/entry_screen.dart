@@ -1,11 +1,20 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction_model.dart';
 import '../services/local_database_service.dart';
 import '../services/notification_service.dart';
 
 class EntryScreen extends StatefulWidget {
-  const EntryScreen({super.key});
+  final String selectedLanguage;
+  final Map<String, Map<String, String>> localizedText;
+
+  const EntryScreen({
+    super.key,
+    required this.selectedLanguage,
+    required this.localizedText,
+  });
 
   @override
   State<EntryScreen> createState() => _EntryScreenState();
@@ -31,18 +40,141 @@ class _EntryScreenState extends State<EntryScreen> {
     0xFFCFD8DC, // Blue Grey
   ];
 
+  // ==================== DIGIT CONVERSION HELPERS ====================
+  String _convertToEnglishDigits(String input) {
+    const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(bengali[i], english[i]);
+      input = input.replaceAll(arabic[i], english[i]);
+    }
+    return input;
+  }
+
+  String _convertToScriptDigits(String input) {
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    List<String> target;
+    if (widget.selectedLanguage == 'bn') {
+      target = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    } else if (widget.selectedLanguage == 'ar') {
+      target = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    } else {
+      return input;
+    }
+    for (int i = 0; i < english.length; i++) {
+      input = input.replaceAll(english[i], target[i]);
+    }
+    return input;
+  }
+
+  // ==================== LOCALIZATION ====================
+  String getText(String key) {
+    final translated = widget.localizedText[widget.selectedLanguage]?[key];
+    if (translated != null && translated.isNotEmpty) return translated;
+
+    // Fallback (for keys used in this screen)
+    switch (key) {
+      case 'new_entry':
+        if (widget.selectedLanguage == 'bn') return 'নতুন এন্ট্রি';
+        if (widget.selectedLanguage == 'ar') return 'إدخال جديد';
+        return 'New Entry';
+      case 'income':
+        if (widget.selectedLanguage == 'bn') return 'জমা';
+        if (widget.selectedLanguage == 'ar') return 'دخل';
+        return 'Income';
+      case 'expense':
+        if (widget.selectedLanguage == 'bn') return 'খরচ';
+        if (widget.selectedLanguage == 'ar') return 'مصروف';
+        return 'Expense';
+      case 'debt':
+        if (widget.selectedLanguage == 'bn') return 'দেনা';
+        if (widget.selectedLanguage == 'ar') return 'دين';
+        return 'Debt';
+      case 'note':
+        if (widget.selectedLanguage == 'bn') return 'নোট';
+        if (widget.selectedLanguage == 'ar') return 'ملاحظة';
+        return 'Note';
+      case 'amount':
+        if (widget.selectedLanguage == 'bn') return 'টাকার পরিমাণ';
+        if (widget.selectedLanguage == 'ar') return 'المبلغ';
+        return 'Amount';
+      case 'title':
+        if (widget.selectedLanguage == 'bn') return 'শিরোনাম';
+        if (widget.selectedLanguage == 'ar') return 'العنوان';
+        return 'Title';
+      case 'note_title_hint':
+        if (widget.selectedLanguage == 'bn') return 'নোট বা মিটিংয়ের শিরোনাম';
+        if (widget.selectedLanguage == 'ar') return 'عنوان الملاحظة أو الاجتماع';
+        return 'Note or meeting title';
+      case 'choose_note_color':
+        if (widget.selectedLanguage == 'bn') return 'নোটের কালার পছন্দ করুন:';
+        if (widget.selectedLanguage == 'ar') return 'اختر لون الملاحظة:';
+        return 'Choose note color:';
+      case 'set_date_time':
+        if (widget.selectedLanguage == 'bn') return 'তারিখ ও সময় সেট করুন';
+        if (widget.selectedLanguage == 'ar') return 'حدد التاريخ والوقت';
+        return 'Set date & time';
+      case 'note_details':
+        if (widget.selectedLanguage == 'bn') return 'নোটের বিস্তারিত...';
+        if (widget.selectedLanguage == 'ar') return 'تفاصيل الملاحظة...';
+        return 'Note details...';
+      case 'transaction_details':
+        if (widget.selectedLanguage == 'bn') return 'লেনদেনের বিবরণ...';
+        if (widget.selectedLanguage == 'ar') return 'تفاصيل المعاملة...';
+        return 'Transaction details...';
+      case 'save_all':
+        if (widget.selectedLanguage == 'bn') return 'সব তথ্য সেভ করুন';
+        if (widget.selectedLanguage == 'ar') return 'حفظ جميع البيانات';
+        return 'Save all';
+      case 'enter_amount':
+        if (widget.selectedLanguage == 'bn') return 'টাকার পরিমাণ লিখুন';
+        if (widget.selectedLanguage == 'ar') return 'أدخل المبلغ';
+        return 'Enter amount';
+      case 'enter_title':
+        if (widget.selectedLanguage == 'bn') return 'নোটের টাইটেল লিখুন';
+        if (widget.selectedLanguage == 'ar') return 'أدخل عنوان الملاحظة';
+        return 'Enter note title';
+      case 'saved_successfully':
+        if (widget.selectedLanguage == 'bn') return 'সফলভাবে সেভ হয়েছে';
+        if (widget.selectedLanguage == 'ar') return 'تم الحفظ بنجاح';
+        return 'Saved successfully';
+      case 'debt_reminder_title':
+        if (widget.selectedLanguage == 'bn') return 'টাকা ফেরতের রিমাইন্ডার';
+        if (widget.selectedLanguage == 'ar') return 'تذكير بإعادة المال';
+        return 'Debt repayment reminder';
+      case 'note_reminder_title':
+        if (widget.selectedLanguage == 'bn') return 'নোট রিমাইন্ডার';
+        if (widget.selectedLanguage == 'ar') return 'تذكير الملاحظة';
+        return 'Note reminder';
+      case 'transaction_reminder_title':
+        if (widget.selectedLanguage == 'bn') return 'লেনদেন রিমাইন্ডার';
+        if (widget.selectedLanguage == 'ar') return 'تذكير المعاملة';
+        return 'Transaction reminder';
+      case 'you_have_reminder':
+        if (widget.selectedLanguage == 'bn') return 'আপনার একটি রিমাইন্ডার আছে';
+        if (widget.selectedLanguage == 'ar') return 'لديك تذكير';
+        return 'You have a reminder';
+      default:
+        return widget.localizedText['bn']?[key] ?? key;
+    }
+  }
+
+  // ==================== DATE/TIME PICKER ====================
   Future<void> _pickDateTime() async {
     DateTime? date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      locale: Locale(widget.selectedLanguage), // ✅ ভাষা সাপোর্ট
     );
 
     if (date != null) {
       TimeOfDay? time = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.now(),
+        locale: Locale(widget.selectedLanguage), // ✅ ভাষা সাপোর্ট
       );
 
       if (time != null) {
@@ -56,26 +188,30 @@ class _EntryScreenState extends State<EntryScreen> {
     }
   }
 
+  // ==================== SAVE LOGIC ====================
   void _saveEntry() async {
     if (_selectedType != 'Note' && _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("টাকার পরিমাণ লিখুন")),
+        SnackBar(content: Text(getText('enter_amount'))),
       );
       return;
     }
 
     if (_selectedType == 'Note' && _titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("নোটের টাইটেল লিখুন")),
+        SnackBar(content: Text(getText('enter_title'))),
       );
       return;
     }
 
     try {
       if (_selectedType != 'Note') {
+        final rawAmount = _convertToEnglishDigits(_amountController.text);
+        final amount = double.tryParse(rawAmount) ?? 0;
+
         final tx = TransactionModel(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
-          amount: double.tryParse(_amountController.text) ?? 0,
+          amount: amount,
           type: _selectedType,
           category: "General",
           date: DateFormat('yyyy-MM-dd').format(_selectedDate),
@@ -85,23 +221,18 @@ class _EntryScreenState extends State<EntryScreen> {
         );
         await _db.addTransaction(tx);
       } else {
-        // Save note – we need to store it as a TransactionModel with type 'Note'
-        final noteData = {
-          'id': DateTime.now().millisecondsSinceEpoch.toString(),
-          'title': _titleController.text,
-          'content': _noteController.text,
-          'reminderTime': _reminderDateTime?.toString(),
-          'colorValue': _selectedColor,
-          'createdAt': DateTime.now().toString(),
-        };
-        // We'll store notes in the transactions box as type 'Note'
+        // Save note as TransactionModel with type 'Note'
         final noteTx = TransactionModel(
-          id: noteData['id']!,
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
           amount: 0,
           note: _titleController.text,
           type: 'Note',
           date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
-          category: jsonEncode({'content': _noteController.text, 'colorValue': _selectedColor, 'reminderTime': _reminderDateTime?.toString()}),
+          category: jsonEncode({
+            'content': _noteController.text,
+            'colorValue': _selectedColor,
+            'reminderTime': _reminderDateTime?.toString(),
+          }),
           isArchived: false,
         );
         await _db.addTransaction(noteTx);
@@ -110,24 +241,24 @@ class _EntryScreenState extends State<EntryScreen> {
       if (_reminderDateTime != null) {
         String notificationTitle = "";
         if (_selectedType == 'Debt') {
-          notificationTitle = "টাকা ফেরতের রিমাইন্ডার";
+          notificationTitle = getText('debt_reminder_title');
         } else if (_selectedType == 'Note') {
-          notificationTitle = "নোট রিমাইন্ডার: ${_titleController.text}";
+          notificationTitle = "${getText('note_reminder_title')}: ${_titleController.text}";
         } else {
-          notificationTitle = "লেনদেন রিমাইন্ডার";
+          notificationTitle = getText('transaction_reminder_title');
         }
 
         await NotificationService.scheduleReminder(
           DateTime.now().millisecondsSinceEpoch ~/ 1000,
           notificationTitle,
-          _noteController.text.isEmpty ? "আপনার একটি রিমাইন্ডার আছে" : _noteController.text,
+          _noteController.text.isEmpty ? getText('you_have_reminder') : _noteController.text,
           _reminderDateTime!,
         );
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("সফলভাবে সেভ হয়েছে")),
+          SnackBar(content: Text(getText('saved_successfully'))),
         );
         Navigator.pop(context);
       }
@@ -138,11 +269,14 @@ class _EntryScreenState extends State<EntryScreen> {
     }
   }
 
+  // ==================== BUILD ====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("নতুন $_selectedType এন্ট্রি"),
+        title: Text(
+          "${getText('new_entry')} ${_selectedType == 'Income' ? getText('income') : _selectedType == 'Expense' ? getText('expense') : _selectedType == 'Debt' ? getText('debt') : getText('note')}",
+        ),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
@@ -150,14 +284,15 @@ class _EntryScreenState extends State<EntryScreen> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
+            // Type selector
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'Income', label: Text('জমা')),
-                  ButtonSegment(value: 'Expense', label: Text('খরচ')),
-                  ButtonSegment(value: 'Debt', label: Text('দেনা')),
-                  ButtonSegment(value: 'Note', label: Text('নোট')),
+                segments: [
+                  ButtonSegment(value: 'Income', label: Text(getText('income'))),
+                  ButtonSegment(value: 'Expense', label: Text(getText('expense'))),
+                  ButtonSegment(value: 'Debt', label: Text(getText('debt'))),
+                  ButtonSegment(value: 'Note', label: Text(getText('note'))),
                 ],
                 selected: {_selectedType},
                 onSelectionChanged: (val) => setState(() => _selectedType = val.first),
@@ -169,13 +304,26 @@ class _EntryScreenState extends State<EntryScreen> {
             ),
             const SizedBox(height: 25),
 
+            // Amount field (digit conversion)
             if (_selectedType != 'Note')
               TextField(
                 controller: _amountController,
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+                  ),
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    String converted = _convertToScriptDigits(newValue.text);
+                    return newValue.copyWith(
+                      text: converted,
+                      selection: TextSelection.collapsed(offset: converted.length),
+                    );
+                  }),
+                ],
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
-                  labelText: "টাকার পরিমাণ",
+                  labelText: getText('amount'),
                   prefixText: "৳ ",
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   filled: true,
@@ -187,17 +335,22 @@ class _EntryScreenState extends State<EntryScreen> {
               TextField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  labelText: "নোট বা মিটিংয়ের শিরোনাম",
+                  labelText: getText('title'),
+                  hintText: getText('note_title_hint'),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
 
             const SizedBox(height: 20),
 
+            // Note color picker
             if (_selectedType == 'Note') ...[
-              const Align(
+              Align(
                 alignment: Alignment.centerLeft,
-                child: Text("নোটের কালার পছন্দ করুন:", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  getText('choose_note_color'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 10),
               SizedBox(
@@ -224,6 +377,7 @@ class _EntryScreenState extends State<EntryScreen> {
               const SizedBox(height: 20),
             ],
 
+            // Date/time picker tile
             ListTile(
               tileColor: Colors.teal.shade50,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -231,7 +385,7 @@ class _EntryScreenState extends State<EntryScreen> {
               trailing: const Icon(Icons.access_time, color: Colors.teal),
               title: Text(
                 _reminderDateTime == null
-                    ? "তারিখ ও সময় সেট করুন"
+                    ? getText('set_date_time')
                     : DateFormat('dd MMMM, yyyy - hh:mm a').format(_reminderDateTime!),
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
@@ -240,11 +394,14 @@ class _EntryScreenState extends State<EntryScreen> {
 
             const SizedBox(height: 20),
 
+            // Note/description
             TextField(
               controller: _noteController,
               maxLines: 4,
               decoration: InputDecoration(
-                labelText: _selectedType == 'Note' ? "নোটের বিস্তারিত..." : "লেনদেনের বিবরণ...",
+                labelText: _selectedType == 'Note'
+                    ? getText('note_details')
+                    : getText('transaction_details'),
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -252,10 +409,14 @@ class _EntryScreenState extends State<EntryScreen> {
 
             const SizedBox(height: 35),
 
+            // Save button
             ElevatedButton.icon(
               onPressed: _saveEntry,
               icon: const Icon(Icons.save),
-              label: const Text("সব তথ্য সেভ করুন", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              label: Text(
+                getText('save_all'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 60),
                 backgroundColor: Colors.teal,

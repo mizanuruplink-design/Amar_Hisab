@@ -117,6 +117,7 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+
 class _HomeScreenState extends State<HomeScreen> {
   // ==================== NOTEBOOK ====================
   List<Map<String, dynamic>> _textNotes = [];
@@ -124,6 +125,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _notebookMode = 0;
   bool _isNoteEditorOpen = false;
   bool _isDrawingEditorOpen = false;
+  // ==================== ডেনা/পাওনার শেষ তারিখ ====================
+  DateTime? _lastDebtDate;
+  DateTime? _lastCreditDate;
 
   // ==================== LOCAL PROFILE PICTURE ====================
   String? _localProfilePicPath;
@@ -140,6 +144,32 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isDarkMode = false;
   Map<String, String> _currencySymbols = {'BDT': '৳', 'USD': '\$', 'EUR': '€', 'GBP': '£', 'INR': '₹'};
 
+  Locale _getTimePickerLocale() {
+    switch (_selectedLanguage) {
+      case 'bn':
+        return const Locale('bn', 'BD'); // বাংলা ১২-ঘন্টা
+      case 'ar':
+        return const Locale('ar', 'SA'); // আরবি ১২-ঘন্টা
+      default:
+        return const Locale('en', 'US'); // ইংরেজি ১২-ঘন্টা
+    }
+  }
+ Future<TimeOfDay?> _show12HourTimePicker(BuildContext context, {required TimeOfDay initialTime}) {
+   return showTimePicker(
+     context: context,
+     initialTime: initialTime,
+     builder: (context, child) {
+       return MediaQuery(
+         data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+         child: Localizations.override(
+           context: context,
+           locale: const Locale('en', 'US'), // ← ১২-ঘন্টা ফোর্স
+           child: child!,
+         ),
+       );
+     },
+   );
+ }
   // ==================== REMOTE NOTICES ====================
   List<RemoteNotice> _remoteNotices = [];
 
@@ -375,10 +405,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'reminders': 'রিমাইন্ডার',
       'morning_reminder_title': '🌅 শুভ সকাল',
       'morning_reminder_body': 'শুভ সকাল! আজকের নতুন দিনে আপনার আয়-ব্যয়ের হিসাব আপডেট করুন। সুন্দর একটি দিন কাটুক!',
-
       'evening_reminder_title': '🌇 শুভ বিকাল',
       'evening_reminder_body': 'শুভ বিকাল! দিনের অর্ধেক পেরিয়ে গেছে। আজকের আয়-ব্যয়ের হিসাব একবার চেক করে নিন।',
-
       'night_reminder_title': '🌙 শুভ রাত্রি',
       'night_reminder_body': 'শুভ রাত্রি! আজকের দিনের সব লেনদেন শেষ করুন। আগামীকালের জন্য প্রস্তুত হন।',
       'backup_success': 'ব্যাকআপ সফল!',
@@ -402,6 +430,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'cancel': 'বাতিল',
       'profile_pic_removed': 'প্রোফাইল পিকচার রিমুভ করা হয়েছে',
       'default_user': 'ব্যবহারকারী',
+      'refresh': 'রিফ্রেশ',
+      'notices_refreshed': 'নোটিশ রিফ্রেশ করা হয়েছে',
     },
     'en': {
       'app_title': 'My Accounting',
@@ -630,10 +660,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'reminders': 'Reminders',
       'morning_reminder_title': '🌅 Good Morning',
       'morning_reminder_body': 'Good morning! Update your income & expense records for today. Have a great day!',
-
       'evening_reminder_title': '🌇 Good Afternoon',
       'evening_reminder_body': 'Good afternoon! Half the day is over. Review your financial summary now.',
-
       'night_reminder_title': '🌙 Good Night',
       'night_reminder_body': 'Good night! Finalize today\'s transactions and get ready for tomorrow.',
       'backup_success': 'Backup Successful!',
@@ -657,6 +685,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'cancel': 'Cancel',
       'profile_pic_removed': 'Profile picture removed',
       'default_user': 'User',
+      'refresh': 'Refresh',
+      'notices_refreshed': 'Notices refreshed',
     },
     'ar': {
       'app_title': 'محاسبتي',
@@ -874,10 +904,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'reminders': 'تذكيرات',
       'morning_reminder_title': '🌅 صباح الخير',
       'morning_reminder_body': 'صباح الخير! قم بتحديث سجلات الدخل والمصروفات لهذا اليوم. يوم سعيد!',
-
       'evening_reminder_title': '🌇 مساء الخير',
       'evening_reminder_body': 'مساء الخير! مضى نصف اليوم. راجع ملخصك المالي الآن.',
-
       'night_reminder_title': '🌙 تصبح على خير',
       'night_reminder_body': 'تصبح على خير! أنهِ معاملات اليوم واستعد للغد.',
       'backup_success': 'تم النسخ الاحتياطي بنجاح!',
@@ -901,6 +929,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'cancel': 'إلغاء',
       'profile_pic_removed': 'تمت إزالة الصورة الشخصية',
       'default_user': 'مستخدم افتراضي',
+      'refresh': 'تحديث',
+      'notices_refreshed': 'تم تحديث الإشعارات',
     },
   };
 
@@ -954,6 +984,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (hour < 21) return getText('good_evening');
     return getText('good_night');
   }
+
   IconData _getGreetingIcon() {
     final hour = DateTime.now().hour;
     if (hour < 12) return Icons.wb_sunny;
@@ -962,7 +993,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Icons.nights_stay;
   }
 
-  // যেকোনো ভাষার ডিজিট (বাংলা/আরবি) কে ইংরেজি ডিজিটে রূপান্তর (পার্স করার জন্য)
   String _convertToEnglishDigits(String input) {
     const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
     const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -974,7 +1004,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return input;
   }
 
-  // ইংরেজি ডিজিট (0-9) কে বর্তমান ভাষার ডিজিটে রূপান্তর (ইনপুট ফিল্ডে দেখানোর জন্য)
   String _convertToScriptDigits(String input) {
     const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     List<String> target;
@@ -983,7 +1012,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (_selectedLanguage == 'ar') {
       target = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     } else {
-      return input; // ইংরেজি ভাষায় কোনো পরিবর্তন নেই
+      return input;
     }
     for (int i = 0; i < english.length; i++) {
       input = input.replaceAll(english[i], target[i]);
@@ -1080,43 +1109,36 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _localProfilePicPath = prefs.getString('local_profile_pic'));
   }
 
-Future<void> _loadUserSettings() async {
-  final prefs = await SharedPreferences.getInstance();
-  setState(() {
-    _userName = prefs.getString('userName') ?? '';
-    _profileImagePath = prefs.getString('profileImagePath');
-    _selectedCurrency = prefs.getString('currency') ?? 'BDT';
-    _showHijriDate = prefs.getBool('showHijriDate') ?? true;
-    _showBengaliDate = prefs.getBool('showBengaliDate') ?? true;
-
-    // ভাষা ও ডার্কমোড উইজেট থেকে নিন
-    _selectedLanguage = widget.initialLanguage;
-    _isDarkMode = widget.initialDarkMode;
-  });
-}
-
-Future<void> _saveUserSettings() async {
-  final prefs = await SharedPreferences.getInstance();
-
-  // সব সেটিংস সেভ করুন
-  await prefs.setBool('darkMode', _isDarkMode);
-  await prefs.setString('userName', _userName);
-  if (_profileImagePath != null) {
-    await prefs.setString('profileImagePath', _profileImagePath!);
+  Future<void> _loadUserSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString('userName') ?? '';
+      _profileImagePath = prefs.getString('profileImagePath');
+      _selectedCurrency = prefs.getString('currency') ?? 'BDT';
+      _showHijriDate = prefs.getBool('showHijriDate') ?? true;
+      _showBengaliDate = prefs.getBool('showBengaliDate') ?? true;
+      _selectedLanguage = widget.initialLanguage;
+      _isDarkMode = widget.initialDarkMode;
+    });
   }
-  await prefs.setString('language', _selectedLanguage);
-  await prefs.setString('currency', _selectedCurrency);
-  await prefs.setBool('showHijriDate', _showHijriDate);
-  await prefs.setBool('showBengaliDate', _showBengaliDate);
 
-  setState(() {});
-
-  // ✅ কলব্যাক কল করুন – যাতে main.dart-এর স্টেট আপডেট হয়
-  widget.onSettingsChanged(
-    language: _selectedLanguage,
-    isDarkMode: _isDarkMode,
-  );
-}
+  Future<void> _saveUserSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', _isDarkMode);
+    await prefs.setString('userName', _userName);
+    if (_profileImagePath != null) {
+      await prefs.setString('profileImagePath', _profileImagePath!);
+    }
+    await prefs.setString('language', _selectedLanguage);
+    await prefs.setString('currency', _selectedCurrency);
+    await prefs.setBool('showHijriDate', _showHijriDate);
+    await prefs.setBool('showBengaliDate', _showBengaliDate);
+    setState(() {});
+    widget.onSettingsChanged(
+      language: _selectedLanguage,
+      isDarkMode: _isDarkMode,
+    );
+  }
 
   // ========== Translation API ==========
   Future<String> _translateText(String text, String targetLang) async {
@@ -1150,7 +1172,6 @@ Future<void> _saveUserSettings() async {
   Future<void> _translateAllUserData(String targetLang) async {
     final txBox = Hive.box<TransactionModel>('transactions');
     final recurringBox = Hive.box<RecurringTransactionModel>('recurring');
-
     List<Future> translations = [];
 
     for (var tx in txBox.values) {
@@ -1176,95 +1197,85 @@ Future<void> _saveUserSettings() async {
   }
 
   // ========== Notifications ==========
-Future<void> _initializeNotifications() async {
-  // Timezone setup (default Asia/Dhaka)
-  tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('Asia/Dhaka'));
+  Future<void> _initializeNotifications() async {
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Dhaka'));
 
-  const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
-  const iOSSettings = DarwinInitializationSettings(
-    requestAlertPermission: true,
-    requestBadgePermission: true,
-    requestSoundPermission: true,
-  );
-  const settings = InitializationSettings(android: androidSettings, iOS: iOSSettings);
+    const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
+    const iOSSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const settings = InitializationSettings(android: androidSettings, iOS: iOSSettings);
 
-  await _notificationsPlugin.initialize(
-    settings,
-    onDidReceiveNotificationResponse: (NotificationResponse response) {
-      if (mounted) setState(() => _currentIndex = 2);
-      if (response.payload != null) {
-        final parts = response.payload!.split('|');
-        if (parts.length == 2) {
-          if (parts[1] == 'done') _markReminderDone(parts[0]);
-          else if (parts[1] == 'snooze') _showSnoozeDialog(parts[0]);
+    await _notificationsPlugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (mounted) setState(() => _currentIndex = 2);
+        if (response.payload != null) {
+          final parts = response.payload!.split('|');
+          if (parts.length == 2) {
+            if (parts[1] == 'done') _markReminderDone(parts[0]);
+            else if (parts[1] == 'snooze') _showSnoozeDialog(parts[0]);
+          }
         }
-      }
-    },
-  );
-
-  if (Platform.isAndroid) {
-    final androidPlugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-
-    // ❌ এগুলো আপনার ভার্সনে কাজ নাও করতে পারে, তাই কমেন্ট করে দিলাম
-    // await androidPlugin?.requestPermission();
-    // bool? canSchedule = await androidPlugin?.canScheduleExactAlarms();
-    // if (canSchedule == false) {
-    //   await androidPlugin?.requestExactAlarmsPermission();
-    // }
-
-    // ✅ শুধু চ্যানেল তৈরি করুন
-    const dailyChannel = AndroidNotificationChannel(
-      'daily_reminder_channel',
-      'দৈনিক রিমাইন্ডার',
-      importance: Importance.high,
+      },
     );
-    await androidPlugin?.createNotificationChannel(dailyChannel);
 
-    const reminderChannel = AndroidNotificationChannel(
-      'r',
-      'রিমাইন্ডার',
-      importance: Importance.max,
-    );
-    await androidPlugin?.createNotificationChannel(reminderChannel);
+    if (Platform.isAndroid) {
+      final androidPlugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
-    const noticeChannel = AndroidNotificationChannel(
-      'notice_channel',
-      'নতুন নোটিশ',
-      importance: Importance.high,
-    );
-    await androidPlugin?.createNotificationChannel(noticeChannel);
+      const dailyChannel = AndroidNotificationChannel(
+        'daily_reminder_channel',
+        'দৈনিক রিমাইন্ডার',
+        importance: Importance.high,
+      );
+      await androidPlugin?.createNotificationChannel(dailyChannel);
+
+      const reminderChannel = AndroidNotificationChannel(
+        'r',
+        'রিমাইন্ডার',
+        importance: Importance.max,
+      );
+      await androidPlugin?.createNotificationChannel(reminderChannel);
+
+      const noticeChannel = AndroidNotificationChannel(
+        'notice_channel',
+        'নতুন নোটিশ',
+        importance: Importance.high,
+      );
+      await androidPlugin?.createNotificationChannel(noticeChannel);
+    }
+
+    await _scheduleDefaultDailyReminders();
   }
 
-  // ✅ ডেইলি রিমাইন্ডার শিডিউল করুন
-  await _scheduleDefaultDailyReminders();
-}
+  Future<void> _scheduleDefaultDailyReminders() async {
+    const morningTime = TimeOfDay(hour: 9, minute: 0);
+    const afternoonTime = TimeOfDay(hour: 15, minute: 0);
+    const nightTime = TimeOfDay(hour: 21, minute: 0);
 
- Future<void> _scheduleDefaultDailyReminders() async {
-   const morningTime = TimeOfDay(hour: 9, minute: 0);
-   const afternoonTime = TimeOfDay(hour: 15, minute: 0);
-   const nightTime = TimeOfDay(hour: 21, minute: 0);
-
-   await _scheduleDailyReminder(
-     'morning',
-     morningTime,
-     getText('morning_reminder_title'),
-     getText('morning_reminder_body'),
-   );
-   await _scheduleDailyReminder(
-     'afternoon',
-     afternoonTime,
-     getText('evening_reminder_title'),
-     getText('evening_reminder_body'),
-   );
-   await _scheduleDailyReminder(
-     'night',
-     nightTime,
-     getText('night_reminder_title'),
-     getText('night_reminder_body'),
-   );
- }
+    await _scheduleDailyReminder(
+      'morning',
+      morningTime,
+      getText('morning_reminder_title'),
+      getText('morning_reminder_body'),
+    );
+    await _scheduleDailyReminder(
+      'afternoon',
+      afternoonTime,
+      getText('evening_reminder_title'),
+      getText('evening_reminder_body'),
+    );
+    await _scheduleDailyReminder(
+      'night',
+      nightTime,
+      getText('night_reminder_title'),
+      getText('night_reminder_body'),
+    );
+  }
 
   Future<void> _scheduleNotification(String title, DateTime dateTime, String id,
       {bool reschedule = false}) async {
@@ -1370,111 +1381,352 @@ Future<void> _initializeNotifications() async {
     _loadDataFromHive();
     _showSnackBar(getText('reminder_updated'), Colors.orange);
   }
+  String _formatTime12Hour(TimeOfDay time, BuildContext context) {
+    if (_selectedLanguage == 'bn') {
+      final hourOfPeriod = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+      final minute = time.minute.toString().padLeft(2, '0');
+      final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+
+      // ইংলিশ সংখ্যাকে বাংলায় রূপান্তর করার জন্য
+      String toBanglaNum(String input) {
+        const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+        for (int i = 0; i < en.length; i++) {
+          input = input.replaceAll(en[i], bn[i]);
+        }
+        return input;
+      }
+
+      return '${toBanglaNum(hourOfPeriod.toString())}:${toBanglaNum(minute)} $period';
+    }
+    // ইংলিশ ও অ্যারাবিকের জন্য আগের মতোই নরমাল ফরম্যাট থাকবে
+    return time.format(context);
+  }
 
   void _editReminder(String id, String oldNote, String oldDate, String oldTime) {
-    final titleCtrl = TextEditingController(text: oldNote);
-    DateTime selDate = DateFormat('dd/MM/yyyy').parse(oldDate);
-    TimeOfDay selTime = _parseTimeOfDay(oldTime);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (c) => StatefulBuilder(
-        builder: (c, s) => SingleChildScrollView(
-          child: Container(
-            padding: EdgeInsets.only(
+      final titleCtrl = TextEditingController(text: oldNote);
+      DateTime selDate = DateFormat('dd/MM/yyyy').parse(oldDate);
+      TimeOfDay selTime = _parseTimeOfDay(oldTime);
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (c) => StatefulBuilder(
+          builder: (c, s) => SingleChildScrollView(
+            child: Container(
+              padding: EdgeInsets.only(
                 bottom: MediaQuery.of(c).viewInsets.bottom,
                 left: 20,
                 right: 20,
-                top: 20),
-            decoration: BoxDecoration(
+                top: 20,
+              ),
+              decoration: BoxDecoration(
                 color: _isDarkMode ? Colors.grey[850] : Colors.white,
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(25))),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const SizedBox(height: 20),
-              Text(getText('edit_reminder'),
-                  style:
-                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 20),
+                  Text(
+                    getText('edit_reminder'),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
                       labelText: getText('title'),
-                      border: const OutlineInputBorder())),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: () async {
-                  final p = await showDatePicker(
-                      context: c,
-                      initialDate: selDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime(2030));
-                  if (p != null) s(() => selDate = p);
-                },
-                child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final p = await showDatePicker(
+                        context: c,
+                        initialDate: selDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2030),
+                        builder: (context, child) {
+                          return Localizations.override(
+                            context: context,
+                            locale: Locale(_selectedLanguage),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (p != null) s(() => selDate = p);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Row(children: [
-                      const Icon(Icons.calendar_today),
-                      const SizedBox(width: 10),
-                      Text(
-                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}')
-                    ])),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                onTap: () async {
-                  final p = await showTimePicker(context: c, initialTime: selTime);
-                  if (p != null) s(() => selTime = p);
-                },
-                child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today),
+                          const SizedBox(width: 10),
+                          Text(
+                            '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final p = await _show12HourTimePicker(c, initialTime: selTime);
+                      if (p != null) s(() => selTime = p);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Row(children: [
-                      const Icon(Icons.access_time),
-                      const SizedBox(width: 10),
-                      Text('${getText('time')}: ${selTime.format(c)}')
-                    ])),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.access_time),
+                          const SizedBox(width: 10),
+                          // 🛠️ এখানে পরিবর্তন করা হয়েছে (UI Display Text)
+                          Text('${getText('time')}: ${_formatTime12Hour(selTime, c)}'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (titleCtrl.text.isNotEmpty) {
+                        final newDate = DateFormat('dd/MM/yyyy').format(selDate);
+                        // 🛠️ এখানে পরিবর্তন করা হয়েছে (Database Save String)
+                        final newTime = _formatTime12Hour(selTime, c);
+
+                        await LocalDatabaseService().updateReminder(
+                          id,
+                          titleCtrl.text,
+                          newDate,
+                          newTime,
+                        );
+                        final newDateTime = DateTime(
+                          selDate.year,
+                          selDate.month,
+                          selDate.day,
+                          selTime.hour,
+                          selTime.minute,
+                        );
+                        await _scheduleNotification(
+                          titleCtrl.text,
+                          newDateTime,
+                          id,
+                          reschedule: true,
+                        );
+                        Navigator.pop(c);
+                        _showSnackBar(getText('reminder_updated'), Colors.green);
+                        _loadDataFromHive();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: Text(getText('save')),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  if (titleCtrl.text.isNotEmpty) {
-                    final newDate = DateFormat('dd/MM/yyyy').format(selDate);
-                    final newTime = selTime.format(c);
-                    await LocalDatabaseService().updateReminder(
-                        id, titleCtrl.text, newDate, newTime);
-                    final newDateTime = DateTime(selDate.year, selDate.month,
-                        selDate.day, selTime.hour, selTime.minute);
-                    await _scheduleNotification(
-                        titleCtrl.text, newDateTime, id, reschedule: true);
-                    Navigator.pop(c);
-                    _showSnackBar(getText('reminder_updated'), Colors.green);
-                    _loadDataFromHive();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    minimumSize: const Size(double.infinity, 50)),
-                child: Text(getText('save')),
-              ),
-              const SizedBox(height: 20),
-            ]),
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   void _showReminderInput() {
-    final titleCtrl = TextEditingController();
-    DateTime selDate = _selectedDay ?? DateTime.now();
-    TimeOfDay selTime = TimeOfDay.now();
+      final titleCtrl = TextEditingController();
+      DateTime selDate = _selectedDay ?? DateTime.now();
+      TimeOfDay selTime = TimeOfDay.now();
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (c) => StatefulBuilder(
+          builder: (c, s) => SingleChildScrollView(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(c).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    height: 4,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    getText('add_reminder'),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                      labelText: getText('title'),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.title),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: c,
+                        initialDate: selDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2030),
+                        builder: (context, child) {
+                          return Localizations.override(
+                            context: context,
+                            locale: Locale(_selectedLanguage),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (picked != null) s(() => selDate = picked);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today),
+                          const SizedBox(width: 10),
+                          Text(
+                            '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await _show12HourTimePicker(c, initialTime: selTime);
+                      if (picked != null) s(() => selTime = picked);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.access_time),
+                          const SizedBox(width: 10),
+                          // 🛠️ এখানে পরিবর্তন করা হয়েছে (UI Display Text)
+                          Text('${getText('time')}: ${_formatTime12Hour(selTime, c)}'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (titleCtrl.text.isNotEmpty) {
+                        final rId = DateTime.now().millisecondsSinceEpoch.toString();
+                        // 🛠️ এখানে পরিবর্তন করা হয়েছে (Database Save String)
+                        final timeStr = _formatTime12Hour(selTime, c);
+
+                        final reminderTx = TransactionModel(
+                          id: rId,
+                          amount: 0,
+                          note: titleCtrl.text,
+                          type: 'Reminder',
+                          date: DateFormat('dd/MM/yyyy').format(selDate),
+                          category: '',
+                          isArchived: false,
+                          time: timeStr,
+                        );
+                        LocalDatabaseService().addTransaction(reminderTx);
+                        LocalDatabaseService().updateReminderCompleted(rId, false);
+                        final reminderDateTime = DateTime(
+                          selDate.year,
+                          selDate.month,
+                          selDate.day,
+                          selTime.hour,
+                          selTime.minute,
+                        );
+                        _scheduleNotification(titleCtrl.text, reminderDateTime, rId);
+                        Navigator.pop(c);
+                        _showSnackBar(getText('notification_scheduled'), Colors.green);
+                        _loadDataFromHive();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      getText('save'),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+  void _showDebtCreditDialog(String type) {
+    final amtCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    final reminderCommentCtrl = TextEditingController();
+
+    DateTime selectedTxDate;
+    if (type == 'দেনা') {
+      selectedTxDate = _lastDebtDate ?? DateTime.now();
+    } else {
+      selectedTxDate = _lastCreditDate ?? DateTime.now();
+    }
+
+    String title = type == 'দেনা'
+        ? getText('debt')
+        : (type == 'পাওনা' ? getText('credit') : getText('savings'));
+    String engType = type == 'দেনা'
+        ? 'Debt'
+        : (type == 'পাওনা' ? 'Credit' : 'Savings');
+    Color color = type == 'দেনা'
+        ? Colors.orange
+        : (type == 'পাওনা' ? Colors.purple : Colors.blue);
+    bool addReminder = false;
+    DateTime? reminderDate;
+    TimeOfDay? reminderTime;
 
     showModalBottomSheet(
       context: context,
@@ -1506,104 +1758,403 @@ Future<void> _initializeNotifications() async {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  getText('add_reminder'),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  title,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-                TextField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
-                    labelText: getText('title'),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.title),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // --- Date Picker (locale ঠিক আছে) ---
                 InkWell(
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: c,
-                      initialDate: selDate,
-                      firstDate: DateTime.now(),
+                      initialDate: selectedTxDate,
+                      firstDate: DateTime(2020),
                       lastDate: DateTime(2030),
-                      locale: Locale(_selectedLanguage), // ✅ সঠিক
+                      builder: (context, child) {
+                        return Localizations.override(
+                          context: context,
+                          locale: Locale(_selectedLanguage),
+                          child: child!,
+                        );
+                      },
                     );
-                    if (picked != null) s(() => selDate = picked);
+                    if (picked != null) {
+                      s(() => selectedTxDate = picked);
+                      if (type == 'দেনা') {
+                        _lastDebtDate = picked;
+                      } else {
+                        _lastCreditDate = picked;
+                      }
+                    }
                   },
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today),
+                        const Icon(Icons.calendar_today, size: 18),
                         const SizedBox(width: 10),
                         Text(
-                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
+                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedTxDate)}',
                         ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                // --- Time Picker (locale বাদ দেওয়া হয়েছে) ---
+                TextField(
+                  controller: amtCtrl,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+                    ),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String converted = _convertToScriptDigits(newValue.text);
+                      return newValue.copyWith(
+                        text: converted,
+                        selection: TextSelection.collapsed(offset: converted.length),
+                      );
+                    }),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: getText('amount'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.money),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(
+                    labelText: getText('description'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.note),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                CheckboxListTile(
+                  title: Text(getText('add_reminder')),
+                  value: addReminder,
+                  onChanged: (val) => s(() => addReminder = val!),
+                  activeColor: Colors.blue,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                if (addReminder) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ListTile(
+                          leading: const Icon(Icons.calendar_today),
+                          title: Text(getText('date')),
+                          subtitle: Text(
+                            reminderDate == null
+                                ? (_selectedLanguage == 'en'
+                                    ? 'Select date'
+                                    : (_selectedLanguage == 'ar' ? 'اختر التاريخ' : 'নির্বাচন করুন'))
+                                : DateFormat('dd/MM/yyyy').format(reminderDate!),
+                          ),
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: c,
+                              initialDate: reminderDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2030),
+                              builder: (context, child) {
+                                return Localizations.override(
+                                  context: context,
+                                  locale: Locale(_selectedLanguage),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (picked != null) s(() => reminderDate = picked);
+                          },
+                        ),
+                      ),
+                      Expanded(
+                        child: ListTile(
+                          leading: const Icon(Icons.access_time),
+                          title: Text(getText('time')),
+                          subtitle: Text(
+                            reminderTime == null
+                                ? (_selectedLanguage == 'en'
+                                    ? 'Select time'
+                                    : (_selectedLanguage == 'ar' ? 'اختر الوقت' : 'নির্বাচন করুন'))
+                                : reminderTime!.format(c),
+                          ),
+                          onTap: () async {
+                            final picked = await _show12HourTimePicker(c, initialTime: reminderTime ?? TimeOfDay.now());
+                            if (picked != null) s(() => reminderTime = picked);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: reminderCommentCtrl,
+                    decoration: InputDecoration(
+                      labelText: getText('reminder_comment'),
+                      hintText: getText('enter_comment'),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (amtCtrl.text.trim().isEmpty) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
+                    final amt = double.tryParse(rawAmount);
+                    if (amt == null) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    final debtTx = TransactionModel(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      amount: amt,
+                      note: noteCtrl.text.trim().isEmpty ? title : noteCtrl.text,
+                      type: engType,
+                      date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedTxDate),
+                      category: "other",
+                      isArchived: false,
+                    );
+                    await LocalDatabaseService().addTransaction(debtTx);
+                    if (addReminder && reminderDate != null && reminderTime != null) {
+                      final reminderDateTime = DateTime(
+                        reminderDate!.year,
+                        reminderDate!.month,
+                        reminderDate!.day,
+                        reminderTime!.hour,
+                        reminderTime!.minute,
+                      );
+                      final reminderId = DateTime.now().millisecondsSinceEpoch.toString();
+                      final reminderNote = reminderCommentCtrl.text.trim().isNotEmpty
+                          ? reminderCommentCtrl.text.trim()
+                          : "${getText('reminder_debt_payment')}: ${noteCtrl.text}";
+                      final reminderTx = TransactionModel(
+                        id: reminderId,
+                        amount: 0,
+                        note: reminderNote,
+                        type: 'Reminder',
+                        date: DateFormat('dd/MM/yyyy').format(reminderDate!),
+                        category: '',
+                        isArchived: false,
+                        time: reminderTime!.format(c),
+                      );
+                      await LocalDatabaseService().addTransaction(reminderTx);
+                      await LocalDatabaseService().updateReminderCompleted(reminderId, false);
+                      _scheduleNotification(reminderNote, reminderDateTime, reminderId);
+                    }
+                    Navigator.pop(c);
+                    _showSnackBar('$title ${getText('save')}', color);
+                    _loadDataFromHive();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    getText('save'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSavingsDialog() {
+    final amtCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+    String selectedType = 'cash';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => SingleChildScrollView(
+          child: Container(
+            decoration: BoxDecoration(
+              color: _isDarkMode ? Colors.grey[850] : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(c).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  getText('savings'),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
                 InkWell(
                   onTap: () async {
-                    // ✅ locale প্যারামিটার সরানো হয়েছে
-                    final picked = await showTimePicker(
+                    final picked = await showDatePicker(
                       context: c,
-                      initialTime: selTime,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                      builder: (context, child) {
+                        return Localizations.override(
+                          context: context,
+                          locale: Locale(_selectedLanguage),
+                          child: child!,
+                        );
+                      },
                     );
-                    if (picked != null) s(() => selTime = picked);
+                    if (picked != null) s(() => selectedDate = picked);
                   },
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.access_time),
+                        const Icon(Icons.calendar_today, size: 18),
                         const SizedBox(width: 10),
-                        Text('${getText('time')}: ${selTime.format(c)}'),
+                        Text(
+                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+                        ),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amtCtrl,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+                    ),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String converted = _convertToScriptDigits(newValue.text);
+                      return newValue.copyWith(
+                        text: converted,
+                        selection: TextSelection.collapsed(offset: converted.length),
+                      );
+                    }),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: getText('amount'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.money),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(
+                    labelText: getText('description'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.note),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      getText('savings_type'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedType,
+                            isExpanded: true,
+                            icon: const Icon(Icons.arrow_drop_down),
+                            items: [
+                              DropdownMenuItem(
+                                value: 'cash',
+                                child: Text(getText('cash')),
+                              ),
+                              DropdownMenuItem(
+                                value: 'bank',
+                                child: Text(getText('bank')),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) s(() => selectedType = val);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () {
-                    if (titleCtrl.text.isNotEmpty) {
-                      final rId = DateTime.now().millisecondsSinceEpoch.toString();
-                      final timeStr = selTime.format(c);
-                      final reminderTx = TransactionModel(
-                        id: rId,
-                        amount: 0,
-                        note: titleCtrl.text,
-                        type: 'Reminder',
-                        date: DateFormat('dd/MM/yyyy').format(selDate),
-                        category: '',
-                        isArchived: false,
-                        time: timeStr,
-                      );
-                      LocalDatabaseService().addTransaction(reminderTx);
-                      LocalDatabaseService().updateReminderCompleted(rId, false);
-                      final reminderDateTime = DateTime(
-                        selDate.year,
-                        selDate.month,
-                        selDate.day,
-                        selTime.hour,
-                        selTime.minute,
-                      );
-                      _scheduleNotification(titleCtrl.text, reminderDateTime, rId);
-                      Navigator.pop(c);
-                      _showSnackBar(getText('notification_scheduled'), Colors.green);
-                      _loadDataFromHive();
+                    if (amtCtrl.text.trim().isEmpty) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
                     }
+                    final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
+                    final amt = double.tryParse(rawAmount);
+                    if (amt == null) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    String finalNote = noteCtrl.text.trim().isEmpty
+                        ? getText('savings')
+                        : noteCtrl.text;
+                    finalNote +=
+                        ' [${selectedType == 'cash' ? getText('cash') : getText('bank')}]';
+                    final savingsTx = TransactionModel(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      amount: amt,
+                      note: finalNote,
+                      type: 'Savings',
+                      date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
+                      category: selectedType == 'cash' ? 'cash_savings' : 'bank_savings',
+                      isArchived: false,
+                    );
+                    LocalDatabaseService().addTransaction(savingsTx);
+                    Navigator.pop(c);
+                    _showSnackBar('${getText('savings')} ${getText('save')}', Colors.blue);
+                    _loadDataFromHive();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700,
@@ -1626,624 +2177,12 @@ Future<void> _initializeNotifications() async {
     );
   }
 
-
-void _showDebtCreditDialog(String type) {
-   final amtCtrl = TextEditingController();
-   final noteCtrl = TextEditingController();
-   final reminderCommentCtrl = TextEditingController(); // কমেন্ট ফিল্ডের বাগ ফিক্সের জন্য নতুন কন্ট্রোলার
-   DateTime selectedTxDate = DateTime.now();
-   String title = type == 'দেনা'
-       ? getText('debt')
-       : (type == 'পাওনা' ? getText('credit') : getText('savings'));
-   String engType = type == 'দেনা'
-       ? 'Debt'
-       : (type == 'পাওনা' ? 'Credit' : 'Savings');
-   Color color = type == 'দেনা'
-       ? Colors.orange
-       : (type == 'পাওনা' ? Colors.purple : Colors.blue);
-   bool addReminder = false;
-   DateTime? reminderDate;
-   TimeOfDay? reminderTime;
-
-   showModalBottomSheet(
-     context: context,
-     isScrollControlled: true,
-     backgroundColor: Colors.transparent,
-     builder: (c) => StatefulBuilder(
-       builder: (c, s) => SingleChildScrollView(
-         child: Container(
-           decoration: const BoxDecoration(
-             color: Colors.white,
-             borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-           ),
-           padding: EdgeInsets.only(
-             bottom: MediaQuery.of(c).viewInsets.bottom,
-             left: 20,
-             right: 20,
-             top: 20,
-           ),
-           child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               Container(
-                 height: 4,
-                 width: 40,
-                 decoration: BoxDecoration(
-                   color: Colors.grey[300],
-                   borderRadius: BorderRadius.circular(2),
-                 ),
-               ),
-               const SizedBox(height: 20),
-               Text(
-                 title,
-                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-               ),
-               const SizedBox(height: 20),
-               // --- Main Date Picker ---
-               InkWell(
-                 onTap: () async {
-                   final picked = await showDatePicker(
-                     context: c,
-                     initialDate: selectedTxDate,
-                     firstDate: DateTime(2020),
-                     lastDate: DateTime(2030),
-                     builder: (context, child) {
-                       return Localizations.override(
-                         context: context,
-                         locale: Locale(_selectedLanguage),
-                         child: child!,
-                       );
-                     },
-                   );
-                   if (picked != null) s(() => selectedTxDate = picked);
-                 },
-                 child: Container(
-                   padding: const EdgeInsets.all(12),
-                   decoration: BoxDecoration(
-                     border: Border.all(color: Colors.grey[300]!),
-                     borderRadius: BorderRadius.circular(10),
-                   ),
-                   child: Row(
-                     children: [
-                       const Icon(Icons.calendar_today, size: 18),
-                       const SizedBox(width: 10),
-                       Text(
-                         '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedTxDate)}',
-                       ),
-                     ],
-                   ),
-                 ),
-               ),
-               const SizedBox(height: 12),
-               // --- Amount Field (বাংলা/আরবি কিবোর্ড সাপোর্ট করার জন্য TextInputType.text করা হয়েছে) ---
-               TextField(
-                 controller: amtCtrl,
-                 keyboardType: TextInputType.text,
-                 inputFormatters: [
-                   FilteringTextInputFormatter.allow(
-                     RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
-                   ),
-                 ],
-                 decoration: InputDecoration(
-                   labelText: getText('amount'),
-                   border: const OutlineInputBorder(),
-                   prefixIcon: const Icon(Icons.money),
-                 ),
-                 autofocus: true,
-               ),
-               const SizedBox(height: 12),
-               // --- Description ---
-               TextField(
-                 controller: noteCtrl,
-                 decoration: InputDecoration(
-                   labelText: getText('description'),
-                   border: const OutlineInputBorder(),
-                   prefixIcon: const Icon(Icons.note),
-                 ),
-               ),
-               const SizedBox(height: 20),
-               // --- Add Reminder Checkbox ---
-               CheckboxListTile(
-                 title: Text(getText('add_reminder')),
-                 value: addReminder,
-                 onChanged: (val) => s(() => addReminder = val!),
-                 activeColor: Colors.blue,
-                 contentPadding: EdgeInsets.zero,
-               ),
-               if (addReminder) ...[
-                 const SizedBox(height: 10),
-                 Row(
-                   children: [
-                     Expanded(
-                       child: ListTile(
-                         leading: const Icon(Icons.calendar_today),
-                         title: Text(getText('date')),
-                         subtitle: Text(
-                           reminderDate == null
-                               ? (_selectedLanguage == 'en'
-                                   ? 'Select date'
-                                   : (_selectedLanguage == 'ar' ? 'اختر التاريخ' : 'নির্বাচন করুন'))
-                               : DateFormat('dd/MM/yyyy').format(reminderDate!),
-                         ),
-                         onTap: () async {
-                           final picked = await showDatePicker(
-                             context: c,
-                             initialDate: reminderDate ?? DateTime.now(),
-                             firstDate: DateTime(2020), // আগের তারিখ সিলেক্ট করার ব্যবস্থা করা হলো
-                             lastDate: DateTime(2030),
-                             builder: (context, child) {
-                               return Localizations.override(
-                                 context: context,
-                                 locale: Locale(_selectedLanguage),
-                                 child: child!,
-                               );
-                             },
-                           );
-                           if (picked != null) s(() => reminderDate = picked);
-                         },
-                       ),
-                     ),
-                     Expanded(
-                       child: ListTile(
-                         leading: const Icon(Icons.access_time),
-                         title: Text(getText('time')),
-                         subtitle: Text(
-                           reminderTime == null
-                               ? (_selectedLanguage == 'en'
-                                   ? 'Select time'
-                                   : (_selectedLanguage == 'ar' ? 'اختر الوقت' : 'নির্বাচন করুন'))
-                               : reminderTime!.format(c),
-                         ),
-                         onTap: () async {
-                           final picked = await showTimePicker(
-                             context: c,
-                             initialTime: reminderTime ?? TimeOfDay.now(),
-                             builder: (context, child) {
-                               return Localizations.override(
-                                 context: context,
-                                 locale: Locale(_selectedLanguage),
-                                 child: child!,
-                               );
-                             },
-                           );
-                           if (picked != null) s(() => reminderTime = picked);
-                         },
-                       ),
-                     ),
-                   ],
-                 ),
-                 const SizedBox(height: 10),
-                 TextField(
-                   controller: reminderCommentCtrl, // কন্ট্রোলার ফিক্স করা হয়েছে যেন টাইপিং স্মুথ হয়
-                   decoration: InputDecoration(
-                     labelText: getText('reminder_comment'),
-                     hintText: getText('enter_comment'),
-                     border: const OutlineInputBorder(),
-                   ),
-                 ),
-               ],
-               const SizedBox(height: 20),
-               ElevatedButton(
-                 onPressed: () async {
-                   if (amtCtrl.text.trim().isEmpty) {
-                     _showSnackBar(getText('amount_error'), Colors.red);
-                     return;
-                   }
-                   final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
-                   final amt = double.tryParse(rawAmount);
-                   if (amt == null) {
-                     _showSnackBar(getText('amount_error'), Colors.red);
-                     return;
-                   }
-                   final debtTx = TransactionModel(
-                     id: DateTime.now().millisecondsSinceEpoch.toString(),
-                     amount: amt,
-                     note: noteCtrl.text.trim().isEmpty ? title : noteCtrl.text,
-                     type: engType,
-                     date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedTxDate),
-                     category: "other",
-                     isArchived: false,
-                   );
-                   await LocalDatabaseService().addTransaction(debtTx);
-                   if (addReminder && reminderDate != null && reminderTime != null) {
-                     final reminderDateTime = DateTime(
-                       reminderDate!.year,
-                       reminderDate!.month,
-                       reminderDate!.day,
-                       reminderTime!.hour,
-                       reminderTime!.minute,
-                     );
-                     final reminderId = DateTime.now().millisecondsSinceEpoch.toString();
-                     final reminderNote = reminderCommentCtrl.text.trim().isNotEmpty
-                         ? reminderCommentCtrl.text.trim()
-                         : "${getText('reminder_debt_payment')}: ${noteCtrl.text}";
-                     final reminderTx = TransactionModel(
-                       id: reminderId,
-                       amount: 0,
-                       note: reminderNote,
-                       type: 'Reminder',
-                       date: DateFormat('dd/MM/yyyy').format(reminderDate!),
-                       category: '',
-                       isArchived: false,
-                       time: reminderTime!.format(c),
-                     );
-                     await LocalDatabaseService().addTransaction(reminderTx);
-                     await LocalDatabaseService().updateReminderCompleted(reminderId, false);
-                     _scheduleNotification(reminderNote, reminderDateTime, reminderId);
-                   }
-                   Navigator.pop(c);
-                   _showSnackBar('$title ${getText('save')}', color);
-                   _loadDataFromHive();
-                 },
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: color,
-                   minimumSize: const Size(double.infinity, 50),
-                   shape: RoundedRectangleBorder(
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                 ),
-                 child: Text(
-                   getText('save'),
-                   style: const TextStyle(color: Colors.white),
-                 ),
-               ),
-               const SizedBox(height: 20),
-             ],
-           ),
-         ),
-       ),
-     ),
-   );
- }
-
-  void _showSavingsDialog() {
+  void _showIncomeDialog() {
     final amtCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
+    String selCat = 'salary';
     DateTime selectedDate = DateTime.now();
-    String selectedType = 'cash';
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (c) => StatefulBuilder(
-        builder: (c, s) => SingleChildScrollView(
-          child: Container(
-            decoration: BoxDecoration(
-                color: _isDarkMode ? Colors.grey[850] : Colors.white,
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(25))),
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(c).viewInsets.bottom,
-                left: 20,
-                right: 20,
-                top: 20),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                  height: 4,
-                  width: 40,
-                  decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 20),
-              Text(getText('savings'),
-                  style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                      context: c,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2030));
-                  if (picked != null) s(() => selectedDate = picked);
-                },
-                child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(10)),
-                    child: Row(children: [
-                      const Icon(Icons.calendar_today, size: 18),
-                      const SizedBox(width: 10),
-                      Text(
-                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}')
-                    ])),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                  controller: amtCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                      labelText: getText('amount'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.money)),
-                  autofocus: true),
-              const SizedBox(height: 12),
-              TextField(
-                  controller: noteCtrl,
-                  decoration: InputDecoration(
-                      labelText: getText('description'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.note))),
-              const SizedBox(height: 12),
-              Row(children: [
-                Text(getText('savings_type'),
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(12)),
-                        child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedType,
-                              isExpanded: true,
-                              icon: const Icon(Icons.arrow_drop_down),
-                              items: [
-                                DropdownMenuItem(
-                                    value: 'cash', child: Text(getText('cash'))),
-                                DropdownMenuItem(
-                                    value: 'bank', child: Text(getText('bank'))),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) s(() => selectedType = val);
-                              },
-                            )))),
-              ]),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (amtCtrl.text.isNotEmpty) {
-                    final amt = double.tryParse(amtCtrl.text);
-                    if (amt != null) {
-                      String finalNote = noteCtrl.text.trim().isEmpty
-                          ? getText('savings')
-                          : noteCtrl.text;
-                      finalNote +=
-                      ' [${selectedType == 'cash' ? getText('cash') : getText('bank')}]';
-                      final savingsTx = TransactionModel(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
-                          amount: amt,
-                          note: finalNote,
-                          type: 'Savings',
-                          date: DateFormat('dd/MM/yyyy hh:mm a')
-                              .format(selectedDate),
-                          category: selectedType == 'cash'
-                              ? 'cash_savings'
-                              : 'bank_savings',
-                          isArchived: false);
-                      LocalDatabaseService().addTransaction(savingsTx);
-                      Navigator.pop(c);
-                      _showSnackBar('${getText('savings')} ${getText('save')}',
-                          Colors.blue);
-                      _loadDataFromHive();
-                    }
-                  } else
-                    _showSnackBar(getText('amount_error'), Colors.red);
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                child: Text(getText('save'),
-                    style: const TextStyle(color: Colors.white)),
-              ),
-              const SizedBox(height: 20),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
 
- void _showIncomeDialog() {
-   final amtCtrl = TextEditingController();
-   final noteCtrl = TextEditingController();
-   String selCat = 'salary';
-   DateTime selectedDate = DateTime.now();
-
-   showModalBottomSheet(
-     context: context,
-     isScrollControlled: true,
-     backgroundColor: Colors.transparent,
-     builder: (c) => StatefulBuilder(
-       builder: (c, s) => SingleChildScrollView(
-         child: Container(
-           decoration: const BoxDecoration(
-             color: Colors.white,
-             borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-           ),
-           padding: EdgeInsets.only(
-             bottom: MediaQuery.of(c).viewInsets.bottom,
-             left: 20,
-             right: 20,
-             top: 20,
-           ),
-           child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               Container(
-                 height: 4,
-                 width: 40,
-                 decoration: BoxDecoration(
-                   color: Colors.grey[300],
-                   borderRadius: BorderRadius.circular(2),
-                 ),
-               ),
-               const SizedBox(height: 20),
-               Text(
-                 getText('add_income'),
-                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-               ),
-               const SizedBox(height: 20),
-               // --- Date Picker (ভাষা ফোর্স করা হয়েছে) ---
-               InkWell(
-                 onTap: () async {
-                   final picked = await showDatePicker(
-                     context: c,
-                     initialDate: selectedDate,
-                     firstDate: DateTime(2020),
-                     lastDate: DateTime(2030),
-                     builder: (context, child) {
-                       return Localizations.override(
-                         context: context,
-                         locale: Locale(_selectedLanguage),
-                         child: child!,
-                       );
-                     },
-                   );
-                   if (picked != null) s(() => selectedDate = picked);
-                 },
-                 child: Container(
-                   padding: const EdgeInsets.all(12),
-                   decoration: BoxDecoration(
-                     border: Border.all(color: Colors.grey[300]!),
-                     borderRadius: BorderRadius.circular(10),
-                   ),
-                   child: Row(
-                     children: [
-                       const Icon(Icons.calendar_today, size: 18),
-                       const SizedBox(width: 10),
-                       Text(
-                         '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-                       ),
-                     ],
-                   ),
-                 ),
-               ),
-               const SizedBox(height: 12),
-               // --- Amount Field (ডিজিট কনভার্ট সহ) ---
-               TextField(
-                 controller: amtCtrl,
-                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                 inputFormatters: [
-                   // ১. শুধু ডিজিট ও দশমিক অনুমোদিত (সব ভাষায়)
-                   FilteringTextInputFormatter.allow(
-                     RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
-                   ),
-                   // ২. টাইপ করার সময় ডিজিটগুলো বর্তমান ভাষায় কনভার্ট করুন
-                   TextInputFormatter.withFunction((oldValue, newValue) {
-                     String converted = _convertToScriptDigits(newValue.text);
-                     return newValue.copyWith(
-                       text: converted,
-                       selection: TextSelection.collapsed(offset: converted.length),
-                     );
-                   }),
-                 ],
-                 decoration: InputDecoration(
-                   labelText: getText('amount'),
-                   border: const OutlineInputBorder(),
-                   prefixIcon: const Icon(Icons.money),
-                 ),
-                 autofocus: true,
-               ),
-               const SizedBox(height: 12),
-               // --- Description ---
-               TextField(
-                 controller: noteCtrl,
-                 decoration: InputDecoration(
-                   labelText: getText('description'),
-                   border: const OutlineInputBorder(),
-                   prefixIcon: const Icon(Icons.note),
-                 ),
-               ),
-               const SizedBox(height: 12),
-               // --- Category Dropdown ---
-               Text(
-                 getText('select_category'),
-                 style: const TextStyle(fontWeight: FontWeight.bold),
-               ),
-               const SizedBox(height: 8),
-               Container(
-                 height: 50,
-                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                 decoration: BoxDecoration(
-                   border: Border.all(color: Colors.grey[300]!),
-                   borderRadius: BorderRadius.circular(12),
-                 ),
-                 child: DropdownButtonHideUnderline(
-                   child: DropdownButton<String>(
-                     value: selCat,
-                     isExpanded: true,
-                     icon: const Icon(Icons.arrow_drop_down),
-                     items: incomeCategories.map((cat) {
-                       return DropdownMenuItem<String>(
-                         value: cat['key'],
-                         child: Row(
-                           children: [
-                             Icon(cat['icon'], size: 20, color: cat['color']),
-                             const SizedBox(width: 10),
-                             Text(getCategoryName(cat['key'])),
-                           ],
-                         ),
-                       );
-                     }).toList(),
-                     onChanged: (v) {
-                       if (v != null) s(() => selCat = v);
-                     },
-                   ),
-                 ),
-               ),
-               const SizedBox(height: 20),
-               // --- Save Button ---
-               ElevatedButton(
-                 onPressed: () {
-                   if (amtCtrl.text.trim().isEmpty) {
-                     _showSnackBar(getText('amount_error'), Colors.red);
-                     return;
-                   }
-                   // ডিজিটগুলো ইংরেজিতে কনভার্ট করে পার্স করুন
-                   final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
-                   final amt = double.tryParse(rawAmount);
-                   if (amt == null) {
-                     _showSnackBar(getText('amount_error'), Colors.red);
-                     return;
-                   }
-                   final tx = TransactionModel(
-                     id: DateTime.now().millisecondsSinceEpoch.toString(),
-                     amount: amt,
-                     note: noteCtrl.text.isEmpty
-                         ? getCategoryName(selCat)
-                         : noteCtrl.text,
-                     type: 'Income',
-                     date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
-                     category: selCat,
-                     isArchived: false,
-                   );
-                   LocalDatabaseService().addTransaction(tx);
-                   Navigator.pop(c);
-                   _showSnackBar('${getText('income')} ${getText('save')}', Colors.green);
-                   _loadDataFromHive();
-                 },
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: Colors.blue.shade700,
-                   minimumSize: const Size(double.infinity, 50),
-                   shape: RoundedRectangleBorder(
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                 ),
-                 child: Text(
-                   getText('save'),
-                   style: const TextStyle(color: Colors.white),
-                 ),
-               ),
-               const SizedBox(height: 20),
-             ],
-           ),
-         ),
-       ),
-     ),
-   );
- }
-  void _showExpenseDialog() {
-    final amtCtrl = TextEditingController();
-    final noteCtrl = TextEditingController();
-    String selCat = 'gas_bill';
-    DateTime selectedDate = DateTime.now();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2252,128 +2191,370 @@ void _showDebtCreditDialog(String type) {
         builder: (c, s) => SingleChildScrollView(
           child: Container(
             decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                BorderRadius.vertical(top: Radius.circular(25))),
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            ),
             padding: EdgeInsets.only(
-                bottom: MediaQuery.of(c).viewInsets.bottom,
-                left: 20,
-                right: 20,
-                top: 20),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
+              bottom: MediaQuery.of(c).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
                   height: 4,
                   width: 40,
                   decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 20),
-              Text(getText('add_expense'),
-                  style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  getText('add_income'),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
                       context: c,
                       initialDate: selectedDate,
                       firstDate: DateTime(2020),
-                      lastDate: DateTime(2030));
-                  if (picked != null) s(() => selectedDate = picked);
-                },
-                child: Container(
+                      lastDate: DateTime(2030),
+                      builder: (context, child) {
+                        return Localizations.override(
+                          context: context,
+                          locale: Locale(_selectedLanguage),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (picked != null) s(() => selectedDate = picked);
+                  },
+                  child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(10)),
-                    child: Row(children: [
-                      const Icon(Icons.calendar_today, size: 18),
-                      const SizedBox(width: 10),
-                      Text(
-                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}')
-                    ])),
-              ),
-              const SizedBox(height: 12),
-              TextField(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
                   controller: amtCtrl,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+                    ),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String converted = _convertToScriptDigits(newValue.text);
+                      return newValue.copyWith(
+                        text: converted,
+                        selection: TextSelection.collapsed(offset: converted.length),
+                      );
+                    }),
+                  ],
                   decoration: InputDecoration(
-                      labelText: getText('amount'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.money)),
-                  autofocus: true),
-              const SizedBox(height: 12),
-              TextField(
+                    labelText: getText('amount'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.money),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
                   controller: noteCtrl,
                   decoration: InputDecoration(
-                      labelText: getText('description'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.note))),
-              const SizedBox(height: 12),
-              Text(getText('select_category'),
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Container(
+                    labelText: getText('description'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.note),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  getText('select_category'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Container(
                   height: 50,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(12)),
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selCat,
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down),
-                        items: expenseCategories.map((cat) {
-                          return DropdownMenuItem<String>(
-                            value: cat['key'],
-                            child: Row(children: [
+                    child: DropdownButton<String>(
+                      value: selCat,
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down),
+                      items: incomeCategories.map((cat) {
+                        return DropdownMenuItem<String>(
+                          value: cat['key'],
+                          child: Row(
+                            children: [
                               Icon(cat['icon'], size: 20, color: cat['color']),
                               const SizedBox(width: 10),
                               Text(getCategoryName(cat['key'])),
-                            ]),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          if (v != null) s(() => selCat = v);
-                        },
-                      ))),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (amtCtrl.text.isNotEmpty) {
-                    final amt = double.tryParse(amtCtrl.text);
-                    if (amt != null) {
-                      final tx = TransactionModel(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
-                          amount: amt,
-                          note: noteCtrl.text.isEmpty
-                              ? getCategoryName(selCat)
-                              : noteCtrl.text,
-                          type: 'Expense',
-                          date: DateFormat('dd/MM/yyyy hh:mm a')
-                              .format(selectedDate),
-                          category: selCat,
-                          isArchived: false);
-                      LocalDatabaseService().addTransaction(tx);
-                      Navigator.pop(c);
-                      _showSnackBar('${getText('expense')} ${getText('save')}',
-                          Colors.red);
-                      _loadDataFromHive();
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        if (v != null) s(() => selCat = v);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (amtCtrl.text.trim().isEmpty) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
                     }
-                  } else
-                    _showSnackBar(getText('amount_error'), Colors.red);
-                },
-                style: ElevatedButton.styleFrom(
+                    final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
+                    final amt = double.tryParse(rawAmount);
+                    if (amt == null) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    final tx = TransactionModel(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      amount: amt,
+                      note: noteCtrl.text.isEmpty
+                          ? getCategoryName(selCat)
+                          : noteCtrl.text,
+                      type: 'Income',
+                      date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
+                      category: selCat,
+                      isArchived: false,
+                    );
+                    LocalDatabaseService().addTransaction(tx);
+                    Navigator.pop(c);
+                    _showSnackBar('${getText('income')} ${getText('save')}', Colors.green);
+                    _loadDataFromHive();
+                  },
+                  style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700,
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                child: Text(getText('save'),
-                    style: const TextStyle(color: Colors.white)),
-              ),
-              const SizedBox(height: 20),
-            ]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    getText('save'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showExpenseDialog() {
+    final amtCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    String selCat = 'gas_bill';
+    DateTime selectedDate = DateTime.now();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => SingleChildScrollView(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(c).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  getText('add_expense'),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: c,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                      builder: (context, child) {
+                        return Localizations.override(
+                          context: context,
+                          locale: Locale(_selectedLanguage),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (picked != null) s(() => selectedDate = picked);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amtCtrl,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+                    ),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String converted = _convertToScriptDigits(newValue.text);
+                      return newValue.copyWith(
+                        text: converted,
+                        selection: TextSelection.collapsed(offset: converted.length),
+                      );
+                    }),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: getText('amount'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.money),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(
+                    labelText: getText('description'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.note),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  getText('select_category'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 50,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selCat,
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down),
+                      items: expenseCategories.map((cat) {
+                        return DropdownMenuItem<String>(
+                          value: cat['key'],
+                          child: Row(
+                            children: [
+                              Icon(cat['icon'], size: 20, color: cat['color']),
+                              const SizedBox(width: 10),
+                              Text(getCategoryName(cat['key'])),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        if (v != null) s(() => selCat = v);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (amtCtrl.text.trim().isEmpty) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
+                    final amt = double.tryParse(rawAmount);
+                    if (amt == null) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    final tx = TransactionModel(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      amount: amt,
+                      note: noteCtrl.text.isEmpty
+                          ? getCategoryName(selCat)
+                          : noteCtrl.text,
+                      type: 'Expense',
+                      date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
+                      category: selCat,
+                      isArchived: false,
+                    );
+                    LocalDatabaseService().addTransaction(tx);
+                    Navigator.pop(c);
+                    _showSnackBar('${getText('expense')} ${getText('save')}', Colors.red);
+                    _loadDataFromHive();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    getText('save'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
@@ -2674,48 +2855,47 @@ void _showDebtCreditDialog(String type) {
   }
 
   // ========== DAILY REMINDER ==========
- Future<void> _scheduleDailyReminder(String id, TimeOfDay time, String title, String body) async {
-   try {
-     final notificationId = id.hashCode.abs() % 100000;
-     await _notificationsPlugin.cancel(notificationId);
+  Future<void> _scheduleDailyReminder(String id, TimeOfDay time, String title, String body) async {
+    try {
+      final notificationId = id.hashCode.abs() % 100000;
+      await _notificationsPlugin.cancel(notificationId);
 
-     final now = tz.TZDateTime.now(tz.local);
-     var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, time.hour, time.minute);
-     if (scheduledDate.isBefore(now)) {
-       scheduledDate = scheduledDate.add(const Duration(days: 1));
-     }
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, time.hour, time.minute);
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
 
-     await _notificationsPlugin.zonedSchedule(
-       notificationId,
-       title,
-       body,
-       scheduledDate,
-       const NotificationDetails(
-         android: AndroidNotificationDetails(
-           'daily_reminder_channel',      // ✅ সঠিক চ্যানেল
-           'দৈনিক রিমাইন্ডার',
-           importance: Importance.high,
-           priority: Priority.high,
-         ),
-         iOS: DarwinNotificationDetails(),
-       ),
-       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-       matchDateTimeComponents: DateTimeComponents.time,
-       payload: id,
-     );
-     print('Scheduled $id at ${scheduledDate.toLocal()}');
-   } catch (e) {
-     print('Error scheduling daily reminder ($id): $e');
-   }
- }
+      await _notificationsPlugin.zonedSchedule(
+        notificationId,
+        title,
+        body,
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'daily_reminder_channel',
+            'দৈনিক রিমাইন্ডার',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: id,
+      );
+      print('Scheduled $id at ${scheduledDate.toLocal()}');
+    } catch (e) {
+      print('Error scheduling daily reminder ($id): $e');
+    }
+  }
 
   Future<void> _loadDailyReminderTime() async {
     final prefs = await SharedPreferences.getInstance();
     final hour = prefs.getInt('daily_reminder_hour');
     final minute = prefs.getInt('daily_reminder_minute');
     if (hour != null && minute != null) {
-      // ✅ ইউজারের কাস্টম ডেইলি রিমাইন্ডার পুনরায় শিডিউল করুন
       await _scheduleDailyReminder(
         'user_daily',
         TimeOfDay(hour: hour, minute: minute),
@@ -2725,29 +2905,28 @@ void _showDebtCreditDialog(String type) {
     }
   }
 
- Future<void> _showDailyReminderPicker() async {
-   final prefs = await SharedPreferences.getInstance();
-   final currentHour = prefs.getInt('daily_reminder_hour') ?? 9;
-   final currentMinute = prefs.getInt('daily_reminder_minute') ?? 0;
-   final time = await showTimePicker(
-     context: context,
+  Future<void> _showDailyReminderPicker() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentHour = prefs.getInt('daily_reminder_hour') ?? 9;
+    final currentMinute = prefs.getInt('daily_reminder_minute') ?? 0;
+
+   final time = await _show12HourTimePicker(
+     context,
      initialTime: TimeOfDay(hour: currentHour, minute: currentMinute),
    );
-   if (time != null) {
-     // ✅ সঠিক প্যারামিটার সহ কল করুন
-     await _scheduleDailyReminder(
-       'user_daily',                    // Unique ID for user's custom daily reminder
-       time,
-       getText('daily_reminder_title'),
-       getText('daily_reminder_body'),
-     );
-     // ✅ সময় সেভ করুন
-     await prefs.setInt('daily_reminder_hour', time.hour);
-     await prefs.setInt('daily_reminder_minute', time.minute);
-     _showSnackBar(getText('reminder_set'), Colors.green);
-   }
- }
 
+    if (time != null) {
+      await _scheduleDailyReminder(
+        'user_daily',
+        time,
+        getText('daily_reminder_title'),
+        getText('daily_reminder_body'),
+      );
+      await prefs.setInt('daily_reminder_hour', time.hour);
+      await prefs.setInt('daily_reminder_minute', time.minute);
+      _showSnackBar(getText('reminder_set'), Colors.green);
+    }
+  }
 
   // ========== REMOTE NOTICES ==========
   Future<List<RemoteNotice>> _fetchRemoteNotices() async {
@@ -2774,7 +2953,6 @@ void _showDebtCreditDialog(String type) {
     final allNotices = await _fetchRemoteNotices();
     if (allNotices.isEmpty) return;
 
-    // Load existing stored notices
     final List<String> storedJson = prefs.getStringList('all_notices') ?? [];
     List<RemoteNotice> existingNotices = storedJson
         .map((s) => RemoteNotice.fromJson(jsonDecode(s)))
@@ -2782,7 +2960,6 @@ void _showDebtCreditDialog(String type) {
 
     bool hasNew = false;
     for (var newNotice in allNotices) {
-      // ডুপ্লিকেট চেক (টাইটেল ও তারিখের সংমিশ্রণ)
       if (!existingNotices.any((e) => e.title == newNotice.title && e.date == newNotice.date)) {
         existingNotices.add(newNotice);
         await _showNoticeNotification(newNotice.title, newNotice.body);
@@ -2790,12 +2967,10 @@ void _showDebtCreditDialog(String type) {
       }
     }
 
-    // সব সময় স্টোর আপডেট করুন (যদি নতুন কিছু থাকে বা না থাকে)
     final updatedJson = existingNotices.map((n) => jsonEncode(n.toJson())).toList();
     await prefs.setStringList('all_notices', updatedJson);
     await prefs.setString('last_notice_fetch', DateTime.now().toIso8601String());
 
-    // সব সময় UI আপডেট করুন
     _remoteNotices = existingNotices;
     if (mounted) setState(() {});
   }
@@ -2827,201 +3002,180 @@ void _showDebtCreditDialog(String type) {
       setState(() {});
     }
   }
+
   // ========== PROFILE & SETTINGS ==========
- void _showProfileDialog() {
-   final nameCtrl = TextEditingController(text: _userName);
+  void _showProfileDialog() {
+    final nameCtrl = TextEditingController(text: _userName);
 
-   showModalBottomSheet(
-     context: context,
-     isScrollControlled: true,
-     backgroundColor: Colors.transparent,
-     builder: (c) => StatefulBuilder(
-       builder: (c, s) => Container(
-         decoration: BoxDecoration(
-           color: _isDarkMode ? Colors.grey[850] : Colors.white,
-           borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-         ),
-         child: SingleChildScrollView(
-           padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
-           child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               Container(
-                 margin: const EdgeInsets.only(top: 12),
-                 height: 4,
-                 width: 40,
-                 decoration: BoxDecoration(
-                   color: Colors.grey[300],
-                   borderRadius: BorderRadius.circular(2),
-                 ),
-               ),
-               const SizedBox(height: 20),
-
-               // ✅ প্রোফাইল পিকচার সেকশন
-               Stack(
-                 children: [
-                   GestureDetector(
-                     onTap: () => _changeProfilePhoto(),
-                     child: CircleAvatar(
-                       radius: 50,
-                       backgroundColor: Colors.blue.shade100,
-                       backgroundImage: _profileImagePath != null &&
-                               File(_profileImagePath!).existsSync()
-                           ? FileImage(File(_profileImagePath!))
-                           : null,
-                       child: (_profileImagePath == null)
-                           ? const Icon(Icons.person, size: 50, color: Colors.blue)
-                           : null,
-                     ),
-                   ),
-                   Positioned(
-                     bottom: 0,
-                     right: (_profileImagePath != null &&
-                             File(_profileImagePath!).existsSync())
-                         ? 60
-                         : 0,
-                     child: const CircleAvatar(
-                       radius: 18,
-                       backgroundColor: Colors.blue,
-                       child: Icon(Icons.camera_alt, size: 18, color: Colors.white),
-                     ),
-                   ),
-                   if (_profileImagePath != null &&
-                       File(_profileImagePath!).existsSync())
-                     Positioned(
-                       bottom: 0,
-                       right: 0,
-                       child: GestureDetector(
-                         onTap: () async {
-                           final prefs = await SharedPreferences.getInstance();
-                           await prefs.remove('profileImagePath');
-                           setState(() => _profileImagePath = null);
-                           s(() => _profileImagePath = null);
-                           _showSnackBar(
-                               "প্রোফাইল পিকচার রিমুভ করা হয়েছে", Colors.red);
-                         },
-                         child: const CircleAvatar(
-                           radius: 18,
-                           backgroundColor: Colors.red,
-                           child: Icon(Icons.delete, size: 18, color: Colors.white),
-                         ),
-                       ),
-                     ),
-                 ],
-               ),
-               const SizedBox(height: 16),
-
-               // ✅ ইউজারনেম ইনপুট ফিল্ড
-               Padding(
-                 padding: const EdgeInsets.symmetric(horizontal: 30),
-                 child: TextField(
-                   controller: nameCtrl,
-                   decoration: InputDecoration(
-                     labelText: getText('user_name'),
-                     prefixIcon: const Icon(Icons.person),
-                     border: OutlineInputBorder(
-                       borderRadius: BorderRadius.circular(12),
-                     ),
-                   ),
-                   onChanged: (v) {
-                     _userName = v;
-                     s(() {}); // ✅ টাইপ করার সাথে সাথে বটম শিটের ভেতরের টেক্সট লাইভ আপডেট করার জন্য
-                   },
-                 ),
-               ),
-               const SizedBox(height: 10),
-
-               // ✅ ফিক্সড: হার্ডকোডেড "User" বাদ দিয়ে এটিকে ডাইনামিক ও লোকালাইজড করা হলো
-               Text(
-                 _userName.isNotEmpty ? _userName : getText('default_user'),
-                 style: TextStyle(
-                   fontSize: 14,
-                   color: _isDarkMode ? Colors.white70 : Colors.grey[600],
-                 ),
-               ),
-               const SizedBox(height: 20),
-
-               Padding(
-                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                 child: Column(
-                   children: [
-                     _buildSettingsCard(s),
-                     const SizedBox(height: 15),
-
-                     // সেকিউরিটি সেটিংস বাটন
-                     GestureDetector(
-                       onTap: () {
-                         Navigator.pop(c);
-                         _openSecurityScreen();
-                       },
-                       child: Container(
-                         padding: const EdgeInsets.symmetric(
-                             vertical: 14, horizontal: 16),
-                         decoration: BoxDecoration(
-                           gradient: LinearGradient(
-                             colors: [Colors.red.shade400, Colors.red.shade700],
-                           ),
-                           borderRadius: BorderRadius.circular(15),
-                         ),
-                         child: Row(
-                           mainAxisAlignment: MainAxisAlignment.center,
-                           children: [
-                             const Icon(Icons.security,
-                                 color: Colors.white, size: 24),
-                             const SizedBox(width: 10),
-                             Text(
-                               getText('security_settings'),
-                               style: const TextStyle(
-                                 color: Colors.white,
-                                 fontSize: 16,
-                                 fontWeight: FontWeight.w600,
-                               ),
-                             ),
-                           ],
-                         ),
-                       ),
-                     ),
-                     const SizedBox(height: 20),
-
-                     // ✅ ফিক্সড: সেভ বাটন লজিক
-                     ElevatedButton(
-                       onPressed: () async {
-                         // ১. টেক্সট ফিল্ডের একদম ফাইনাল ভ্যালু ভ্যারিয়েবলে নেওয়া হলো
-                         _userName = nameCtrl.text.trim();
-
-                         // ২. ডাটাবেজে বা লোকাল ড্রাইভে ডাটা সেভ করা হলো
-                         await _saveUserSettings();
-
-                         // ৩. বটম শিট বন্ধ করার আগেই মেইন স্ক্রিনকে রি-বিল্ড বা আপডেট দেওয়া হলো
-                         setState(() {});
-
-                         // ৪. বটম শিট বন্ধ করা হলো
-                         Navigator.pop(c);
-                       },
-                       style: ElevatedButton.styleFrom(
-                         backgroundColor: Colors.blue.shade700,
-                         minimumSize: const Size(double.infinity, 50),
-                         shape: RoundedRectangleBorder(
-                           borderRadius: BorderRadius.circular(12),
-                         ),
-                       ),
-                       child: Text(
-                         getText('save'),
-                         style: const TextStyle(
-                             color: Colors.white, fontSize: 16),
-                       ),
-                     ),
-                     const SizedBox(height: 20),
-                   ],
-                 ),
-               ),
-             ],
-           ),
-         ),
-       ),
-     ),
-   );
- }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => Container(
+          decoration: BoxDecoration(
+            color: _isDarkMode ? Colors.grey[850] : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _changeProfilePhoto(),
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.blue.shade100,
+                        backgroundImage: _profileImagePath != null &&
+                            File(_profileImagePath!).existsSync()
+                            ? FileImage(File(_profileImagePath!))
+                            : null,
+                        child: (_profileImagePath == null)
+                            ? const Icon(Icons.person, size: 50, color: Colors.blue)
+                            : null,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: (_profileImagePath != null &&
+                          File(_profileImagePath!).existsSync())
+                          ? 60
+                          : 0,
+                      child: const CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.blue,
+                        child: Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                      ),
+                    ),
+                    if (_profileImagePath != null &&
+                        File(_profileImagePath!).existsSync())
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.remove('profileImagePath');
+                            setState(() => _profileImagePath = null);
+                            s(() => _profileImagePath = null);
+                            _showSnackBar("প্রোফাইল পিকচার রিমুভ করা হয়েছে", Colors.red);
+                          },
+                          child: const CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.red,
+                            child: Icon(Icons.delete, size: 18, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: getText('user_name'),
+                      prefixIcon: const Icon(Icons.person),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onChanged: (v) {
+                      _userName = v;
+                      s(() {});
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _userName.isNotEmpty ? _userName : getText('default_user'),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      _buildSettingsCard(s),
+                      const SizedBox(height: 15),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(c);
+                          _openSecurityScreen();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.red.shade400, Colors.red.shade700],
+                            ),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.security, color: Colors.white, size: 24),
+                              const SizedBox(width: 10),
+                              Text(
+                                getText('security_settings'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () async {
+                          _userName = nameCtrl.text.trim();
+                          await _saveUserSettings();
+                          setState(() {});
+                          Navigator.pop(c);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade700,
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          getText('save'),
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showProfilePhotoOptions() {
     showModalBottomSheet(
@@ -3034,7 +3188,6 @@ void _showDebtCreditDialog(String type) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // হ্যান্ডেল বার
             Container(
               margin: const EdgeInsets.only(top: 12),
               height: 4,
@@ -3045,7 +3198,6 @@ void _showDebtCreditDialog(String type) {
               ),
             ),
             const SizedBox(height: 20),
-            // শিরোনাম
             Text(
               getText('change_photo'),
               style: TextStyle(
@@ -3055,7 +3207,6 @@ void _showDebtCreditDialog(String type) {
               ),
             ),
             const SizedBox(height: 20),
-            // অপশন লিস্ট
             _buildPhotoOption(
               icon: Icons.camera_alt,
               label: getText('take_photo'),
@@ -3084,7 +3235,6 @@ void _showDebtCreditDialog(String type) {
                 }
               },
             ),
-            // যদি প্রোফাইল পিকচার থাকে তাহলে "সরান" অপশন দেখাবে
             if (_profileImagePath != null && File(_profileImagePath!).existsSync())
               _buildPhotoOption(
                 icon: Icons.delete_forever,
@@ -3099,7 +3249,6 @@ void _showDebtCreditDialog(String type) {
                 },
               ),
             const SizedBox(height: 8),
-            // ক্যান্সেল বাটন
             ListTile(
               leading: const Icon(Icons.close, color: Colors.grey),
               title: Text(
@@ -3115,7 +3264,6 @@ void _showDebtCreditDialog(String type) {
     );
   }
 
-  // সহায়ক উইজেট: প্রতিটি অপশন
   Widget _buildPhotoOption({
     required IconData icon,
     required String label,
@@ -3214,66 +3362,66 @@ void _showDebtCreditDialog(String type) {
     );
   }
 
- Widget _lc(String l, String code, StateSetter s) {
-   bool sel = _selectedLanguage == code;
-   return Expanded(
-     child: InkWell(
-       onTap: () async {
-         if (code != _selectedLanguage) {
-           showDialog(
-             context: context,
-             barrierDismissible: false,
-             builder: (ctx) => AlertDialog(
-               content: Column(
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                   const CircularProgressIndicator(),
-                   const SizedBox(height: 16),
-                   Text(getText('translating')),
-                 ],
-               ),
-             ),
-           );
-           s(() => _selectedLanguage = code);
-           await _saveUserSettings();
-           await _translateAllUserData(code);
-           await _loadDataFromHive();
-           Navigator.of(context).pop();
-           setState(() {});
-         } else {
-           s(() => _selectedLanguage = code);
-           await _saveUserSettings();
-           setState(() {});
-         }
-       },
-       child: Container(
-         padding: const EdgeInsets.symmetric(vertical: 10),
-         decoration: BoxDecoration(
-           color: sel
-               ? Colors.blue.shade700
-               : (_isDarkMode ? Colors.grey[800] : Colors.white),
-           borderRadius: BorderRadius.circular(25),
-           border: Border.all(
-             color: sel
-                 ? Colors.blue.shade700
-                 : (_isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
-           ),
-         ),
-         child: Center(
-           child: Text(
-             l,
-             style: TextStyle(
-               color: sel
-                   ? Colors.white
-                   : (_isDarkMode ? Colors.white : Colors.black87),
-               fontWeight: FontWeight.w500,
-             ),
-           ),
-         ),
-       ),
-     ),
-   );
- }
+  Widget _lc(String l, String code, StateSetter s) {
+    bool sel = _selectedLanguage == code;
+    return Expanded(
+      child: InkWell(
+        onTap: () async {
+          if (code != _selectedLanguage) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) => AlertDialog(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(getText('translating')),
+                  ],
+                ),
+              ),
+            );
+            s(() => _selectedLanguage = code);
+            await _saveUserSettings();
+            await _translateAllUserData(code);
+            await _loadDataFromHive();
+            Navigator.of(context).pop();
+            setState(() {});
+          } else {
+            s(() => _selectedLanguage = code);
+            await _saveUserSettings();
+            setState(() {});
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: sel
+                ? Colors.blue.shade700
+                : (_isDarkMode ? Colors.grey[800] : Colors.white),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: sel
+                  ? Colors.blue.shade700
+                  : (_isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+            ),
+          ),
+          child: Center(
+            child: Text(
+              l,
+              style: TextStyle(
+                color: sel
+                    ? Colors.white
+                    : (_isDarkMode ? Colors.white : Colors.black87),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _cc(String code, String sym, StateSetter s) {
     bool sel = _selectedCurrency == code;
@@ -3354,239 +3502,240 @@ void _showDebtCreditDialog(String type) {
     }
   }
 
- Future<void> _backupData() async {
-   showDialog(
-     context: context,
-     barrierDismissible: false,
-     builder: (context) => _buildBackupLoadingDialog(),
-   );
+  Future<void> _backupData() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _buildBackupLoadingDialog(),
+    );
 
-   final filePath = await _createLocalBackup(silent: false);
-   if (!mounted) return;
-   Navigator.of(context).pop();
+    final filePath = await _createLocalBackup(silent: false);
+    if (!mounted) return;
+    Navigator.of(context).pop();
 
-   if (filePath != null) {
-     await showDialog(
-       context: context,
-       barrierDismissible: false,
-       builder: (_) => _buildBackupSuccessDialog(filePath),
-     );
-   }
- }
+    if (filePath != null) {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _buildBackupSuccessDialog(filePath),
+      );
+    }
+  }
 
- Widget _buildBackupLoadingDialog() {
-   return Dialog(
-     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-     backgroundColor: Colors.transparent,
-     child: Container(
-       padding: const EdgeInsets.all(24),
-       decoration: BoxDecoration(
-         gradient: LinearGradient(
-           begin: Alignment.topLeft,
-           end: Alignment.bottomRight,
-           colors: [
-             _isDarkMode ? Colors.grey.shade800 : Colors.white,
-             _isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
-           ],
-         ),
-         borderRadius: BorderRadius.circular(24),
-         boxShadow: const [
-           BoxShadow(
-             color: Colors.black26,
-             blurRadius: 20,
-             offset: Offset(0, 8),
-           ),
-         ],
-       ),
-       child: Column(
-         mainAxisSize: MainAxisSize.min,
-         children: [
-           TweenAnimationBuilder<double>(
-             tween: Tween<double>(begin: 0, end: 1),
-             duration: const Duration(milliseconds: 500),
-             builder: (context, value, child) {
-               return Transform.scale(
-                 scale: value,
-                 child: Container(
-                   padding: const EdgeInsets.all(16),
-                   decoration: const BoxDecoration(
-                     gradient: LinearGradient(
-                       colors: [Colors.blue, Colors.purple],
-                     ),
-                     shape: BoxShape.circle,
-                   ),
-                   child: const Icon(
-                     Icons.backup,
-                     color: Colors.white,
-                     size: 48,
-                   ),
-                 ),
-               );
-             },
-           ),
-           const SizedBox(height: 20),
-           Text(
-             getText('saving'),
-             style: TextStyle(
-               fontSize: 20,
-               fontWeight: FontWeight.bold,
-               color: _isDarkMode ? Colors.white : Colors.black87,
-             ),
-           ),
-           const SizedBox(height: 16),
-           const CircularProgressIndicator(
-             valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-           ),
-           const SizedBox(height: 12),
-           Text(
-             getText('please_wait'),
-             style: TextStyle(
-               color: _isDarkMode ? Colors.white70 : Colors.grey[600],
-               fontSize: 14,
-             ),
-           ),
-         ],
-       ),
-     ),
-   );
- }
- Widget _buildBackupSuccessDialog(String filePath) {
-   return Dialog(
-     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-     backgroundColor: Colors.transparent,
-     child: Container(
-       padding: const EdgeInsets.all(24),
-       decoration: BoxDecoration(
-         gradient: LinearGradient(
-           begin: Alignment.topLeft,
-           end: Alignment.bottomRight,
-           colors: [
-             Colors.green.shade400,
-             Colors.teal.shade600,
-           ],
-         ),
-         borderRadius: BorderRadius.circular(24),
-         boxShadow: const [
-           BoxShadow(
-             color: Colors.black26,
-             blurRadius: 20,
-             offset: Offset(0, 8),
-           ),
-         ],
-       ),
-       child: Column(
-         mainAxisSize: MainAxisSize.min,
-         children: [
-           TweenAnimationBuilder<double>(
-             tween: Tween<double>(begin: 0, end: 1),
-             duration: const Duration(milliseconds: 600),
-             builder: (context, value, child) {
-               return Transform.scale(
-                 scale: value,
-                 child: Container(
-                   padding: const EdgeInsets.all(12),
-                   decoration: const BoxDecoration(
-                     color: Colors.white,
-                     shape: BoxShape.circle,
-                   ),
-                   child: const Icon(
-                     Icons.check_circle,
-                     color: Colors.green,
-                     size: 56,
-                   ),
-                 ),
-               );
-             },
-           ),
-           const SizedBox(height: 16),
-           Text(
-             getText('backup_success'),
-             style: const TextStyle(
-               fontSize: 22,
-               fontWeight: FontWeight.bold,
-               color: Colors.white,
-             ),
-           ),
-           const SizedBox(height: 12),
-           Container(
-             padding: const EdgeInsets.all(12),
-             decoration: BoxDecoration(
-               color: Colors.white.withOpacity(0.2),
-               borderRadius: BorderRadius.circular(12),
-             ),
-             child: Column(
-               children: [
-                 Text(
-                   getText('backup_location'),
-                   style: const TextStyle(
-                     color: Colors.white70,
-                     fontSize: 12,
-                   ),
-                 ),
-                 const SizedBox(height: 4),
-                 Text(
-                   filePath,
-                   style: const TextStyle(
-                     color: Colors.white,
-                     fontSize: 12,
-                     fontWeight: FontWeight.w500,
-                   ),
-                   textAlign: TextAlign.center,
-                 ),
-               ],
-             ),
-           ),
-           const SizedBox(height: 20),
-           Row(
-             mainAxisAlignment: MainAxisAlignment.center,
-             children: [
-               TextButton(
-                 onPressed: () => Navigator.pop(context),
-                 style: TextButton.styleFrom(
-                   backgroundColor: Colors.white,
-                   foregroundColor: Colors.teal.shade700,
-                   padding: const EdgeInsets.symmetric(
-                     horizontal: 24,
-                     vertical: 12,
-                   ),
-                   shape: RoundedRectangleBorder(
-                     borderRadius: BorderRadius.circular(30),
-                   ),
-                 ),
-                 child: Text(getText('close')),
-               ),
-               const SizedBox(width: 12),
-               ElevatedButton.icon(
-                 onPressed: () async {
-                   await Share.shareXFiles(
-                     [XFile(filePath)],
-                     text: getText('backup_share_message'),
-                   );
-                 },
-                 icon: const Icon(Icons.share, size: 18),
-                 label: Text(getText('share')),
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: Colors.white,
-                   foregroundColor: Colors.teal.shade700,
-                   padding: const EdgeInsets.symmetric(
-                     horizontal: 20,
-                     vertical: 12,
-                   ),
-                   shape: RoundedRectangleBorder(
-                     borderRadius: BorderRadius.circular(30),
-                   ),
-                 ),
-               ),
-             ],
-           ),
-         ],
-       ),
-     ),
-   );
- }
+  Widget _buildBackupLoadingDialog() {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              _isDarkMode ? Colors.grey.shade800 : Colors.white,
+              _isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue, Colors.purple],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.backup,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Text(
+              getText('saving'),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              getText('please_wait'),
+              style: TextStyle(
+                color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackupSuccessDialog(String filePath) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.green.shade400,
+              Colors.teal.shade600,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 600),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 56,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              getText('backup_success'),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    getText('backup_location'),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    filePath,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.teal.shade700,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: Text(getText('close')),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await Share.shareXFiles(
+                      [XFile(filePath)],
+                      text: getText('backup_share_message'),
+                    );
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: Text(getText('share')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.teal.shade700,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _backupToGoogleDrive() async {
     try {
-      // ✅ Request the Drive file scope
       final GoogleSignIn googleSignIn = GoogleSignIn(
         scopes: [
           'https://www.googleapis.com/auth/drive.file',
@@ -3612,7 +3761,6 @@ void _showDebtCreditDialog(String type) {
       final request = http.MultipartRequest('POST', uri)
         ..headers['Authorization'] = 'Bearer $accessToken';
 
-      // Metadata part
       final metadata = {'name': fileName};
       request.files.add(http.MultipartFile.fromString(
         'metadata',
@@ -3620,7 +3768,6 @@ void _showDebtCreditDialog(String type) {
         contentType: MediaType('application', 'json'),
       ));
 
-      // File part
       request.files.add(http.MultipartFile.fromString(
         'file',
         fileContent,
@@ -3653,7 +3800,6 @@ void _showDebtCreditDialog(String type) {
       final jsonString = await file.readAsString();
       final data = jsonDecode(jsonString);
 
-      // কনফার্মেশন ডায়ালগ
       final confirm = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -3700,14 +3846,12 @@ void _showDebtCreditDialog(String type) {
 
       if (confirm != true) return;
 
-      // লোডিং ডায়ালগ দেখান
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => _buildRestoreLoadingDialog(),
       );
 
-      // ডাটা রিস্টোর
       await Hive.box<TransactionModel>('transactions').clear();
       await Hive.box<BudgetModel>('budgets').clear();
       await Hive.box<RecurringTransactionModel>('recurring').clear();
@@ -3787,10 +3931,8 @@ void _showDebtCreditDialog(String type) {
 
       _loadDataFromHive();
 
-      // লোডিং ডায়ালগ বন্ধ
       if (mounted) Navigator.of(context).pop();
 
-      // সাফল্যের ডায়ালগ দেখান
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -3801,7 +3943,6 @@ void _showDebtCreditDialog(String type) {
       _showSnackBar('${getText('restore')} ${getText('failed')}: $e', Colors.red);
     }
   }
-
 
   Map<String, dynamic> _transactionToJson(TransactionModel tx) => {
     'id': tx.id,
@@ -3847,7 +3988,7 @@ void _showDebtCreditDialog(String type) {
           results.contains(ConnectivityResult.mobile)) {
         print('Internet available – performing auto-backup and syncing remote notices');
         await _createLocalBackup(silent: true);
-        await _syncRemoteNotices(); // fetch remote notices when internet is available
+        await _syncRemoteNotices();
       }
     });
   }
@@ -3859,7 +4000,7 @@ void _showDebtCreditDialog(String type) {
     SystemNavigator.pop();
   }
 
-  // ==================== NOTEBOOK (unchanged) ====================
+  // ==================== NOTEBOOK ====================
   Widget _buildNotebookBody() {
     return Column(
       children: [
@@ -4059,48 +4200,102 @@ void _showDebtCreditDialog(String type) {
             color: selBg,
             child: Column(
               children: [
-                Container(padding: const EdgeInsets.only(top: 40, left: 8, right: 8, bottom: 8), child: Row(
-                  children: [
-                    IconButton(icon: const Icon(Icons.check, color: Colors.green, size: 32), onPressed: () async {
-                      if (tc.text.trim().isEmpty) { _showSnackBar(getText('write_note_hint'), Colors.red); return; }
-                      Map<String, dynamic> extra = {'bgColor': selBg.value, 'imagePaths': existingImages, 'hasDrawing': false};
-                      final newNote = TransactionModel(
-                        id: key ?? DateTime.now().millisecondsSinceEpoch.toString(),
-                        amount: 0, note: tc.text, type: "Note", category: json.encode(extra),
-                        date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()), isArchived: false,
-                      );
-                      _isNoteEditorOpen = false;
-                      Navigator.of(context).pop();
-                      await LocalDatabaseService().addTransaction(newNote);
-                      final newNoteMap = {'key': newNote.id, 'note': newNote.note, 'date': newNote.date, 'category': newNote.category};
-                      if (mounted) setState(() => _textNotes.insert(0, newNoteMap));
-                      _showSnackBar(getText('save'), Colors.green);
-                    }),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(getText('editing'), style: const TextStyle(color: Colors.black54, fontSize: 14)),
-                      Text(DateFormat('dd/MM/yy h:mm a').format(DateTime.now()), style: const TextStyle(color: Colors.black54, fontSize: 12)),
-                    ])),
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: Colors.white),
-                      onSelected: (value) async {
-                        if (value == 'backup') {
-                          await _backupData();
-                        } else if (value == 'restore') {
-                          await _restoreData();
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'backup', child: Row(
-                          children: [Icon(Icons.backup, color: Colors.blue), SizedBox(width: 8), Text('Backup')],
-                        )),
-                        const PopupMenuItem(value: 'restore', child: Row(
-                          children: [Icon(Icons.restore, color: Colors.green), SizedBox(width: 8), Text('Restore')],
-                        )),
-                      ],
-                    )
-                  ],
-                )),
+                Container(
+                  padding: const EdgeInsets.only(top: 40, left: 8, right: 8, bottom: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check, color: Colors.green, size: 32),
+                        onPressed: () async {
+                          if (tc.text.trim().isEmpty) {
+                            _showSnackBar(getText('write_note_hint'), Colors.red);
+                            return;
+                          }
+                          Map<String, dynamic> extra = {
+                            'bgColor': selBg.value,
+                            'imagePaths': existingImages,
+                            'hasDrawing': false,
+                          };
+                          final newNote = TransactionModel(
+                            id: key ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                            amount: 0,
+                            note: tc.text,
+                            type: "Note",
+                            category: json.encode(extra),
+                            date: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
+                            isArchived: false,
+                          );
+                          _isNoteEditorOpen = false;
+                          Navigator.of(context).pop();
+                          await LocalDatabaseService().addTransaction(newNote);
+                          final newNoteMap = {
+                            'key': newNote.id,
+                            'note': newNote.note,
+                            'date': newNote.date,
+                            'category': newNote.category,
+                          };
+                          if (mounted) {
+                            setState(() {
+                              if (key != null) {
+                                _textNotes.removeWhere((note) => note['key'] == key);
+                              }
+                              _textNotes.insert(0, newNoteMap);
+                            });
+                          }
+                          _showSnackBar(getText('save'), Colors.green);
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              getText('editing'),
+                              style: const TextStyle(color: Colors.black54, fontSize: 14),
+                            ),
+                            Text(
+                              DateFormat('dd/MM/yy h:mm a').format(DateTime.now()),
+                              style: const TextStyle(color: Colors.black54, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.white),
+                        onSelected: (value) async {
+                          if (value == 'backup') {
+                            await _backupData();
+                          } else if (value == 'restore') {
+                            await _restoreData();
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'backup',
+                            child: Row(
+                              children: [
+                                Icon(Icons.backup, color: Colors.blue),
+                                SizedBox(width: 8),
+                                Text('Backup'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'restore',
+                            child: Row(
+                              children: [
+                                Icon(Icons.restore, color: Colors.green),
+                                SizedBox(width: 8),
+                                Text('Restore'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 Expanded(
                   child: Stack(
                     children: [
@@ -4116,7 +4311,12 @@ void _showDebtCreditDialog(String type) {
                               maxLines: null,
                               keyboardType: TextInputType.multiline,
                               style: const TextStyle(fontSize: 18, color: Colors.black87, height: 1.66),
-                              decoration: InputDecoration(hintText: getText('write_note_hint'), hintStyle: const TextStyle(color: Colors.black38), border: InputBorder.none, filled: false),
+                              decoration: InputDecoration(
+                                hintText: getText('write_note_hint'),
+                                hintStyle: const TextStyle(color: Colors.black38),
+                                border: InputBorder.none,
+                                filled: false,
+                              ),
                             ),
                             if (existingImages.isNotEmpty) ...[
                               const SizedBox(height: 20),
@@ -4125,11 +4325,30 @@ void _showDebtCreditDialog(String type) {
                                 child: Row(
                                   children: existingImages.map((path) => Stack(
                                     children: [
-                                      Padding(padding: const EdgeInsets.only(right: 8.0), child: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(path), height: 100, width: 100, fit: BoxFit.cover))),
-                                      Positioned(top: 0, right: 8, child: GestureDetector(
-                                        onTap: () => s(() => existingImages.remove(path)),
-                                        child: const CircleAvatar(radius: 12, backgroundColor: Colors.black54, child: Icon(Icons.close, size: 14, color: Colors.white)),
-                                      )),
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 8.0),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.file(
+                                            File(path),
+                                            height: 100,
+                                            width: 100,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 0,
+                                        right: 8,
+                                        child: GestureDetector(
+                                          onTap: () => s(() => existingImages.remove(path)),
+                                          child: const CircleAvatar(
+                                            radius: 12,
+                                            backgroundColor: Colors.black54,
+                                            child: Icon(Icons.close, size: 14, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   )).toList(),
                                 ),
@@ -4147,15 +4366,52 @@ void _showDebtCreditDialog(String type) {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        TextButton.icon(onPressed: () async { final picked = await _imagePicker.pickImage(source: ImageSource.gallery); if (picked != null) s(() => existingImages.add(picked.path)); }, icon: const Icon(Icons.photo_library, size: 20), label: Text(getText('gallery'))),
-                        const SizedBox(width: 20),
-                        TextButton.icon(onPressed: () async { final picked = await _imagePicker.pickImage(source: ImageSource.camera); if (picked != null) s(() => existingImages.add(picked.path)); }, icon: const Icon(Icons.camera_alt, size: 20), label: Text(getText('camera'))),
-                      ]),
-                      SizedBox(height: 50, child: ListView.builder(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16), itemCount: bgs.length, itemBuilder: (c, i) => GestureDetector(
-                        onTap: () => s(() { selBg = bgs[i]; selectedBg = bgs[i].value; }),
-                        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: CircleAvatar(backgroundColor: bgs[i], radius: 18, child: selBg == bgs[i] ? const Icon(Icons.check, color: Colors.black54, size: 18) : null)),
-                      ))),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () async {
+                              final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+                              if (picked != null) s(() => existingImages.add(picked.path));
+                            },
+                            icon: const Icon(Icons.photo_library, size: 20),
+                            label: Text(getText('gallery')),
+                          ),
+                          const SizedBox(width: 20),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final picked = await _imagePicker.pickImage(source: ImageSource.camera);
+                              if (picked != null) s(() => existingImages.add(picked.path));
+                            },
+                            icon: const Icon(Icons.camera_alt, size: 20),
+                            label: Text(getText('camera')),
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 50,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: bgs.length,
+                          itemBuilder: (c, i) => GestureDetector(
+                            onTap: () => s(() {
+                              selBg = bgs[i];
+                              selectedBg = bgs[i].value;
+                            }),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: CircleAvatar(
+                                backgroundColor: bgs[i],
+                                radius: 18,
+                                child: selBg == bgs[i]
+                                    ? const Icon(Icons.check, color: Colors.black54, size: 18)
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -4247,7 +4503,14 @@ void _showDebtCreditDialog(String type) {
                         );
                         await LocalDatabaseService().addTransaction(newNote);
                         final newNoteMap = {'key': newNote.id, 'note': newNote.note, 'date': newNote.date, 'category': newNote.category};
-                        if (mounted) setState(() => _drawingNotes.insert(0, newNoteMap));
+                        if (mounted) {
+                          setState(() {
+                            if (key != null) {
+                              _drawingNotes.removeWhere((drawing) => drawing['key'] == key);
+                            }
+                            _drawingNotes.insert(0, newNoteMap);
+                          });
+                        }
                         _isDrawingEditorOpen = false;
                         Navigator.pop(c);
                         _showSnackBar(getText('drawing_saved'), Colors.green);
@@ -4608,6 +4871,7 @@ void _showDebtCreditDialog(String type) {
       ),
     );
   }
+
   // ========== MAIN BODY ==========
   Widget _buildMainBody() {
     String symbol = _currencySymbols[_selectedCurrency] ?? '৳';
@@ -4684,10 +4948,15 @@ void _showDebtCreditDialog(String type) {
     ];
     return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 3, crossAxisSpacing: 4, mainAxisSpacing: 4, childAspectRatio: 0.8, children: items.map((item) => _buildGradientCard(item['label'] as String, item['value'] as double, item['color'] as Color, item['icon'] as IconData, symbol)).toList());
   }
+
   Widget _buildGradientCard(String label, double value, Color color, IconData icon, String symbol) => AnimatedBorderCard(baseColor: color, child: Padding(padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: Colors.white, size: 16), const SizedBox(height: 2), Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w500)), const SizedBox(height: 1), Text(_formatAmount(value), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))])));
+
   Widget _buildProfessionalActionButtons() => Row(children: [Expanded(child: _buildGradientButton(getText('income'), Icons.add, Colors.green, _showIncomeDialog)), const SizedBox(width: 12), Expanded(child: _buildGradientButton(getText('expense'), Icons.remove, Colors.red, _showExpenseDialog))]);
+
   Widget _buildGradientButton(String label, IconData icon, Color color, VoidCallback onPressed) => Expanded(child: ElevatedButton(onPressed: onPressed, style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), minimumSize: const Size(0, 52)), child: Ink(decoration: BoxDecoration(gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]), borderRadius: BorderRadius.circular(30)), child: Container(alignment: Alignment.center, height: 52, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 24), const SizedBox(width: 8), Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600))])))));
+
   Widget _buildProfessionalSectionTitle(String title, IconData icon) => Row(children: [Icon(icon, color: Colors.blue.shade700, size: 22), const SizedBox(width: 8), Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _isDarkMode ? Colors.white : Colors.blueGrey.shade800))]);
+
   Widget _buildProfessionalDashboardStatsGrid() {
     return Row(
       children: [
@@ -4744,6 +5013,7 @@ void _showDebtCreditDialog(String type) {
       ],
     );
   }
+
   Widget _buildStatCard(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -4774,6 +5044,7 @@ void _showDebtCreditDialog(String type) {
       ),
     );
   }
+
   Widget _buildOtherAccountCard(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -4847,7 +5118,9 @@ void _showDebtCreditDialog(String type) {
       Expanded(child: _buildFeatureButton(getText('export_report'), Icons.download, Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExportScreen(selectedLanguage: _selectedLanguage, selectedCurrency: _selectedCurrency, currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳', localizedText: _localizedText))))),
     ],
   );
+
   Widget _buildFeatureButton(String label, IconData icon, Color color, VoidCallback onTap) => ElevatedButton(onPressed: onTap, style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: color, elevation: 2, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 20), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))]));
+
   Widget _buildTransactionHistory(List<Map<String, dynamic>> list, String symbol) {
     if (list.isEmpty) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(getText('no_transactions'), style: TextStyle(fontSize: 16, color: _isDarkMode ? Colors.grey[400] : Colors.grey))));
     return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: list.length, itemBuilder: (context, i) {
@@ -4864,6 +5137,7 @@ void _showDebtCreditDialog(String type) {
       ));
     });
   }
+
   Widget _buildBudgetOverviewCard() {
     String symbol = _currencySymbols[_selectedCurrency] ?? '৳';
     String cm = DateFormat('yyyy-MM').format(DateTime.now());
@@ -5123,7 +5397,7 @@ void _showDebtCreditDialog(String type) {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
                     child: TableCalendar(
-                      locale: _selectedLanguage, // ✅ ভাষা সাপোর্ট যোগ করা হলো
+                      locale: _selectedLanguage,
                       firstDay: DateTime(2020),
                       lastDay: DateTime(2030),
                       focusedDay: _focusedDay,
@@ -5230,90 +5504,83 @@ void _showDebtCreditDialog(String type) {
 
   Widget _buildAddReminderButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: ElevatedButton.icon(onPressed: _showReminderInput, icon: const Icon(Icons.add_alert), label: Text(getText('add_reminder')), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 5)));
 
- Widget _buildNoticeBody() {
-   // যদি কোনো রিমাইন্ডার বা রিমোট নোটিস না থাকে
-   if (_allReminders.isEmpty && _remoteNotices.isEmpty) {
-     return Center(
-       child: Column(
-         mainAxisAlignment: MainAxisAlignment.center,
-         children: [
-           Text(
-             getText('no_notices'),
-             style: TextStyle(
-               color: _isDarkMode ? Colors.white70 : Colors.black54,
-               fontSize: 16,
-             ),
-           ),
-           const SizedBox(height: 20),
-           ElevatedButton.icon(
-             onPressed: _refreshNotices,
-             icon: const Icon(Icons.refresh),
-             label: Text(getText('refresh')),
-           ),
-         ],
-       ),
-     );
-   }
+  Widget _buildNoticeBody() {
+    if (_allReminders.isEmpty && _remoteNotices.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              getText('no_notices'),
+              style: TextStyle(
+                color: _isDarkMode ? Colors.white70 : Colors.black54,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _refreshNotices,
+              icon: const Icon(Icons.refresh),
+              label: Text(getText('refresh')),
+            ),
+          ],
+        ),
+      );
+    }
 
-   // পুল-টু-রিফ্রেশ ও ম্যানুয়াল রিফ্রেশ বাটন সহ লিস্ট
-   return RefreshIndicator(
-     onRefresh: _refreshNotices,
-     child: ListView(
-       padding: const EdgeInsets.all(10),
-       children: [
-         // হেডার: টাইটেল + রিফ্রেশ বাটন
-         Row(
-           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-           children: [
-             Text(
-               getText('notice'),
-               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-             ),
-             IconButton(
-               icon: const Icon(Icons.refresh),
-               onPressed: _refreshNotices,
-               tooltip: getText('refresh'),
-             ),
-           ],
-         ),
-         // রিমাইন্ডার সেকশন (ইউজারের নিজের সেট করা)
-         if (_allReminders.isNotEmpty) ...[
-           Padding(
-             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-             child: Text(
-               getText('reminders'),
-               style: const TextStyle(
-                 fontSize: 18,
-                 fontWeight: FontWeight.bold,
-                 color: Colors.blue,
-               ),
-             ),
-           ),
-           ..._allReminders.map((reminder) => _buildReminderCard(reminder)),
-         ],
-         // রিমোট নোটিস সেকশন (গিটহাব থেকে আনা)
-         if (_remoteNotices.isNotEmpty) ...[
-           const SizedBox(height: 10),
-           Padding(
-             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-             child: Text(
-               getText('miscellaneous_notices'),
-               style: const TextStyle(
-                 fontSize: 18,
-                 fontWeight: FontWeight.bold,
-                 color: Colors.green,
-               ),
-             ),
-           ),
-           ..._remoteNotices.map((notice) => _buildRemoteNoticeCard(notice)),
-         ],
-       ],
-     ),
-   );
- }
+    return RefreshIndicator(
+      onRefresh: _refreshNotices,
+      child: ListView(
+        padding: const EdgeInsets.all(10),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                getText('notice'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshNotices,
+                tooltip: getText('refresh'),
+              ),
+            ],
+          ),
+          if (_allReminders.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Text(
+                getText('reminders'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+            ..._allReminders.map((reminder) => _buildReminderCard(reminder)),
+          ],
+          if (_remoteNotices.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Text(
+                getText('miscellaneous_notices'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+            ),
+            ..._remoteNotices.map((notice) => _buildRemoteNoticeCard(notice)),
+          ],
+        ],
+      ),
+    );
+  }
 
-
-// Helper to build a reminder card (extracted from your original code)
   Widget _buildReminderCard(Map<String, dynamic> reminder) {
     final targetDate = DateFormat('dd/MM/yyyy').parse(reminder['date']);
     final targetTime = _parseTimeOfDay(reminder['time']);
@@ -5360,7 +5627,6 @@ void _showDebtCreditDialog(String type) {
     );
   }
 
-// Helper to build a remote notice card
   Widget _buildRemoteNoticeCard(RemoteNotice notice) {
     return Card(
       elevation: 2,
@@ -5399,10 +5665,8 @@ void _showDebtCreditDialog(String type) {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 40),
-
-            // ✅ প্রোফাইল পিকচার – ট্যাপ করলে নতুন পপআপ খুলবে
             GestureDetector(
-              onTap: _showProfilePhotoOptions, // ✅ পরিবর্তন এখানে
+              onTap: _showProfilePhotoOptions,
               child: Stack(
                 children: [
                   CircleAvatar(
@@ -5427,10 +5691,7 @@ void _showDebtCreditDialog(String type) {
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // ✅ ইউজারনেম লোকালাইজড
             Text(
               _userName.isNotEmpty ? _userName : getText('default_user'),
               style: TextStyle(
@@ -5440,8 +5701,6 @@ void _showDebtCreditDialog(String type) {
               ),
             ),
             const SizedBox(height: 5),
-
-            // ✅ লোকালাইজড 'user_name' লেবেল
             Text(
               getText('user_name'),
               style: TextStyle(
@@ -5449,10 +5708,7 @@ void _showDebtCreditDialog(String type) {
                 color: _isDarkMode ? Colors.white70 : Colors.grey[600],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // ভাষা ও মুদ্রা
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
@@ -5482,9 +5738,7 @@ void _showDebtCreditDialog(String type) {
                 ],
               ),
             ),
-
             const SizedBox(height: 30),
-
             ElevatedButton.icon(
               onPressed: _showProfileDialog,
               icon: const Icon(Icons.settings),
@@ -5495,9 +5749,7 @@ void _showDebtCreditDialog(String type) {
                 elevation: 3,
               ),
             ),
-
             const SizedBox(height: 15),
-
             ElevatedButton.icon(
               onPressed: _openSecurityScreen,
               icon: const Icon(Icons.security),
@@ -5510,28 +5762,26 @@ void _showDebtCreditDialog(String type) {
                 elevation: 3,
               ),
             ),
-
             const SizedBox(height: 15),
-
             ElevatedButton.icon(
               onPressed: _logout,
               icon: const Icon(Icons.logout),
               label: Text(getText('logout')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 3,
               ),
             ),
-
             const SizedBox(height: 50),
           ],
         ),
       ),
     );
   }
- }
+}
 
 // ==================== HELPER CLASSES ====================
 class AnimatedBorderCard extends StatefulWidget {
@@ -5626,12 +5876,16 @@ class FullDrawingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (int i = 0; i < completedStrokes.length; i++) {
+      Color strokeColor = (i < strokeColors.length) ? strokeColors[i] : currentColor;
+      double strokeWidth = (i < strokeWidths.length) ? strokeWidths[i] : currentWidth;
+
       final paint = Paint()
-        ..color = strokeColors[i]
-        ..strokeWidth = strokeWidths[i]
+        ..color = strokeColor
+        ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..style = PaintingStyle.stroke;
+
       final path = Path();
       if (completedStrokes[i].isNotEmpty) {
         path.moveTo(completedStrokes[i][0].dx, completedStrokes[i][0].dy);
@@ -5641,6 +5895,7 @@ class FullDrawingPainter extends CustomPainter {
         canvas.drawPath(path, paint);
       }
     }
+
     if (currentStroke.length > 1) {
       final paint = Paint()
         ..color = currentColor
@@ -5663,6 +5918,7 @@ class FullDrawingPainter extends CustomPainter {
         oldDelegate.currentStroke != currentStroke ||
         oldDelegate.currentColor != currentColor ||
         oldDelegate.currentWidth != currentWidth ||
+        oldDelegate.strokeColors != strokeColors ||
         oldDelegate.strokeWidths != strokeWidths;
   }
 }
