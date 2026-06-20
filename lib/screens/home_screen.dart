@@ -154,6 +154,13 @@ class _HomeScreenState extends State<HomeScreen> {
         return const Locale('en', 'US'); // ইংরেজি ১২-ঘন্টা
     }
   }
+
+ String _getFormattedAppTitle() {
+   final appName = getText('app_title');
+   // সব প্ল্যাটফর্মের জন্য একটি ইমোজি যোগ করুন
+   return '📊 $appName';
+ }
+
  Future<TimeOfDay?> _show12HourTimePicker(BuildContext context, {required TimeOfDay initialTime}) {
    return showTimePicker(
      context: context,
@@ -1022,9 +1029,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   TimeOfDay _parseTimeOfDay(String timeStr) {
     try {
-      final format = DateFormat('h:mm a');
-      final date = format.parse(timeStr);
-      return TimeOfDay(hour: date.hour, minute: date.minute);
+      // ১. বাংলা/আরবি ডিজিটগুলোকে ইংরেজি ডিজিটে রূপান্তর করুন
+      const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+      const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+      const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+      String engStr = timeStr;
+      for (int i = 0; i < english.length; i++) {
+        engStr = engStr.replaceAll(bengali[i], english[i]);
+        engStr = engStr.replaceAll(arabic[i], english[i]);
+      }
+
+      // ২. ১২-ঘন্টা ফরম্যাট চেষ্টা করুন (যেমন "07:30 PM")
+      try {
+        final format = DateFormat('h:mm a');
+        final date = format.parse(engStr);
+        return TimeOfDay(hour: date.hour, minute: date.minute);
+      } catch (_) {
+        // ৩. ২৪-ঘন্টা ফরম্যাট চেষ্টা করুন (যেমন "19:30")
+        try {
+          final format = DateFormat('HH:mm');
+          final date = format.parse(engStr);
+          return TimeOfDay(hour: date.hour, minute: date.minute);
+        } catch (_) {
+          // ৪. কোনো ফরম্যাটই কাজ না করলে বর্তমান সময় রিটার্ন করুন
+          return TimeOfDay.now();
+        }
+      }
     } catch (e) {
       return TimeOfDay.now();
     }
@@ -1288,7 +1318,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (scheduledDate.isAfter(tz.TZDateTime.now(tz.local))) {
         await _notificationsPlugin.zonedSchedule(
           notificationId,
-          getText('app_title'),
+          _getFormattedAppTitle(),
           title,
           scheduledDate,
           const NotificationDetails(
@@ -1297,6 +1327,7 @@ class _HomeScreenState extends State<HomeScreen> {
               'রিমাইন্ডার',
               importance: Importance.max,
               priority: Priority.high,
+              //htmlFormatTitle: true,
               actions: [
                 AndroidNotificationAction('done', 'সম্পন্ন করুন'),
                 AndroidNotificationAction('snooze', 'পিছিয়ে দিন'),
@@ -1381,27 +1412,33 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDataFromHive();
     _showSnackBar(getText('reminder_updated'), Colors.orange);
   }
-  String _formatTime12Hour(TimeOfDay time, BuildContext context) {
-    if (_selectedLanguage == 'bn') {
-      final hourOfPeriod = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-      final minute = time.minute.toString().padLeft(2, '0');
-      final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+ String _formatTime12Hour(TimeOfDay time, BuildContext context) {
+   // সবসময় ১২-ঘন্টা ফরম্যাটে সময় তৈরি করুন (en_US লোকেল ব্যবহার করে)
+   final now = DateTime(2020, 1, 1, time.hour, time.minute);
+   String formatted = DateFormat('h:mm a', 'en_US').format(now);
 
-      // ইংলিশ সংখ্যাকে বাংলায় রূপান্তর করার জন্য
-      String toBanglaNum(String input) {
-        const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-        const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-        for (int i = 0; i < en.length; i++) {
-          input = input.replaceAll(en[i], bn[i]);
-        }
-        return input;
-      }
+   // বাংলা ভাষায় ডিজিটগুলো বাংলায় রূপান্তর করুন
+   if (_selectedLanguage == 'bn') {
+     String toBanglaNum(String input) {
+       const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+       const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+       for (int i = 0; i < en.length; i++) {
+         input = input.replaceAll(en[i], bn[i]);
+       }
+       return input;
+     }
 
-      return '${toBanglaNum(hourOfPeriod.toString())}:${toBanglaNum(minute)} $period';
-    }
-    // ইংলিশ ও অ্যারাবিকের জন্য আগের মতোই নরমাল ফরম্যাট থাকবে
-    return time.format(context);
-  }
+     // শুধু সংখ্যাগুলোকে বাংলায় রূপান্তর করি, AM/PM অপরিবর্তিত রাখি
+     final parts = formatted.split(' ');
+     if (parts.length == 2) {
+       final timePart = toBanglaNum(parts[0]);
+       return '$timePart ${parts[1]}'; // যেমন: ০৭:৩০ PM
+     }
+     return formatted;
+   }
+
+   return formatted; // ইংরেজি/আরবির জন্য ইংরেজি ডিজিটে ১২-ঘন্টা ফরম্যাট
+ }
 
   void _editReminder(String id, String oldNote, String oldDate, String oldTime) {
       final titleCtrl = TextEditingController(text: oldNote);
@@ -1948,7 +1985,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         date: DateFormat('dd/MM/yyyy').format(reminderDate!),
                         category: '',
                         isArchived: false,
-                        time: reminderTime!.format(c),
+                        time: _formatTime12Hour(reminderTime!, c),
                       );
                       await LocalDatabaseService().addTransaction(reminderTx);
                       await LocalDatabaseService().updateReminderCompleted(reminderId, false);
@@ -2958,9 +2995,16 @@ class _HomeScreenState extends State<HomeScreen> {
         .map((s) => RemoteNotice.fromJson(jsonDecode(s)))
         .toList();
 
+    // তারিখের শুধু দিন-মাস-বছর তুলনা করার ফাংশন
+    bool isSameDate(DateTime d1, DateTime d2) {
+      return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+    }
+
     bool hasNew = false;
     for (var newNotice in allNotices) {
-      if (!existingNotices.any((e) => e.title == newNotice.title && e.date == newNotice.date)) {
+      // ✅ তারিখের শুধু ডেট অংশ তুলনা করুন (সময় বাদ)
+      if (!existingNotices.any((e) =>
+          e.title == newNotice.title && isSameDate(e.date, newNotice.date))) {
         existingNotices.add(newNotice);
         await _showNoticeNotification(newNotice.title, newNotice.body);
         hasNew = true;
@@ -2974,7 +3018,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _remoteNotices = existingNotices;
     if (mounted) setState(() {});
   }
-
   Future<void> _showNoticeNotification(String title, String body) async {
     const androidDetails = AndroidNotificationDetails(
       'notice_channel',
