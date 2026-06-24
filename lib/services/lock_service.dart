@@ -8,6 +8,9 @@ class LockService {
   static const String _lockEnabledKey = 'lock_enabled';
   static const String _lockTypeKey = 'lock_type';
   static const String _biometricEnabledKey = 'biometric_enabled';
+  // ✅ নতুন কী
+  static const String _securityQuestionKey = 'security_question';
+  static const String _securityAnswerKey = 'security_answer';
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final LocalAuthentication _localAuth = LocalAuthentication();
@@ -19,9 +22,14 @@ class LockService {
   }
 
   Future<bool> verifyPin(String enteredPin) async {
-    final stored = await _storage.read(key: _pinKey);
-    return stored == enteredPin;
+    try {
+      final stored = await _storage.read(key: _pinKey);
+      return stored == enteredPin;
+    } catch (e) {
+      return false; // এরর এলেও ক্র্যাশ করবে না
+    }
   }
+
   Future<bool> hasPin() async {
     final pin = await _storage.read(key: _pinKey);
     return pin != null && pin.isNotEmpty;
@@ -80,10 +88,8 @@ class LockService {
     } on PlatformException catch (e) {
       print('❌ Biometric error: ${e.code} - ${e.message}');
       if (e.code == 'NotEnrolled') {
-        // কোনো ফিঙ্গারপ্রিন্ট নিবন্ধন নেই
         return false;
       } else if (e.code == 'LockedOut') {
-        // অনেকবার চেষ্টা করে লক হয়ে গেছে
         return false;
       }
       return false;
@@ -103,11 +109,38 @@ class LockService {
     return value == 'true';
   }
 
+  // ========== ✅ Security Question ==========
+  /// নিরাপত্তা প্রশ্ন ও উত্তর সংরক্ষণ করে
+  Future<void> saveSecurityQuestion(String question, String answer) async {
+    await _storage.write(key: _securityQuestionKey, value: question);
+    await _storage.write(key: _securityAnswerKey, value: answer);
+  }
+
+  /// সংরক্ষিত নিরাপত্তা প্রশ্ন পড়ে
+  Future<String?> getSecurityQuestion() async {
+    return await _storage.read(key: _securityQuestionKey);
+  }
+
+  /// সংরক্ষিত উত্তর পড়ে
+  Future<String?> getSecurityAnswer() async {
+    return await _storage.read(key: _securityAnswerKey);
+  }
+
+  /// ইনপুট করা উত্তর যাচাই করে
+  Future<bool> verifySecurityAnswer(String input) async {
+    final stored = await getSecurityAnswer();
+    if (stored == null) return false;
+    return input.trim().toLowerCase() == stored.trim().toLowerCase();
+  }
+
   // ========== Clear all lock settings ==========
   Future<void> clearLock() async {
     await _storage.delete(key: _pinKey);
     await _storage.delete(key: _lockEnabledKey);
     await _storage.delete(key: _lockTypeKey);
     await _storage.delete(key: _biometricEnabledKey);
+    // ✅ নিরাপত্তা প্রশ্নও ডিলিট করুন
+    await _storage.delete(key: _securityQuestionKey);
+    await _storage.delete(key: _securityAnswerKey);
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -30,8 +31,44 @@ class _SecurityScreenState extends State<SecurityScreen> {
   final TextEditingController _newPinController = TextEditingController();
   final TextEditingController _confirmPinController = TextEditingController();
   final TextEditingController _oldPinController = TextEditingController();
+  final TextEditingController _secQuestionController = TextEditingController();
+  final TextEditingController _secAnswerController = TextEditingController();
 
-  // ==================== LOCALIZATION HELPER ====================
+  String? _currentSecurityQuestion;
+
+  // ===== ৩টি ভাষায় প্রি-সেট প্রশ্ন =====
+  List<String> _getPresetQuestions(String lang) {
+    if (lang == 'bn') {
+      return [
+        'আপনার মায়ের প্রথম নাম কী?',
+        'আপনার প্রথম পোষা প্রাণীর নাম কী?',
+        'আপনার প্রিয় শিক্ষকের নাম কী?',
+        'আপনার জন্মস্থান কোথায়?',
+        'আপনার প্রিয় বইয়ের নাম কী?',
+        'আপনার প্রথম স্কুলের নাম কী?',
+      ];
+    } else if (lang == 'ar') {
+      return [
+        'ما هو اسم والدتك الأول؟',
+        'ما هو اسم حيوانك الأليف الأول؟',
+        'ما هو اسم معلمك المفضل؟',
+        'أين مكان ولادتك؟',
+        'ما هو اسم كتابك المفضل؟',
+        'ما هو اسم مدرستك الأولى؟',
+      ];
+    } else {
+      return [
+        'What is your mother\'s first name?',
+        'What is your first pet\'s name?',
+        'What is your favorite teacher\'s name?',
+        'What is your birthplace?',
+        'What is your favorite book?',
+        'What is your first school\'s name?',
+      ];
+    }
+  }
+
+  // ===== LOCALIZATION =====
   String getText(String key) {
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
@@ -68,7 +105,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
         'no': 'না',
         'about_app': 'অ্যাপ সম্পর্কে',
         'app_title': 'আমার হিসাব',
-        'app_description': 'আমার হিসাব (Amar Hisab) হলো একটি আধুনিক, দ্রুত এবং অফলাইন-ফার্স্ট পার্সোনাল ফাইন্যান্স ম্যানেজমেন্ট ট্র্যাকার, যেখানে কোনো ঝামেলা ছাড়াই আপনি আপনার দৈনিক আয়-ব্যয়, বাজেট ও হিসাব-নিকাশ ট্র্যাক করতে পারবেন। কোনো সাইন-ইন বা অ্যাকাউন্ট খোলার ঝামেলা নেই। অ্যাপটি ওপেন করেই সরাসরি হিসাব শুরু করতে পারবেন। আপনার সমস্ত ডেটা সম্পূর্ণ সুরক্ষিতভাবে আপনার নিজের ফোনেই (Hive Database-এ) সেভ থাকে। চাইলে ১ ক্লিকে Google Drive-এ ব্যাকআপ রাখতে পারেন।',
+        'app_description': 'আমার হিসাব (Amar Hisab) হলো একটি আধুনিক, দ্রুত এবং অফলাইন-ফার্স্ট পার্সোনাল ফাইন্যান্স ম্যানেজমেন্ট ট্র্যাকার, যেখানে কোনো ঝামেলা ছাড়াই আপনি আপনার দৈনিক আয়-ব্যয়, বাজেট ও হিসাব-নিকাশ ট্র্যাক করতে পারবেন। কোনো সাইন-ইন বা অ্যাকাউন্ট খোলার ঝামেলা নেই। অ্যাপটি ওপেন করেই সরাসরি হিসাব শুরু করতে পারবেন। আপনার সমস্ত ডেটা সম্পূর্ণ সুরক্ষিতভাবে আপনার নিজের ফোনে (Hive Database-এ) সেভ থাকে। চাইলে ১ ক্লিকে Google Drive-এ ব্যাকআপ রাখতে পারেন।',
         'current_version': 'বর্তমান ভার্সন:',
         'developer': 'ডেভেলপার',
         'support': 'সাপোর্ট',
@@ -88,6 +125,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
         'faq_a5': 'না। জিমেইল অ্যাকাউন্ট এবং ড্রাইভের পারমিশন বা স্কোপ শুধুমাত্র প্রথমবার ব্যাকআপ নেওয়ার সময় একবারই দিতে হবে। এরপর থেকে ইন্টারনেট পেলেই অ্যাপ নিজে থেকেই অটো-ব্যাকআপের কাজ সম্পন্ন করবে।',
         'faq_q6': 'আমার ডেটা নিরাপদ রাখার দায়িত্ব কার?',
         'faq_a6': 'যেহেতু ডেটা আপনার নিজের ডিভাইসে থাকে, তাই এর সুরক্ষার দায়িত্ব সম্পূর্ণ আপনার। নিয়মিত ব্যাকআপ নেওয়ার পরামর্শ দেওয়া হচ্ছে।',
+        'security_question': 'নিরাপত্তা প্রশ্ন',
+        'set_security_question': 'নিরাপত্তা প্রশ্ন সেট করুন',
+        'change_security_question': 'নিরাপত্তা প্রশ্ন পরিবর্তন করুন',
+        'current_question': 'বর্তমান প্রশ্ন:',
+        'not_set': 'সেট করা নেই',
+        'enter_question': 'প্রশ্ন নির্বাচন করুন',
+        'enter_answer': 'উত্তর লিখুন (মনে রাখার মতো একটি উত্তর দিন)',
+        'question_saved': 'নিরাপত্তা প্রশ্ন সেভ হয়েছে',
       },
       'en': {
         'security_settings': 'Security Settings',
@@ -140,6 +185,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
         'faq_a5': 'No. You only need to grant permission once. After that, the app will auto-backup whenever internet is available.',
         'faq_q6': 'Who is responsible for my data security?',
         'faq_a6': 'Since data resides on your device, you are responsible for its security. Regular backups are recommended.',
+        'security_question': 'Security Question',
+        'set_security_question': 'Set Security Question',
+        'change_security_question': 'Change Security Question',
+        'current_question': 'Current question:',
+        'not_set': 'Not set',
+        'enter_question': 'Select a question',
+        'enter_answer': 'Enter answer (choose something memorable)',
+        'question_saved': 'Security question saved',
       },
       'ar': {
         'security_settings': 'إعدادات الأمان',
@@ -192,19 +245,62 @@ class _SecurityScreenState extends State<SecurityScreen> {
         'faq_a5': 'لا. تحتاج فقط إلى منح الإذن مرة واحدة. بعد ذلك، سيقوم التطبيق بالنسخ الاحتياطي التلقائي كلما كان الإنترنت متاحًا.',
         'faq_q6': 'من المسؤول عن أمان بياناتي؟',
         'faq_a6': 'بما أن البيانات موجودة على جهازك، فأنت مسؤول عن أمانها. يوصى بعمل نسخ احتياطية منتظمة.',
+        'security_question': 'سؤال الأمان',
+        'set_security_question': 'تعيين سؤال الأمان',
+        'change_security_question': 'تغيير سؤال الأمان',
+        'current_question': 'السؤال الحالي:',
+        'not_set': 'غير مضبوط',
+        'enter_question': 'اختر سؤالاً',
+        'enter_answer': 'أدخل الإجابة (اختر شيئًا لا ينسى)',
+        'question_saved': 'تم حفظ سؤال الأمان',
       },
     };
 
     return fallback[widget.selectedLanguage]?[key] ?? fallback['en']?[key] ?? key;
   }
 
-  // ==================== LIFECYCLE ====================
+  // ===== ডাইনামিক এবং লোকালাইজড কপিরাইট টেক্সট =====
+  String _getLocalizedCopyright() {
+    final year = DateTime.now().year.toString();
+    String localizedYear = year;
+
+    if (widget.selectedLanguage == 'bn') {
+      final Map<String, String> banglaDigits = {
+        '0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪',
+        '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯'
+      };
+      localizedYear = year.split('').map((digit) => banglaDigits[digit] ?? digit).join();
+      return '© $localizedYear ${getText('app_title')}। ${getText('all_rights_reserved')}';
+    } else if (widget.selectedLanguage == 'ar') {
+      final Map<String, String> arabicDigits = {
+        '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
+        '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
+      };
+      localizedYear = year.split('').map((digit) => arabicDigits[digit] ?? digit).join();
+      return '© $localizedYear ${getText('app_title')}. ${getText('all_rights_reserved')}';
+    }
+
+    return '© $localizedYear ${getText('app_title')}. ${getText('all_rights_reserved')}';
+  }
+
+  // ===== LIFECYCLE =====
   @override
   void initState() {
     super.initState();
     _loadSettings();
     _loadAppVersion();
     _checkIfPinExists();
+    _loadSecurityQuestion();
+  }
+
+  Future<void> _loadSecurityQuestion() async {
+    final q = await _lockService.getSecurityQuestion();
+    if (mounted) {
+      setState(() {
+        _currentSecurityQuestion = q;
+        _secQuestionController.text = q ?? '';
+      });
+    }
   }
 
   @override
@@ -212,6 +308,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
     _newPinController.dispose();
     _confirmPinController.dispose();
     _oldPinController.dispose();
+    _secQuestionController.dispose();
+    _secAnswerController.dispose();
     super.dispose();
   }
 
@@ -244,105 +342,236 @@ class _SecurityScreenState extends State<SecurityScreen> {
   }
 
   void _showSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
-  }
-
-  // ==================== PIN MANAGEMENT (unchanged) ====================
-  Future<void> _showPinSetupDialog() async {
-    _newPinController.clear();
-    _confirmPinController.clear();
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(getText('set_pin'), style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _newPinController,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              obscureText: true,
-              decoration: InputDecoration(labelText: getText('new_pin'), border: const OutlineInputBorder()),
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _confirmPinController,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              obscureText: true,
-              decoration: InputDecoration(labelText: getText('confirm_pin'), border: const OutlineInputBorder()),
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(getText('cancel'))),
-          ElevatedButton(
-            onPressed: () async {
-              if (_newPinController.text.length == 4 && _newPinController.text == _confirmPinController.text) {
-                await _lockService.savePin(_newPinController.text);
-                await _lockService.setLockEnabled(true);
-                if (mounted) {
-                  setState(() {
-                    _hasPinSaved = true;
-                    _lockEnabled = true;
-                  });
-                }
-                Navigator.pop(ctx);
-                _showSnackBar(getText('pin_set_success'));
-              } else {
-                _showSnackBar(getText('pin_mismatch'));
-              }
-            },
-            child: Text(getText('save')),
-          ),
-        ],
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
-  Future<void> _showChangePinDialog() async {
-    _oldPinController.clear();
+  // ===== COLORFUL DIALOG (SCROLLABLE) =====
+  Future<T?> _showColorfulDialog<T>({
+    required String title,
+    required String subtitle,
+    required Widget content,
+    required List<Widget> actions,
+    Gradient? gradient,
+    IconData? icon,
+  }) {
+    return showDialog<T>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 10,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.8,
+            maxWidth: MediaQuery.of(ctx).size.width * 0.92,
+          ),
+          decoration: BoxDecoration(
+            gradient: gradient ??
+                LinearGradient(
+                  colors: [Colors.blue.shade700, Colors.purple.shade600],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (icon != null)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 26),
+                    ),
+                  if (icon != null) const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (subtitle.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13)),
+              ],
+              const SizedBox(height: 14),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: content,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: actions.map((action) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: action,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 4),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===== PIN SETUP =====
+  Future<void> _showPinSetupDialog() async {
     _newPinController.clear();
     _confirmPinController.clear();
-    bool verified = await _verifyOldPinDialog();
-    if (!verified) return;
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(getText('change_pin'), style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _newPinController,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 4,
-              decoration: InputDecoration(labelText: getText('new_pin'), border: const OutlineInputBorder()),
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+    _secQuestionController.clear();
+    _secAnswerController.clear();
+
+    final presetQuestions = _getPresetQuestions(widget.selectedLanguage);
+    String? selectedQuestion = _secQuestionController.text.isNotEmpty &&
+            presetQuestions.contains(_secQuestionController.text)
+        ? _secQuestionController.text
+        : null;
+
+    await _showColorfulDialog(
+      title: getText('set_pin'),
+      subtitle: '🔐 ${getText('security_question')}',
+      icon: Icons.lock_outline,
+      gradient: LinearGradient(
+        colors: [Colors.green.shade700, Colors.teal.shade700],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _newPinController,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            obscureText: true,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: getText('new_pin'),
+              labelStyle: const TextStyle(color: Colors.white70),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              counterStyle: const TextStyle(color: Colors.white70),
+              prefixIcon: const Icon(Icons.lock, color: Colors.white70),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _confirmPinController,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 4,
-              decoration: InputDecoration(labelText: getText('confirm_pin'), border: const OutlineInputBorder()),
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _confirmPinController,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            obscureText: true,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: getText('confirm_pin'),
+              labelStyle: const TextStyle(color: Colors.white70),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              counterStyle: const TextStyle(color: Colors.white70),
+              prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
             ),
-          ],
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white24, height: 1),
+          const SizedBox(height: 16),
+          Text(
+            getText('security_question'),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: selectedQuestion,
+            isExpanded: true,
+            style: const TextStyle(color: Colors.white),
+            dropdownColor: Colors.grey[800],
+            decoration: InputDecoration(
+              labelText: getText('enter_question'),
+              labelStyle: const TextStyle(color: Colors.white70),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon: const Icon(Icons.question_answer, color: Colors.white70),
+            ),
+            items: presetQuestions.map((q) {
+              return DropdownMenuItem<String>(
+                value: q,
+                child: Text(q, style: const TextStyle(color: Colors.white)),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                selectedQuestion = value;
+                _secQuestionController.text = value;
+              }
+            },
+            hint: Text(
+              getText('enter_question'),
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _secAnswerController,
+            obscureText: true,
+            obscuringCharacter: '●',
+            enableInteractiveSelection: false,
+            autocorrect: false,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: getText('enter_answer'),
+              labelStyle: const TextStyle(color: Colors.white70),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon: const Icon(Icons.visibility_off, color: Colors.white70),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(getText('cancel'), style: const TextStyle(color: Colors.white)),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(getText('cancel'))),
-          ElevatedButton(
-            onPressed: () async {
+        ElevatedButton(
+          onPressed: () async {
+            try {
               if (_newPinController.text.length != 4) {
                 _showSnackBar('PIN must be 4 digits');
                 return;
@@ -351,79 +580,260 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 _showSnackBar(getText('pin_mismatch'));
                 return;
               }
+              if (_secQuestionController.text.isEmpty || _secAnswerController.text.isEmpty) {
+                _showSnackBar('Please select a question and provide answer');
+                return;
+              }
+
               await _lockService.savePin(_newPinController.text);
               await _lockService.setLockEnabled(true);
-              if (mounted) {
+              await _lockService.saveSecurityQuestion(
+                _secQuestionController.text.trim(),
+                _secAnswerController.text.trim(),
+              );
+
+              if (!mounted) return;
+
+              setState(() {
+                _hasPinSaved = true;
+                _lockEnabled = true;
+                _currentSecurityQuestion = _secQuestionController.text.trim();
+              });
+
+              Navigator.pop(context);
+              _showSnackBar(getText('pin_set_success'));
+            } catch (e) {
+              _showSnackBar('Error: $e');
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.green.shade700,
+          ),
+          child: Text(getText('save')),
+        ),
+      ],
+    );
+  }
+
+  // ===== CHANGE PIN (ক্র্যাশ মুক্ত) =====
+  Future<void> _showChangePinDialog() async {
+    _oldPinController.clear();
+    _newPinController.clear();
+    _confirmPinController.clear();
+
+    bool verified = await _verifyOldPinDialog();
+    if (!mounted) return;
+    if (!verified) return;
+
+    final Completer<bool> completer = Completer<bool>();
+    bool isDialogOpen = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(getText('change_pin'),
+              style: TextStyle(color: Colors.orange.shade700, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _newPinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 4,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: getText('new_pin'),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.lock),
+                  ),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _confirmPinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 4,
+                  decoration: InputDecoration(
+                    labelText: getText('confirm_pin'),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                  ),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (isDialogOpen) {
+                  isDialogOpen = false;
+                  if (!completer.isCompleted) completer.complete(false);
+                  Navigator.pop(context);
+                }
+              },
+              child: Text(getText('cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_newPinController.text.length != 4) {
+                  _showSnackBar('PIN must be 4 digits');
+                  return;
+                }
+                if (_newPinController.text != _confirmPinController.text) {
+                  _showSnackBar(getText('pin_mismatch'));
+                  return;
+                }
+                await _lockService.savePin(_newPinController.text);
+                await _lockService.setLockEnabled(true);
+
+                if (!isDialogOpen || !mounted) {
+                  return;
+                }
+
                 setState(() {
                   _hasPinSaved = true;
                   _lockEnabled = true;
                 });
-              }
-              Navigator.pop(ctx);
-              _showSnackBar(getText('pin_changed_success'));
-            },
-            child: Text(getText('save')),
-          ),
-        ],
-      ),
+
+                isDialogOpen = false;
+                if (!completer.isCompleted) completer.complete(true);
+                Navigator.pop(context);
+                _showSnackBar(getText('pin_changed_success'));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade700,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(getText('save')),
+            ),
+          ],
+        );
+      },
     );
+
+    await completer.future;
   }
 
+  // ===== VERIFY OLD PIN (ক্র্যাশ মুক্ত) =====
   Future<bool> _verifyOldPinDialog() async {
-    TextEditingController pinController = TextEditingController();
-    bool verified = false;
-    await showDialog(
+    final Completer<bool> completer = Completer<bool>();
+    final TextEditingController pinController = TextEditingController();
+    bool isDialogOpen = true;
+
+    showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(getText('enter_old_pin'), style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: pinController,
-          keyboardType: TextInputType.number,
-          maxLength: 4,
-          obscureText: true,
-          decoration: InputDecoration(labelText: getText('old_pin'), border: const OutlineInputBorder()),
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(getText('cancel'))),
-          ElevatedButton(
-            onPressed: () async {
-              final enteredPin = pinController.text.trim();
-              final isValid = await _lockService.verifyPin(enteredPin);
-              if (isValid) {
-                verified = true;
-                Navigator.pop(ctx);
-              } else {
-                _showSnackBar(getText('wrong_old_pin'));
-              }
-            },
-            child: Text(getText('verify')),
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(getText('enter_old_pin'),
+              style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold)),
+          content: TextField(
+            controller: pinController,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            obscureText: true,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: getText('old_pin'),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon: const Icon(Icons.lock),
+            ),
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (isDialogOpen) {
+                  isDialogOpen = false;
+                  Navigator.pop(context);
+                  if (!completer.isCompleted) completer.complete(false);
+                  // ডায়ালগ বন্ধ হওয়ার সামান্য পরে ডিসপোজ হবে যেন রেড স্ক্রিন না আসে
+                  Future.delayed(const Duration(milliseconds: 100), () => pinController.dispose());
+                }
+              },
+              child: Text(getText('cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final enteredPin = pinController.text.trim();
+                if (enteredPin.isEmpty) {
+                  _showSnackBar('Please enter your current PIN');
+                  return;
+                }
+                final isValid = await _lockService.verifyPin(enteredPin);
+                if (!isDialogOpen) return;
+
+                if (isValid) {
+                  isDialogOpen = false;
+                  Navigator.pop(context);
+                  if (!completer.isCompleted) completer.complete(true);
+                  Future.delayed(const Duration(milliseconds: 100), () => pinController.dispose());
+                } else {
+                  _showSnackBar(getText('wrong_old_pin'));
+                  pinController.clear();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(getText('verify')),
+            ),
+          ],
+        );
+      },
     );
-    pinController.dispose();
-    return verified;
+
+    return completer.future;
   }
 
+  // ===== DISABLE PIN =====
   Future<void> _disablePinCode() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(getText('disable_pin_confirm_title')),
-        content: Text(getText('disable_pin_confirm')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(getText('no'))),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(c, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(getText('yes'), style: const TextStyle(color: Colors.white)),
-          ),
-        ],
+    final confirm = await _showColorfulDialog<bool>(
+      title: getText('disable_pin_confirm_title'),
+      subtitle: '',
+      icon: Icons.warning_amber_rounded,
+      gradient: LinearGradient(
+        colors: [Colors.red.shade700, Colors.pink.shade700],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
+      content: Text(
+        getText('disable_pin_confirm'),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+          child: Text(getText('no')),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.red.shade700,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            elevation: 3,
+          ),
+          child: Text(getText('yes')),
+        ),
+      ],
     );
+
     if (confirm == true) {
       await _lockService.clearLock();
       await _checkIfPinExists();
@@ -445,7 +855,123 @@ class _SecurityScreenState extends State<SecurityScreen> {
     if (mounted) _showSnackBar(getText('lock_type_changed'));
   }
 
-  // ==================== EMAIL & CLIPBOARD ====================
+  // ===== SECURITY QUESTION (৩টি ভাষায় ড্রপডাউন) =====
+  Future<void> _showSetSecurityQuestionDialog() async {
+    _secQuestionController.text = _currentSecurityQuestion ?? '';
+    _secAnswerController.clear();
+
+    final presetQuestions = _getPresetQuestions(widget.selectedLanguage);
+    String? selectedQuestion = _secQuestionController.text.isNotEmpty &&
+            presetQuestions.contains(_secQuestionController.text)
+        ? _secQuestionController.text
+        : null;
+
+    await _showColorfulDialog(
+      title: _currentSecurityQuestion == null
+          ? getText('set_security_question')
+          : getText('change_security_question'),
+      subtitle: '',
+      icon: Icons.question_answer,
+      gradient: LinearGradient(
+        colors: [Colors.green.shade700, Colors.lime.shade700],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            value: selectedQuestion,
+            isExpanded: true,
+            style: const TextStyle(color: Colors.white),
+            dropdownColor: Colors.grey[800],
+            decoration: InputDecoration(
+              labelText: getText('enter_question'),
+              labelStyle: const TextStyle(color: Colors.white70),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon: const Icon(Icons.question_answer, color: Colors.white70),
+            ),
+            items: presetQuestions.map((q) {
+              return DropdownMenuItem<String>(
+                value: q,
+                child: Text(q, style: const TextStyle(color: Colors.white)),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                selectedQuestion = value;
+                _secQuestionController.text = value;
+              }
+            },
+            hint: Text(
+              getText('enter_question'),
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _secAnswerController,
+            obscureText: true,
+            obscuringCharacter: '●',
+            enableInteractiveSelection: false,
+            autocorrect: false,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: getText('enter_answer'),
+              labelStyle: const TextStyle(color: Colors.white70),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              prefixIcon: const Icon(Icons.visibility_off, color: Colors.white70),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+          child: Text(getText('cancel')),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            try {
+              if (_secQuestionController.text.isEmpty || _secAnswerController.text.isEmpty) {
+                _showSnackBar('Please select a question and provide answer');
+                return;
+              }
+              await _lockService.saveSecurityQuestion(
+                _secQuestionController.text.trim(),
+                _secAnswerController.text.trim(),
+              );
+              if (mounted) {
+                setState(() {
+                  _currentSecurityQuestion = _secQuestionController.text.trim();
+                });
+                Navigator.pop(context);
+                _showSnackBar(getText('question_saved'));
+              }
+            } catch (e) {
+              _showSnackBar('Error: $e');
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.green.shade700,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            elevation: 3,
+          ),
+          child: Text(getText('save')),
+        ),
+      ],
+    );
+  }
+
+  // ===== EMAIL & CLIPBOARD =====
   void _handleEmailTap(String email) {
     showModalBottomSheet(
       context: context,
@@ -470,7 +996,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.copy, color: Colors.green),
-              title: Text('Copy Email Address'),
+              title: const Text('Copy Email Address'),
               onTap: () async {
                 Navigator.pop(ctx);
                 await Clipboard.setData(ClipboardData(text: email));
@@ -483,7 +1009,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
-  // ==================== LEGAL DOCUMENTS (UPDATED HTML) ====================
+  // ===== PRIVACY POLICY & TERMS OF SERVICE (সম্পূর্ণ HTML) =====
   void _showPrivacyPolicy() {
     String htmlContent;
     if (widget.selectedLanguage == 'bn') {
@@ -533,31 +1059,31 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
-  // ----- Privacy Policy (Bengali) - Updated -----
+  // ----- Privacy Policy (Bengali) -----
   String _getPrivacyPolicyBangla() {
     return """
     <!DOCTYPE html>
     <html>
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;} .footer{text-align:center;margin-top:30px;color:#888;font-size:12px;}</style>
     </head>
     <body>
-      <h1>গোপনীয়তা নীতি</h1>
+      <h1>🔒 গোপনীয়তা নীতি</h1>
       <p><strong>সর্বশেষ আপডেট:</strong> জুন ২০২৬</p>
-      
+
       <h2>১. ডেটা সংগ্রহ (Data Collection)</h2>
-      <p>"আমার হিসাব" অ্যাপটি ব্যবহার করার জন্য কোনো জিমেইল আইডি, নাম, ফোন নম্বর বা ব্যক্তিগত তথ্য দিয়ে সাইন-ইন বা অ্যাকাউন্ট তৈরি করার প্রয়োজন নেই। অ্যাপটি ব্যবহারকারীর কোনো ব্যক্তিগত তথ্য আমাদের নিজস্ব কোনো সার্ভারে সংগ্রহ বা সংরক্ষণ করে না।</p>
-      
+      <p>"আমার হিসাব" অ্যাপটি ব্যবহার করার জন্য কোনো ব্যক্তিগত তথ্য যেমন নাম, ইমেইল, ফোন নম্বর বা অ্যাকাউন্ট দেওয়ার প্রয়োজন নেই। অ্যাপটি আপনার কোনো তথ্য আমাদের সার্ভারে সংগ্রহ বা সংরক্ষণ করে না।</p>
+
       <h2>২. ডেটা স্টোরেজ ও নিরাপত্তা (Data Storage & Security)</h2>
-      <p>আপনার ইনপুট করা সমস্ত লেনদেন, বাজেট এবং হিসাবের ডেটা সম্পূর্ণ অফলাইনে আপনার ডিভাইসের লোকাল স্টোরেজে (Hive Database) সংরক্ষিত থাকে। যেহেতু ডেটা আপনার নিজের ডিভাইসে থাকে, তাই এর সুরক্ষার দায়িত্ব সম্পূর্ণ আপনার।</p>
-      
+      <p>আপনার সমস্ত ডেটা (লেনদেন, নোট, বাজেট ইত্যাদি) শুধুমাত্র আপনার ডিভাইসের লোকাল স্টোরেজে (Hive Database) সংরক্ষিত থাকে। আমরা কোনো ক্লাউড সার্ভিসে ডেটা পাঠাই না। তাই আপনার ডেটার নিরাপত্তা সম্পূর্ণ আপনার নিজের হাতে।</p>
+
       <h2>৩. গুগল ড্রাইভ ব্যাকআপ (Google Drive Backup)</h2>
-      <p>অ্যাপটিতে অনলাইন ব্যাকআপের জন্য Google Drive API ব্যবহার করা হয়েছে। ব্যবহারকারী যখন ব্যাকআপ অপশনটি চালু করবেন, তখন অ্যাপটি সরাসরি ব্যবহারকারীর নিজস্ব গুগল ড্রাইভে একটি এনক্রিপ্টেড ব্যাকআপ ফাইল তৈরি করবে। এই ফাইলের কোনো অ্যাক্সেস আমাদের (ডেভেলপারের) কাছে থাকে না।</p>
-      
-      <h2>৪. থার্ড-পার্টি সার্ভিস (Third-Party Services)</h2>
-      <p>অ্যাপটি ব্যাকআপ ফিচার সচল করার জন্য Google Sign-In এবং Google Drive SDK ব্যবহার করে। এই সার্ভিসগুলোর গোপনীয়তা নীতি গুগলের নিজস্ব পলিসি দ্বারা নিয়ন্ত্রিত হয়।</p>
-      
-      <h2>যোগাযোগ</h2>
+      <p>আপনি চাইলে Google Drive API ব্যবহার করে নিজের ড্রাইভে ব্যাকআপ নিতে পারেন। এই ক্ষেত্রে আপনার ড্রাইভে একটি এনক্রিপ্টেড JSON ফাইল সংরক্ষণ করা হয়, যা ডেভেলপার বা অন্য কেউ অ্যাক্সেস করতে পারে না।</p>
+
+      <h2>৪. থার্ড-পার্টি সার্ভিস (Third‑Party Services)</h2>
+      <p>অ্যাপটি Google Sign‑In ও Google Drive SDK ব্যবহার করে শুধুমাত্র ব্যাকআপ ফিচারের জন্য। এই সার্ভিসগুলোর নিজস্ব গোপনীয়তা নীতি প্রযোজ্য।</p>
+
+      <h2>📧 যোগাযোগ</h2>
       <p>যেকোনো প্রশ্নে ইমেইল করুন: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
       <div class="footer">© ২০২৪-২০২৬ আমার হিসাব</div>
     </body>
@@ -565,31 +1091,31 @@ class _SecurityScreenState extends State<SecurityScreen> {
     """;
   }
 
-  // ----- Privacy Policy (English) - Updated -----
+  // ----- Privacy Policy (English) -----
   String _getPrivacyPolicyEnglish() {
     return """
     <!DOCTYPE html>
     <html>
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;} .footer{text-align:center;margin-top:30px;color:#888;font-size:12px;}</style>
     </head>
     <body>
-      <h1>Privacy Policy</h1>
+      <h1>🔒 Privacy Policy</h1>
       <p><strong>Last updated:</strong> June 2026</p>
-      
+
       <h2>1. Data Collection</h2>
-      <p>No sign-in or account creation is required to use "Amar Hisab". The app does not collect any personal information such as email, name, or phone number. No user data is sent to our own servers.</p>
-      
+      <p>No personal information (name, email, phone, etc.) is required to use "Amar Hisab". The app does not collect or transmit any of your data to our servers.</p>
+
       <h2>2. Data Storage & Security</h2>
-      <p>All transactions, budgets, and accounting data are stored completely offline on your device (Hive database). Since data resides on your device, you are solely responsible for its security.</p>
-      
+      <p>All your data (transactions, notes, budgets, etc.) is stored entirely offline on your device (Hive database). We do not send any data to any cloud service. Therefore, the security of your data is entirely in your hands.</p>
+
       <h2>3. Google Drive Backup</h2>
-      <p>The app uses Google Drive API for online backup. When you enable backup, the app creates an encrypted backup file directly in your personal Google Drive. The developer has no access to this file.</p>
-      
+      <p>You may choose to back up your data to your personal Google Drive using the Google Drive API. In that case, an encrypted JSON file is stored in your Drive, which is not accessible to the developer or any third party.</p>
+
       <h2>4. Third‑Party Services</h2>
-      <p>This app uses Google Sign-In and Google Drive SDK for backup functionality. Those services are governed by Google's own privacy policies.</p>
-      
-      <h2>Contact</h2>
+      <p>This app uses Google Sign‑In and Google Drive SDK solely for the backup feature. Those services are governed by Google's own privacy policies.</p>
+
+      <h2>📧 Contact</h2>
       <p>Email: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
       <div class="footer">© 2024-2026 আমার হিসাব</div>
     </body>
@@ -597,63 +1123,63 @@ class _SecurityScreenState extends State<SecurityScreen> {
     """;
   }
 
-  // ----- Privacy Policy (Arabic) - Updated (simplified, based on English) -----
+  // ----- Privacy Policy (Arabic) -----
   String _getPrivacyPolicyArabic() {
     return """
     <!DOCTYPE html>
     <html dir="rtl">
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;} .footer{text-align:center;margin-top:30px;color:#888;font-size:12px;}</style>
     </head>
     <body>
-      <h1>سياسة الخصوصية</h1>
+      <h1>🔒 سياسة الخصوصية</h1>
       <p><strong>آخر تحديث:</strong> يونيو ٢٠٢٦</p>
-      
+
       <h2>١. جمع البيانات</h2>
-      <p>لا حاجة لتسجيل الدخول أو إنشاء حساب لاستخدام "محاسبتي". لا يجمع التطبيق أي معلومات شخصية مثل البريد الإلكتروني أو الاسم أو رقم الهاتف. لا يتم إرسال أي بيانات مستخدم إلى خوادمنا الخاصة.</p>
-      
+      <p>لا حاجة لتقديم أي معلومات شخصية (الاسم، البريد الإلكتروني، رقم الهاتف، إلخ) لاستخدام "محاسبتي". لا يجمع التطبيق أي بيانات من مستخدميه.</p>
+
       <h2>٢. تخزين البيانات وأمانها</h2>
-      <p>يتم تخزين جميع المعاملات والميزانيات والبيانات المحاسبية دون اتصال بالإنترنت على جهازك (قاعدة بيانات Hive). نظرًا لأن البيانات موجودة على جهازك، فأنت وحدك المسؤول عن أمانها.</p>
-      
+      <p>جميع بياناتك (المعاملات، الملاحظات، الميزانيات، إلخ) تُخزَّن محليًا على جهازك فقط (قاعدة بيانات Hive). نحن لا نرسل أي بيانات إلى أي خدمة سحابية. وبالتالي، فإن أمان بياناتك يقع بالكامل على عاتقك.</p>
+
       <h2>٣. النسخ الاحتياطي على Google Drive</h2>
-      <p>يستخدم التطبيق واجهة برمجة تطبيقات Google Drive للنسخ الاحتياطي عبر الإنترنت. عند تمكين النسخ الاحتياطي، يقوم التطبيق بإنشاء ملف نسخ احتياطي مشفر مباشرة في Google Drive الشخصي الخاص بك. المطور لا يمكنه الوصول إلى هذا الملف.</p>
-      
+      <p>يمكنك اختيار عمل نسخ احتياطي لبياناتك إلى Google Drive الشخصي الخاص بك باستخدام واجهة برمجة تطبيقات Google Drive. في هذه الحالة، يتم تخزين ملف JSON مشفر في Drive الخاص بك، ولا يمكن للمطور أو أي طرف ثالث الوصول إليه.</p>
+
       <h2>٤. خدمات الطرف الثالث</h2>
-      <p>يستخدم هذا التطبيق تسجيل الدخول عبر Google و Google Drive SDK لوظيفة النسخ الاحتياطي. تخضع هذه الخدمات لسياسات الخصوصية الخاصة بشركة Google.</p>
-      
-      <h2>اتصل بنا</h2>
+      <p>يستخدم هذا التطبيق Google Sign‑In و Google Drive SDK فقط لميزة النسخ الاحتياطي. تخضع هذه الخدمات لسياسات الخصوصية الخاصة بـ Google.</p>
+
+      <h2>📧 اتصل بنا</h2>
       <p>البريد الإلكتروني: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসাব</div>
+      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসاب</div>
     </body>
     </html>
     """;
   }
 
-  // ----- Terms of Service (Bengali) - Updated -----
+  // ----- Terms of Service (Bengali) -----
   String _getTermsBangla() {
     return """
     <!DOCTYPE html>
     <html>
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;} .footer{text-align:center;margin-top:30px;color:#888;font-size:12px;}</style>
     </head>
     <body>
-      <h1>সেবার শর্তাবলী</h1>
+      <h1>📋 সেবার শর্তাবলী</h1>
       <p><strong>সর্বশেষ সংশোধন:</strong> জুন ২০২৬</p>
-      
+
       <h2>১. অ্যাপের ব্যবহার</h2>
-      <p>"আমার হিসাব" অ্যাপটি ব্যক্তিগত ব্যবহারের জন্য সম্পূর্ণ ফ্রি। অ্যাপটি কোনো অ্যাকাউন্ট ছাড়াই সরাসরি ব্যবহার করা যাবে।</p>
-      
+      <p>"আমার হিসাব" অ্যাপটি ব্যক্তিগত ব্যবহারের জন্য সম্পূর্ণ বিনামূল্যে। অ্যাপটি ব্যবহারের জন্য কোনো অ্যাকাউন্ট খোলার প্রয়োজন নেই।</p>
+
       <h2>২. ব্যবহারকারীর ডেটার দায়বদ্ধতা (গুরুত্বপূর্ণ)</h2>
-      <p>আমরা (অ্যাপ কর্তৃপক্ষ বা ডেভেলপার) ব্যবহারকারীর কোনো ডেটার দায়িত্ব বা দায়বদ্ধতা গ্রহণ করি না। আপনার ফোনের সমস্ত ডেটা লোকাল ডিভাইসে থাকে। ফোন হারিয়ে গেলে, অ্যাপ আনইনস্টল করলে, ফোন রিসেট দিলে বা ডিভাইস ড্যামেজ হলে যদি কোনো ডেটা হারিয়ে যায়, তবে তার জন্য ডেভেলপার কোনোভাবেই দায়ী থাকবে না। ব্যবহারকারীকে নিজ দায়িত্বে ব্যাকআপ ফাইল শেয়ার বা ড্রাইভে সংরক্ষণ করে রাখতে হবে।</p>
-      
+      <p>আমরা (অ্যাপ কর্তৃপক্ষ বা ডেভেলপার) ব্যবহারকারীর ডেটার কোনো দায়িত্ব বা দায়বদ্ধতা গ্রহণ করি না। যেহেতু ডেটা আপনার ডিভাইসে সংরক্ষিত থাকে, তাই ফোন হারানো, অ্যাপ আনইনস্টল করা, ফ্যাক্টরি রিসেট ইত্যাদি কারণে ডেটা হারিয়ে গেলে তার জন্য ডেভেলপার দায়ী নয়। আপনি নিজেই পর্যায়ক্রমে ব্যাকআপ নেওয়ার দায়িত্ব নিন।</p>
+
       <h2>৩. ব্যাকআপ ও অটো-ব্যাকআপ</h2>
-      <p>ব্যবহারকারী যদি তার ডেটা সুরক্ষিত রাখতে চান, তবে তাকে অবশ্যই গুগল ড্রাইভ বা লোকাল ব্যাকআপ ফিচারটি ব্যবহার করতে হবে। প্রথমবার সফলভাবে ড্রাইভে ব্যাকআপ নেওয়ার পর, ইন্টারনেট কানেকশন (WiFi বা Mobile Data) সক্রিয় থাকলে অ্যাপটি স্বয়ংক্রিয়ভাবে (Auto Backup) ডেটা আপডেট করে নেবে। তবে নেটওয়ার্ক সমস্যার কারণে ব্যাকআপ ফেইল হলে তার দায় ব্যবহারকারীর।</p>
-      
+      <p>আপনি চাইলে Google Drive বা লোকাল ব্যাকআপ ব্যবহার করতে পারেন। প্রথমবার ব্যাকআপ দেওয়ার পর ইন্টারনেট সংযোগ থাকলে অ্যাপ স্বয়ংক্রিয়ভাবে ব্যাকআপ আপডেট করতে পারে। তবে নেটওয়ার্ক বা অন্যান্য কারণে ব্যাকআপ ব্যর্থ হলে তার দায় ব্যবহারকারীর নিজের।</p>
+
       <h2>৪. পরিবর্তন ও সংশোধন</h2>
-      <p>কর্তৃপক্ষ যেকোনো সময় অ্যাপের শর্তাবলী পরিবর্তন করার অধিকার সংরক্ষণ করে।</p>
-      
-      <h2>যোগাযোগ</h2>
+      <p>ডেভেলপার যেকোনো সময় এই শর্তাবলী পরিবর্তন করার অধিকার সংরক্ষণ করে।</p>
+
+      <h2>📧 যোগাযোগ</h2>
       <p>ইমেইল: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
       <div class="footer">© ২০২৪-২০২৬ আমার হিসাব</div>
     </body>
@@ -661,71 +1187,71 @@ class _SecurityScreenState extends State<SecurityScreen> {
     """;
   }
 
-  // ----- Terms of Service (English) - Updated -----
+  // ----- Terms of Service (English) -----
   String _getTermsEnglish() {
     return """
     <!DOCTYPE html>
     <html>
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;} .footer{text-align:center;margin-top:30px;color:#888;font-size:12px;}</style>
     </head>
     <body>
-      <h1>Terms of Service</h1>
+      <h1>📋 Terms of Service</h1>
       <p><strong>Last updated:</strong> June 2026</p>
-      
+
       <h2>1. App Usage</h2>
-      <p>"Amar Hisab" is completely free for personal use. No account is required to use the app.</p>
-      
+      <p>"Amar Hisab" is completely free for personal use. No account registration is required.</p>
+
       <h2>2. User Data Responsibility (CRITICAL)</h2>
-      <p>We (the app authority or developer) do not accept any responsibility or liability for user data. All data resides locally on your device. If you lose your phone, uninstall the app, factory reset your device, or suffer device damage, any data loss is not the developer's responsibility. It is your sole responsibility to keep backup files shared or stored on Drive.</p>
-      
+      <p>We (the app authority or developer) do not accept any responsibility or liability for user data. Since data resides locally on your device, any data loss due to phone loss, app uninstallation, factory reset, or device damage is not the developer's responsibility. You are solely responsible for taking regular backups.</p>
+
       <h2>3. Backup & Auto-Backup</h2>
-      <p>If you wish to protect your data, you must use the Google Drive or local backup feature. After the first successful Drive backup, whenever internet (WiFi or mobile data) is available, the app will automatically update your backup. However, the user is responsible for any backup failure due to network issues.</p>
-      
+      <p>You may use Google Drive or local backup features. After the first successful backup, the app may automatically update your backup when internet is available. However, any backup failure due to network or other issues is the user's own responsibility.</p>
+
       <h2>4. Modifications</h2>
-      <p>The authority reserves the right to modify the app's terms at any time.</p>
-      
-      <h2>Contact</h2>
+      <p>The developer reserves the right to modify these terms at any time.</p>
+
+      <h2>📧 Contact</h2>
       <p>Email: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© 2024-2026 আমার হিসাব</div>
+      <div class="footer">© 2024-2026 আমার হিসاب</div>
     </body>
     </html>
     """;
   }
 
-  // ----- Terms of Service (Arabic) - Updated (simplified) -----
+  // ----- Terms of Service (Arabic) -----
   String _getTermsArabic() {
     return """
     <!DOCTYPE html>
     <html dir="rtl">
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;}</style>
+    <style>body{font-family:sans-serif;padding:20px;line-height:1.6;max-width:800px;margin:0 auto;} h1,h2{color:#1976D2;} .footer{text-align:center;margin-top:30px;color:#888;font-size:12px;}</style>
     </head>
     <body>
-      <h1>شروط الخدمة</h1>
+      <h1>📋 شروط الخدمة</h1>
       <p><strong>آخر تحديث:</strong> يونيو ٢٠٢٦</p>
-      
+
       <h2>١. استخدام التطبيق</h2>
-      <p>تطبيق "محاسبتي" مجاني تمامًا للاستخدام الشخصي. لا يلزم وجود حساب لاستخدام التطبيق.</p>
-      
-      <h2>٢. مسؤولية بيانات المستخدم (هام للغاية)</h2>
-      <p>نحن (سلطة التطبيق أو المطور) لا نتحمل أي مسؤولية أو التزام تجاه بيانات المستخدم. توجد جميع البيانات محليًا على جهازك. إذا فقدت هاتفك، أو ألغيت تثبيت التطبيق، أو أعدت ضبط المصنع لجهازك، أو تعرض جهازك للتلف، فإن فقدان البيانات ليس مسؤولية المطور. تقع على عاتقك وحدك مسؤولية الاحتفاظ بنسخ احتياطية من الملفات المشتركة أو المخزنة على Drive.</p>
-      
+      <p>تطبيق "محاسبتي" مجاني تمامًا للاستخدام الشخصي. لا يلزم التسجيل لاستخدامه.</p>
+
+      <h2>٢. مسؤولية بيانات المستخدم (هام جدًا)</h2>
+      <p>نحن (سلطة التطبيق أو المطور) لا نتحمل أي مسؤولية أو التزام تجاه بيانات المستخدم. نظرًا لأن البيانات مخزنة محليًا على جهازك، فإن أي فقدان للبيانات بسبب فقدان الهاتف، أو إلغاء تثبيت التطبيق، أو إعادة ضبط المصنع، أو تلف الجهاز ليس مسؤولية المطور. تقع على عاتقك وحدك مسؤولية إجراء نسخ احتياطية منتظمة.</p>
+
       <h2>٣. النسخ الاحتياطي والتلقائي</h2>
-      <p>إذا كنت ترغب في حماية بياناتك، فيجب عليك استخدام ميزة النسخ الاحتياطي على Google Drive أو المحلي. بعد أول نسخة احتياطية ناجحة على Drive، كلما كان الإنترنت (WiFi أو بيانات الجوال) متاحًا، سيقوم التطبيق تلقائيًا بتحديث نسختك الاحتياطية. ومع ذلك، يتحمل المستخدم مسؤولية أي فشل في النسخ الاحتياطي بسبب مشاكل الشبكة.</p>
-      
+      <p>يمكنك استخدام ميزات النسخ الاحتياطي على Google Drive أو المحلي. بعد أول نسخ احتياطي ناجح، قد يقوم التطبيق بتحديث النسخ الاحتياطي تلقائيًا عند توفر الإنترنت. ومع ذلك، فإن أي فشل في النسخ الاحتياطي بسبب مشاكل الشبكة أو غيرها هو مسؤولية المستخدم نفسه.</p>
+
       <h2>٤. التعديلات</h2>
-      <p>تحتفظ السلطة بالحق في تعديل شروط التطبيق في أي وقت.</p>
-      
-      <h2>اتصل بنا</h2>
+      <p>يحتفظ المطور بالحق في تعديل هذه الشروط في أي وقت.</p>
+
+      <h2>📧 اتصل بنا</h2>
       <p>البريد الإلكتروني: <a href="mailto:md.mizanur.ete@gmail.com">md.mizanur.ete@gmail.com</a></p>
-      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসাব</div>
+      <div class="footer">© ٢٠٢٤-٢٠٢٦ আমার হিসاب</div>
     </body>
     </html>
     """;
   }
 
-  // ==================== BUILD ====================
+  // ===== BUILD =====
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -743,7 +1269,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // App Lock Card (unchanged)
+          // App Lock Card
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -868,7 +1394,67 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // About App Card (updated description from fallback)
+          // Security Question Card
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.question_answer, color: Colors.green.shade700, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(getText('security_question'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${getText('current_question')} ${_currentSecurityQuestion ?? getText('not_set')}',
+                        style: TextStyle(fontWeight: _currentSecurityQuestion != null ? FontWeight.w500 : FontWeight.normal),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _showSetSecurityQuestionDialog,
+                          icon: Icon(_currentSecurityQuestion == null ? Icons.add : Icons.edit),
+                          label: Text(
+                            _currentSecurityQuestion == null
+                                ? getText('set_security_question')
+                                : getText('change_security_question'),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade700,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // About App Card
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -923,7 +1509,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
-                    '© ${DateTime.now().year} ${getText('app_title')}. ${getText('all_rights_reserved')}',
+                    _getLocalizedCopyright(),
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                 ),
@@ -965,7 +1551,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // FAQ Card (updated Q/A from fallback)
+          // FAQ Card
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
