@@ -288,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
        'expense': 'ব্যয়',
        'savings': 'সঞ্চয়',
        'debt': 'দেনা',          // ✅ Changed
-       'credit': 'প্রাপ্য',        // ✅ Changed
+       'credit': 'পাওনা',        // ✅ Changed
        'monthly_stats': 'মাসিক পরিসংখ্যান',
        'monthly_report': 'মাসিক রিপোর্ট',
        'select_month': 'মাস নির্বাচন করুন',
@@ -2419,6 +2419,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   categoryNameLabel: getText('category_name'),
                   addButtonText: getText('add'),
                   cancelButtonText: getText('cancel'),
+                  editCategoryText: getText('edit_category'),
+                    deleteCategoryText: getText('delete_category'),
+                    deleteConfirmText: getText('delete_category_confirm'),
+                    categoryExistsText: getText('category_exists'),
 
                 ),
                 const SizedBox(height: 20),
@@ -2547,6 +2551,10 @@ class _HomeScreenState extends State<HomeScreen> {
                  categoryNameLabel: getText('category_name'),
                  addButtonText: getText('add'),
                  cancelButtonText: getText('cancel'),
+                 editCategoryText: getText('edit_category'),
+                 deleteCategoryText: getText('delete_category'),
+                 deleteConfirmText: getText('delete_category_confirm'),
+                 categoryExistsText: getText('category_exists'),
                ),
                const SizedBox(height: 20),
                ElevatedButton(
@@ -2751,6 +2759,10 @@ class _HomeScreenState extends State<HomeScreen> {
                  categoryNameLabel: getText('category_name'),
                  addButtonText: getText('add'),
                  cancelButtonText: getText('cancel'),
+                 editCategoryText: getText('edit_category'),
+                 deleteCategoryText: getText('delete_category'),
+                 deleteConfirmText: getText('delete_category_confirm'),
+                 categoryExistsText: getText('category_exists'),
                ),
                const SizedBox(height: 20),
                ElevatedButton(

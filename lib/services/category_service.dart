@@ -24,7 +24,7 @@ class CategoryService {
     }
   }
 
-  // ✅ Removed 'other' from predefined list (user wants to delete it)
+  // Predefined categories with icons and colors
   List<Map<String, dynamic>> get predefinedCategories => const [
     // Expense categories
     {'key': 'gas_bill', 'icon': Icons.electric_bolt, 'color': Colors.red},
@@ -42,7 +42,6 @@ class CategoryService {
     // Income categories
     {'key': 'salary', 'icon': Icons.work, 'color': Colors.green},
     {'key': 'business', 'icon': Icons.store, 'color': Colors.blue},
-    // 'other' removed → user requested delete
   ];
 
   List<Map<String, dynamic>> get allCategories {
@@ -57,23 +56,39 @@ class CategoryService {
           'color': Color(cat.colorValue),
           'isCustom': true,
           'id': cat.id,
-          'type': cat.type,    // ✅ pass the stored type
+          'type': cat.type,
         });
       }
     }
     return result;
   }
 
-  // ✅ Accept type parameter
+  // ✅ Get all custom category names (for duplicate check)
+  List<String> getCustomCategoryNames() {
+    if (_customBox == null || !_customBox!.isOpen) return [];
+    return _customBox!.values.map((cat) => cat.nameKey).toList();
+  }
+
+  // ✅ Check if a name already exists (case-insensitive)
+  bool isNameExists(String name, {String? excludeId}) {
+    final names = getCustomCategoryNames();
+    return names.any((n) =>
+        n.toLowerCase() == name.toLowerCase() && n != excludeId);
+  }
+
   Future<void> addCustomCategory(String name, IconData icon, Color color, {String? type}) async {
     await init();
+    // Check for duplicate
+    if (isNameExists(name)) {
+      throw Exception('Category already exists!');
+    }
     final newCat = CustomCategory(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       nameKey: name,
       iconCode: icon.codePoint,
       colorValue: color.value,
       isPredefined: false,
-      type: type,   // ✅ store type
+      type: type,
     );
     await _customBox!.add(newCat);
   }
@@ -82,6 +97,10 @@ class CategoryService {
     await init();
     final cat = _customBox!.values.firstWhereOrNull((c) => c.id == id);
     if (cat != null) {
+      // Check duplicate (exclude current category)
+      if (isNameExists(newName, excludeId: id)) {
+        throw Exception('Category already exists!');
+      }
       cat.nameKey = newName;
       await cat.save();
     }
@@ -93,5 +112,11 @@ class CategoryService {
     if (cat != null) {
       await cat.delete();
     }
+  }
+
+  // ✅ Get a single custom category by id
+  CustomCategory? getCategoryById(String id) {
+    if (_customBox == null || !_customBox!.isOpen) return null;
+    return _customBox!.values.firstWhereOrNull((c) => c.id == id);
   }
 }
