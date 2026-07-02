@@ -28,22 +28,86 @@ import 'security_screen.dart';
 import 'budget_screen.dart';
 import '../models/budget_model.dart';
 import '../models/recurring_transaction_model.dart';
+import '../models/custom_category_model.dart';        // ✅ নতুন
+import '../services/category_service.dart';          // ✅ নতুন
+import '../widgets/category_dropdown.dart';          // ✅ নতুন
 
 
 // ==================== Helper Classes ====================
 class HijriCalendar {
-  static Map<int, String> hijriMonths = {
-    1: 'মুহাররম', 2: 'সফর', 3: 'রবিউল আউয়াল', 4: 'রবিউস সানি',
-    5: 'জমাদিউল আউয়াল', 6: 'জমাদিউস সানি', 7: 'রজব', 8: 'শাবান',
-    9: 'রমজান', 10: 'শাওয়াল', 11: 'জিলকদ', 12: 'জিলহজ',
-  };
-  static String getHijriDate(DateTime date) {
-    double hijriYear = date.year - 622 + (date.month - 1) / 12;
-    int hijriYearInt = hijriYear.floor();
-    int hijriMonth = ((hijriYear - hijriYearInt) * 12).floor() + 1;
-    int hijriDay = date.day;
-    if (hijriMonth > 12) { hijriMonth = 1; hijriYearInt++; }
-    return '${hijriDay} ${hijriMonths[hijriMonth]} $hijriYearInt হিজরি';
+  static Map<int, String> _getMonths(String language) {
+    if (language == 'ar') {
+      return {
+        1: 'محرم', 2: 'صفر', 3: 'ربيع الأول', 4: 'ربيع الثاني',
+        5: 'جمادى الأولى', 6: 'جمادى الثانية', 7: 'رجب', 8: 'شعبان',
+        9: 'رمضان', 10: 'شوال', 11: 'ذو القعدة', 12: 'ذو الحجة',
+      };
+    } else if (language == 'bn') {
+      return {
+        1: 'মুহাররম', 2: 'সফর', 3: 'রবিউল আউয়াল', 4: 'রবিউস সানি',
+        5: 'জমাদিউল আউয়াল', 6: 'জমাদিউস সানি', 7: 'রজব', 8: 'শাবান',
+        9: 'রমজান', 10: 'শাওয়াল', 11: 'জিলকদ', 12: 'জিলহজ',
+      };
+    } else {
+      return {
+        1: 'Muharram', 2: 'Safar', 3: 'Rabi al-Awwal', 4: 'Rabi al-Thani',
+        5: 'Jumada al-Awwal', 6: 'Jumada al-Thani', 7: 'Rajab', 8: 'Sha\'ban',
+        9: 'Ramadan', 10: 'Shawwal', 11: 'Dhu al-Qa\'dah', 12: 'Dhu al-Hijjah',
+      };
+    }
+  }
+
+  static int _gregorianToJDN(DateTime date) {
+    int y = date.year;
+    int m = date.month;
+    int d = date.day;
+    int a = (14 - m) ~/ 12;
+    int y2 = y + 4800 - a;
+    int m2 = m + 12 * a - 3;
+    return d + ((153 * m2 + 2) ~/ 5) + 365 * y2 + (y2 ~/ 4) - (y2 ~/ 100) + (y2 ~/ 400) - 32045;
+  }
+
+  static int _hijriToJDN(int year) {
+    return (1948440 + ((year - 1) * 354.367)).floor();
+  }
+
+  static String getHijriDate(DateTime date, String language) {
+    int jdn = _gregorianToJDN(date);
+
+    // 🔥 দিনের অফসেট অ্যাডজাস্ট করুন (প্রয়োজনে -1 বা +1 দিন)
+    int adjustment = 0; // ০ রেখেছি, যদি ১ দিন কম/বেশি হয় তাহলে adjustment = 1 বা -1 দিন
+
+    int hijriYear = ((jdn - 1948440 + 0.5) / 354.367).floor();
+    if (hijriYear < 1) hijriYear = 1;
+
+    int firstDayJDN = _hijriToJDN(hijriYear);
+    int dayOfYear = (jdn - firstDayJDN).toInt() + adjustment; // ✅ adjustment যোগ
+
+    List<int> monthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29];
+    int month = 1;
+    int day = dayOfYear;
+
+    for (int i = 0; i < monthLengths.length; i++) {
+      if (day < monthLengths[i]) {
+        month = i + 1;
+        day = day + 1;
+        break;
+      }
+      day -= monthLengths[i];
+    }
+
+    if (month > 12) {
+      month = 1;
+      day = 1;
+      hijriYear++;
+    }
+
+    final months = _getMonths(language);
+    final monthName = months[month] ?? '';
+
+    String suffix = language == 'bn' ? 'হিজরি' : (language == 'ar' ? 'هـ' : 'AH');
+
+    return '$day $monthName $hijriYear $suffix';
   }
 }
 
@@ -53,25 +117,56 @@ class BengaliCalendar {
     5: 'ভাদ্র', 6: 'আশ্বিন', 7: 'কার্তিক', 8: 'অগ্রহায়ণ',
     9: 'পৌষ', 10: 'মাঘ', 11: 'ফাল্গুন', 12: 'চৈত্র',
   };
+
   static String getBengaliDate(DateTime date) {
-    int bengaliYear = date.year - 593;
-    int bengaliMonth = date.month;
-    int bengaliDay = date.day;
-    if (date.month <= 3) {
-      bengaliYear--;
-      bengaliMonth += 9;
+    int year = date.year;
+    // বাংলা নববর্ষ ১৪ এপ্রিল (গ্রেগরিয়ান)
+    DateTime bengaliNewYear = DateTime(year, 4, 14);
+    int daysDiff = date.difference(bengaliNewYear).inDays;
+    int bengaliYear;
+    int dayOfYear; // ০-ভিত্তিক দিন সংখ্যা
+
+    if (daysDiff >= 0) {
+      // তারিখটি ১৪ এপ্রিলের পরে বা সমান
+      bengaliYear = year - 593;
+      dayOfYear = daysDiff;
     } else {
-      bengaliMonth -= 3;
+      // তারিখটি ১৪ এপ্রিলের আগে – পূর্ববর্তী বাংলা বছরের অংশ
+      bengaliYear = year - 594;
+      DateTime prevNewYear = DateTime(year - 1, 4, 14);
+      dayOfYear = date.difference(prevNewYear).inDays;
     }
-    if (bengaliMonth > 12) bengaliMonth -= 12;
-    return '${bengaliDay} ${bengaliMonths[bengaliMonth]} $bengaliYear';
+
+    // বাংলা মাসের দিনসংখ্যা (প্রথম ৫ মাস ৩১ দিন, বাকি ৩০ দিন)
+    List<int> monthLengths = [31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 30, 30];
+    int monthIndex = 0;
+    int day = dayOfYear;
+
+    for (int i = 0; i < monthLengths.length; i++) {
+      if (day < monthLengths[i]) {
+        monthIndex = i + 1;
+        day = day + 1; // ১-ভিত্তিক দিনে রূপান্তর
+        break;
+      }
+      day -= monthLengths[i];
+    }
+
+    return '${day} ${bengaliMonths[monthIndex]} $bengaliYear';
   }
+
   static String getBengaliDay(int weekday) {
-    Map<int, String> days = {1: 'সোমবার', 2: 'মঙ্গলবার', 3: 'বুধবার', 4: 'বৃহস্পতিবার', 5: 'শুক্রবার', 6: 'শনিবার', 7: 'রবিবার'};
+    Map<int, String> days = {
+      1: 'সোমবার',
+      2: 'মঙ্গলবার',
+      3: 'বুধবার',
+      4: 'বৃহস্পতিবার',
+      5: 'শুক্রবার',
+      6: 'শনিবার',
+      7: 'রবিবার'
+    };
     return days[weekday] ?? '';
   }
 }
-
 class BDHolidays {
   static Map<String, String> holidays = {
     '21/02': 'শহীদ দিবস', '17/03': 'বঙ্গবন্ধুর জন্মদিন', '26/03': 'স্বাধীনতা দিবস',
@@ -192,8 +287,8 @@ class _HomeScreenState extends State<HomeScreen> {
        'income': 'আয়',
        'expense': 'ব্যয়',
        'savings': 'সঞ্চয়',
-       'debt': 'দেনা',
-       'credit': 'পাওনা',
+       'debt': 'দেনা',          // ✅ Changed
+       'credit': 'প্রাপ্য',        // ✅ Changed
        'monthly_stats': 'মাসিক পরিসংখ্যান',
        'monthly_report': 'মাসিক রিপোর্ট',
        'select_month': 'মাস নির্বাচন করুন',
@@ -439,6 +534,10 @@ class _HomeScreenState extends State<HomeScreen> {
        'default_user': 'ব্যবহারকারী',
        'refresh': 'রিফ্রেশ',
        'notices_refreshed': 'নোটিশ রিফ্রেশ করা হয়েছে',
+       'add_new_category': 'নতুন ক্যাটাগরি যোগ করুন',
+       'add_new_category_dialog_title': 'নতুন ক্যাটাগরি যোগ করুন',
+       'category_name': 'ক্যাটাগরির নাম',
+       'add': 'যোগ করুন',
      },
      'en': {
        'app_title': 'My Accounting',
@@ -450,8 +549,8 @@ class _HomeScreenState extends State<HomeScreen> {
        'income': 'Income',
        'expense': 'Expense',
        'savings': 'Savings',
-       'debt': 'Debt',
-       'credit': 'Credit',
+       'debt': 'Payable',
+       'credit': 'Receivable',
        'monthly_stats': 'Monthly Statistics',
        'monthly_report': 'Monthly Report',
        'select_month': 'Select month',
@@ -623,7 +722,7 @@ class _HomeScreenState extends State<HomeScreen> {
        'share': 'Share',
        'print': 'Print',
        'pdf_failed': 'Failed to create PDF',
-       'reminder_debt_payment': 'Reminder: Debt payment',
+       'reminder_debt_payment': 'Reminder: Payable payment',
        'from_date': 'From',
        'to_date': 'To',
        'start_date_before_end_date': 'Start date must be before end date',
@@ -694,6 +793,10 @@ class _HomeScreenState extends State<HomeScreen> {
        'default_user': 'User',
        'refresh': 'Refresh',
        'notices_refreshed': 'Notices refreshed',
+       'add_new_category': 'Add New Category',
+       'add_new_category_dialog_title': 'Add New Category',
+       'category_name': 'Category Name',
+       'add': 'Add',
      },
      'ar': {
        'app_title': 'محاسبتي',
@@ -705,8 +808,8 @@ class _HomeScreenState extends State<HomeScreen> {
        'income': 'دخل',
        'expense': 'مصروف',
        'savings': 'مدخرات',
-       'debt': 'دين',
-       'credit': 'ائتمان',
+       'debt': 'مستحق الدفع',
+       'credit': 'مستحق القبض',
        'monthly_stats': 'الإحصائيات الشهرية',
        'monthly_report': 'تقرير شهري',
        'select_month': 'اختر الشهر',
@@ -871,7 +974,7 @@ class _HomeScreenState extends State<HomeScreen> {
        'share': 'مشاركة',
        'print': 'طباعة',
        'pdf_failed': 'فشل إنشاء PDF',
-       'reminder_debt_payment': 'تذكير: سداد الدين',
+       'reminder_debt_payment': 'تذكير: دفع المستحق',
        'good_morning': 'صباح الخير',
        'good_afternoon': 'مساء الخير',
        'good_evening': 'مساء الخير',
@@ -938,6 +1041,10 @@ class _HomeScreenState extends State<HomeScreen> {
        'default_user': 'مستخدم افتراضي',
        'refresh': 'تحديث',
        'notices_refreshed': 'تم تحديث الإشعارات',
+       'add_new_category': 'إضافة فئة جديدة',
+       'add_new_category_dialog_title': 'إضافة فئة جديدة',
+       'category_name': 'اسم الفئة',
+       'add': 'إضافة',
      },
    };
 
@@ -967,7 +1074,14 @@ class _HomeScreenState extends State<HomeScreen> {
     {'key': 'other', 'icon': Icons.more_horiz, 'color': Colors.grey},
   ];
 
-  String getCategoryName(String key) => getText(key);
+   String getCategoryName(String key) {
+     final allCats = CategoryService().allCategories;
+     final matching = allCats.where((c) => c['key'] == key).toList();
+     if (matching.isNotEmpty && matching.first['isCustom'] == true) {
+       return matching.first['key'];
+     }
+     return getText(key);
+   }
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay = DateTime.now();
@@ -2220,6 +2334,9 @@ class _HomeScreenState extends State<HomeScreen> {
     String selCat = 'salary';
     DateTime selectedDate = DateTime.now();
 
+    // ✅ get the list of income category keys
+    final incomeKeys = incomeCategories.map((cat) => cat['key'] as String).toList();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2240,19 +2357,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  height: 4,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+                Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
                 const SizedBox(height: 20),
-                Text(
-                  getText('add_income'),
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
+                Text(getText('add_income'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 InkWell(
                   onTap: () async {
@@ -2261,29 +2368,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       initialDate: selectedDate,
                       firstDate: DateTime(2020),
                       lastDate: DateTime(2030),
-                      builder: (context, child) {
-                        return Localizations.override(
-                          context: context,
-                          locale: Locale(_selectedLanguage),
-                          child: child!,
-                        );
-                      },
+                      builder: (context, child) => Localizations.override(context: context, locale: Locale(_selectedLanguage), child: child!),
                     );
                     if (picked != null) s(() => selectedDate = picked);
                   },
                   child: Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(10)),
                     child: Row(
                       children: [
                         const Icon(Icons.calendar_today, size: 18),
                         const SizedBox(width: 10),
-                        Text(
-                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-                        ),
+                        Text('${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
                       ],
                     ),
                   ),
@@ -2293,68 +2389,37 @@ class _HomeScreenState extends State<HomeScreen> {
                   controller: amtCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
-                    ),
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
                     TextInputFormatter.withFunction((oldValue, newValue) {
                       String converted = _convertToScriptDigits(newValue.text);
-                      return newValue.copyWith(
-                        text: converted,
-                        selection: TextSelection.collapsed(offset: converted.length),
-                      );
+                      return newValue.copyWith(text: converted, selection: TextSelection.collapsed(offset: converted.length));
                     }),
                   ],
-                  decoration: InputDecoration(
-                    labelText: getText('amount'),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.money),
-                  ),
+                  decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)),
                   autofocus: true,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: noteCtrl,
-                  decoration: InputDecoration(
-                    labelText: getText('description'),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.note),
-                  ),
+                  decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note)),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  getText('select_category'),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
+                Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Container(
-                  height: 50,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selCat,
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down),
-                      items: incomeCategories.map((cat) {
-                        return DropdownMenuItem<String>(
-                          value: cat['key'],
-                          child: Row(
-                            children: [
-                              Icon(cat['icon'], size: 20, color: cat['color']),
-                              const SizedBox(width: 10),
-                              Text(getCategoryName(cat['key'])),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (v) {
-                        if (v != null) s(() => selCat = v);
-                      },
-                    ),
-                  ),
+                CategoryDropdown(
+                  selectedValue: selCat,
+                  onChanged: (newValue) => s(() => selCat = newValue),
+                  hintText: getText('select_category'),
+                  showAddNew: true,
+                  allowedKeys: incomeKeys,   // ✅ only income categories
+                  filterType: 'Income',
+                  getTranslatedName: (key) => getCategoryName(key),
+                  addNewCategoryText: getText('add_new_category'),
+                  dialogTitle: getText('add_new_category_dialog_title'),
+                  categoryNameLabel: getText('category_name'),
+                  addButtonText: getText('add'),
+                  cancelButtonText: getText('cancel'),
+
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -2372,9 +2437,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     final tx = TransactionModel(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
                       amount: amt,
-                      note: noteCtrl.text.isEmpty
-                          ? getCategoryName(selCat)
-                          : noteCtrl.text,
+                      note: noteCtrl.text.isEmpty ? getCategoryName(selCat) : noteCtrl.text,
                       type: 'Income',
                       date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
                       category: selCat,
@@ -2388,14 +2451,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700,
                     minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(
-                    getText('save'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                  child: Text(getText('save'), style: const TextStyle(color: Colors.white)),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -2406,197 +2464,132 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showExpenseDialog() {
-    final amtCtrl = TextEditingController();
-    final noteCtrl = TextEditingController();
-    String selCat = 'gas_bill';
-    DateTime selectedDate = DateTime.now();
+ void _showExpenseDialog() {
+   final amtCtrl = TextEditingController();
+   final noteCtrl = TextEditingController();
+   String selCat = 'gas_bill';
+   DateTime selectedDate = DateTime.now();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (c) => StatefulBuilder(
-        builder: (c, s) => SingleChildScrollView(
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-            ),
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(c).viewInsets.bottom,
-              left: 20,
-              right: 20,
-              top: 20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  height: 4,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  getText('add_expense'),
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                InkWell(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: c,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2030),
-                      builder: (context, child) {
-                        return Localizations.override(
-                          context: context,
-                          locale: Locale(_selectedLanguage),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (picked != null) s(() => selectedDate = picked);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 18),
-                        const SizedBox(width: 10),
-                        Text(
-                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: amtCtrl,
-                  keyboardType: TextInputType.text,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
-                    ),
-                    TextInputFormatter.withFunction((oldValue, newValue) {
-                      String converted = _convertToScriptDigits(newValue.text);
-                      return newValue.copyWith(
-                        text: converted,
-                        selection: TextSelection.collapsed(offset: converted.length),
-                      );
-                    }),
-                  ],
-                  decoration: InputDecoration(
-                    labelText: getText('amount'),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.money),
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteCtrl,
-                  decoration: InputDecoration(
-                    labelText: getText('description'),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.note),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  getText('select_category'),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 50,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selCat,
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down),
-                      items: expenseCategories.map((cat) {
-                        return DropdownMenuItem<String>(
-                          value: cat['key'],
-                          child: Row(
-                            children: [
-                              Icon(cat['icon'], size: 20, color: cat['color']),
-                              const SizedBox(width: 10),
-                              Text(getCategoryName(cat['key'])),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (v) {
-                        if (v != null) s(() => selCat = v);
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    if (amtCtrl.text.trim().isEmpty) {
-                      _showSnackBar(getText('amount_error'), Colors.red);
-                      return;
-                    }
-                    final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
-                    final amt = double.tryParse(rawAmount);
-                    if (amt == null) {
-                      _showSnackBar(getText('amount_error'), Colors.red);
-                      return;
-                    }
-                    final tx = TransactionModel(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      amount: amt,
-                      note: noteCtrl.text.isEmpty
-                          ? getCategoryName(selCat)
-                          : noteCtrl.text,
-                      type: 'Expense',
-                      date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
-                      category: selCat,
-                      isArchived: false,
-                    );
-                    LocalDatabaseService().addTransaction(tx);
-                    Navigator.pop(c);
-                    _showSnackBar('${getText('expense')} ${getText('save')}', Colors.red);
-                    _loadDataFromHive();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    getText('save'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+   // ✅ get expense keys
+   final expenseKeys = expenseCategories.map((cat) => cat['key'] as String).toList();
+
+   showModalBottomSheet(
+     context: context,
+     isScrollControlled: true,
+     backgroundColor: Colors.transparent,
+     builder: (c) => StatefulBuilder(
+       builder: (c, s) => SingleChildScrollView(
+         child: Container(
+           decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+           padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20),
+           child: Column(
+             mainAxisSize: MainAxisSize.min,
+             children: [
+               Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+               const SizedBox(height: 20),
+               Text(getText('add_expense'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+               const SizedBox(height: 20),
+               InkWell(
+                 onTap: () async {
+                   final picked = await showDatePicker(
+                     context: c,
+                     initialDate: selectedDate,
+                     firstDate: DateTime(2020),
+                     lastDate: DateTime(2030),
+                     builder: (context, child) => Localizations.override(context: context, locale: Locale(_selectedLanguage), child: child!),
+                   );
+                   if (picked != null) s(() => selectedDate = picked);
+                 },
+                 child: Container(
+                   padding: const EdgeInsets.all(12),
+                   decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(10)),
+                   child: Row(
+                     children: [
+                       const Icon(Icons.calendar_today, size: 18),
+                       const SizedBox(width: 10),
+                       Text('${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
+                     ],
+                   ),
+                 ),
+               ),
+               const SizedBox(height: 12),
+               TextField(
+                 controller: amtCtrl,
+                 keyboardType: TextInputType.text,
+                 inputFormatters: [
+                   FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
+                   TextInputFormatter.withFunction((oldValue, newValue) {
+                     String converted = _convertToScriptDigits(newValue.text);
+                     return newValue.copyWith(text: converted, selection: TextSelection.collapsed(offset: converted.length));
+                   }),
+                 ],
+                 decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)),
+                 autofocus: true,
+               ),
+               const SizedBox(height: 12),
+               TextField(
+                 controller: noteCtrl,
+                 decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note)),
+               ),
+               const SizedBox(height: 12),
+               Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)),
+               const SizedBox(height: 8),
+               CategoryDropdown(
+                 selectedValue: selCat,
+                 onChanged: (newValue) => s(() => selCat = newValue),
+                 hintText: getText('select_category'),
+                 showAddNew: true,
+                 allowedKeys: expenseKeys,   // ✅ only expense categories
+                 filterType: 'Expense',
+                 getTranslatedName: (key) => getCategoryName(key),
+                 addNewCategoryText: getText('add_new_category'),
+                 dialogTitle: getText('add_new_category_dialog_title'),
+                 categoryNameLabel: getText('category_name'),
+                 addButtonText: getText('add'),
+                 cancelButtonText: getText('cancel'),
+               ),
+               const SizedBox(height: 20),
+               ElevatedButton(
+                 onPressed: () {
+                   if (amtCtrl.text.trim().isEmpty) {
+                     _showSnackBar(getText('amount_error'), Colors.red);
+                     return;
+                   }
+                   final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
+                   final amt = double.tryParse(rawAmount);
+                   if (amt == null) {
+                     _showSnackBar(getText('amount_error'), Colors.red);
+                     return;
+                   }
+                   final tx = TransactionModel(
+                     id: DateTime.now().millisecondsSinceEpoch.toString(),
+                     amount: amt,
+                     note: noteCtrl.text.isEmpty ? getCategoryName(selCat) : noteCtrl.text,
+                     type: 'Expense',
+                     date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
+                     category: selCat,
+                     isArchived: false,
+                   );
+                   LocalDatabaseService().addTransaction(tx);
+                   Navigator.pop(c);
+                   _showSnackBar('${getText('expense')} ${getText('save')}', Colors.red);
+                   _loadDataFromHive();
+                 },
+                 style: ElevatedButton.styleFrom(
+                   backgroundColor: Colors.blue.shade700,
+                   minimumSize: const Size(double.infinity, 50),
+                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                 ),
+                 child: Text(getText('save'), style: const TextStyle(color: Colors.white)),
+               ),
+               const SizedBox(height: 20),
+             ],
+           ),
+         ),
+       ),
+     ),
+   );
+ }
 
   void _showSnackBar(String msg, Color color) {
     if (mounted)
@@ -2701,123 +2694,98 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showEditDialog(Map<String, dynamic> tx) {
-    final amtCtrl = TextEditingController(text: (tx['amount'] ?? '').toString());
-    final noteCtrl = TextEditingController(text: tx['note'] ?? '');
-    String type = tx['type'] ?? 'Income',
-        catKey = tx['category'] ?? (type == 'Income' ? 'salary' : 'gas_bill');
-    List<Map<String, dynamic>> cats =
-    type == 'Income' ? incomeCategories : expenseCategories;
-    if (!cats.any((c) => c['key'] == catKey))
-      catKey = type == 'Income' ? 'salary' : 'gas_bill';
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (c) => StatefulBuilder(
-        builder: (c, s) => SingleChildScrollView(
-          child: Container(
-            decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                BorderRadius.vertical(top: Radius.circular(25))),
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(c).viewInsets.bottom,
-                left: 20,
-                right: 20,
-                top: 20),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                  height: 4,
-                  width: 40,
-                  decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 20),
-              Text(getText('edit'),
-                  style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(
-                  controller: amtCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                      labelText: getText('amount'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.money)),
-                  autofocus: true),
-              const SizedBox(height: 12),
-              TextField(
-                  controller: noteCtrl,
-                  decoration: InputDecoration(
-                      labelText: getText('description'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.note))),
-              const SizedBox(height: 12),
-              Text(getText('select_category'),
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Container(
-                  height: 50,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: catKey,
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down),
-                        items: cats.map((cat) {
-                          return DropdownMenuItem<String>(
-                            value: cat['key'],
-                            child: Row(children: [
-                              Icon(cat['icon'], size: 20, color: cat['color']),
-                              const SizedBox(width: 10),
-                              Text(getCategoryName(cat['key'])),
-                            ]),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          if (v != null) s(() => catKey = v);
-                        },
-                      ))),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (amtCtrl.text.isNotEmpty) {
-                    final amt = double.tryParse(amtCtrl.text);
-                    if (amt != null) {
-                      LocalDatabaseService().updateTransaction(tx['key'], {
-                        'amount': amt,
-                        'note': noteCtrl.text.isEmpty
-                            ? getCategoryName(catKey)
-                            : noteCtrl.text,
-                        'category': catKey
-                      });
-                      Navigator.pop(c);
-                      _showSnackBar('${getText('edit')} ${getText('save')}',
-                          Colors.green);
-                      _loadDataFromHive();
-                    }
-                  } else
-                    _showSnackBar(getText('amount_error'), Colors.red);
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                child: Text(getText('save'),
-                    style: const TextStyle(color: Colors.white)),
-              ),
-              const SizedBox(height: 20),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
+ void _showEditDialog(Map<String, dynamic> tx) {
+   final amtCtrl = TextEditingController(text: (tx['amount'] ?? '').toString());
+   final noteCtrl = TextEditingController(text: tx['note'] ?? '');
+   String type = tx['type'] ?? 'Income';
+   String catKey = tx['category'] ?? (type == 'Income' ? 'salary' : 'gas_bill');
+
+   // ✅ get the appropriate keys
+   List<String> allowedKeys;
+   if (type == 'Income') {
+     allowedKeys = incomeCategories.map((cat) => cat['key'] as String).toList();
+   } else {
+     allowedKeys = expenseCategories.map((cat) => cat['key'] as String).toList();
+   }
+
+   showModalBottomSheet(
+     context: context,
+     isScrollControlled: true,
+     backgroundColor: Colors.transparent,
+     builder: (c) => StatefulBuilder(
+       builder: (c, s) => SingleChildScrollView(
+         child: Container(
+           decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+           padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20),
+           child: Column(
+             mainAxisSize: MainAxisSize.min,
+             children: [
+               Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+               const SizedBox(height: 20),
+               Text(getText('edit'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+               const SizedBox(height: 20),
+               TextField(
+                 controller: amtCtrl,
+                 keyboardType: TextInputType.number,
+                 decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)),
+                 autofocus: true,
+               ),
+               const SizedBox(height: 12),
+               TextField(
+                 controller: noteCtrl,
+                 decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note)),
+               ),
+               const SizedBox(height: 12),
+               Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)),
+               const SizedBox(height: 8),
+               CategoryDropdown(
+                 selectedValue: catKey,
+                 onChanged: (newValue) => s(() => catKey = newValue),
+                 hintText: getText('select_category'),
+                 showAddNew: true,
+                 allowedKeys: allowedKeys,   // ✅ filter by type
+                 filterType: type,
+                 getTranslatedName: (key) => getCategoryName(key),
+                 addNewCategoryText: getText('add_new_category'),
+                 dialogTitle: getText('add_new_category_dialog_title'),
+                 categoryNameLabel: getText('category_name'),
+                 addButtonText: getText('add'),
+                 cancelButtonText: getText('cancel'),
+               ),
+               const SizedBox(height: 20),
+               ElevatedButton(
+                 onPressed: () {
+                   if (amtCtrl.text.isNotEmpty) {
+                     final amt = double.tryParse(amtCtrl.text);
+                     if (amt != null) {
+                       LocalDatabaseService().updateTransaction(tx['key'], {
+                         'amount': amt,
+                         'note': noteCtrl.text.isEmpty ? getCategoryName(catKey) : noteCtrl.text,
+                         'category': catKey,
+                       });
+                       Navigator.pop(c);
+                       _showSnackBar('${getText('edit')} ${getText('save')}', Colors.green);
+                       _loadDataFromHive();
+                     }
+                   } else {
+                     _showSnackBar(getText('amount_error'), Colors.red);
+                   }
+                 },
+                 style: ElevatedButton.styleFrom(
+                   backgroundColor: Colors.blue.shade700,
+                   minimumSize: const Size(double.infinity, 50),
+                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                 ),
+                 child: Text(getText('save'), style: const TextStyle(color: Colors.white)),
+               ),
+               const SizedBox(height: 20),
+             ],
+           ),
+         ),
+       ),
+     ),
+   );
+ }
 
   void _openSecurityScreen() {
     Navigator.push(
@@ -5152,15 +5120,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeatureButtonsRow() => Row(
-    children: [
-      Expanded(child: _buildFeatureButton(getText('budget_management'), Icons.account_balance_wallet, Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => BudgetScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText))))),
-      const SizedBox(width: 12),
-      Expanded(child: _buildFeatureButton(getText('recurring_transactions'), Icons.repeat, Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => RecurringScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText, incomeCategories: incomeCategories, expenseCategories: expenseCategories))))),
-      const SizedBox(width: 12),
-      Expanded(child: _buildFeatureButton(getText('export_report'), Icons.download, Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExportScreen(selectedLanguage: _selectedLanguage, selectedCurrency: _selectedCurrency, currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳', localizedText: _localizedText))))),
-    ],
-  );
+ Widget _buildFeatureButtonsRow() => Row(
+   children: [
+     Expanded(
+       child: _buildFeatureButton(
+         getText('budget_management'),
+         Icons.account_balance_wallet,
+         Colors.teal,
+         () => Navigator.push(
+           context,
+           MaterialPageRoute(
+             builder: (_) => BudgetScreen(
+               selectedLanguage: _selectedLanguage,
+               localizedText: _localizedText,
+             ),
+           ),
+         ),
+       ),
+     ),
+     const SizedBox(width: 12),
+     Expanded(
+       child: _buildFeatureButton(
+         getText('recurring_transactions'),
+         Icons.repeat,
+         Colors.purple,
+         () => Navigator.push(
+           context,
+           MaterialPageRoute(
+             builder: (_) => RecurringScreen(
+               selectedLanguage: _selectedLanguage,
+               localizedText: _localizedText,
+             ),
+           ),
+         ),
+       ),
+     ),
+     const SizedBox(width: 12),
+     Expanded(
+       child: _buildFeatureButton(
+         getText('export_report'),
+         Icons.download,
+         Colors.indigo,
+         () => Navigator.push(
+           context,
+           MaterialPageRoute(
+             builder: (_) => ExportScreen(
+               selectedLanguage: _selectedLanguage,
+               selectedCurrency: _selectedCurrency,
+               currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳',
+               localizedText: _localizedText,
+             ),
+           ),
+         ),
+       ),
+     ),
+   ],
+ );
 
   Widget _buildFeatureButton(String label, IconData icon, Color color, VoidCallback onTap) => ElevatedButton(onPressed: onTap, style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: color, elevation: 2, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 20), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))]));
 
@@ -5541,9 +5556,21 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(margin: const EdgeInsets.symmetric(horizontal: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.purple.shade600]), borderRadius: BorderRadius.circular(20)), child: Column(children: [
       Row(children: [const Icon(Icons.calendar_today, color: Colors.white), const SizedBox(width: 10), Text(DateFormat('EEEE, d MMMM yyyy').format(sd), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))]),
       if (_showBengaliDate) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.calendar_month, color: Colors.white, size: 18), const SizedBox(width: 10), Text('বাংলা: ${BengaliCalendar.getBengaliDate(sd)}, ${BengaliCalendar.getBengaliDay(sd.weekday)}', style: const TextStyle(color: Colors.white))])],
-      if (_showHijriDate) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.calendar_view_month, color: Colors.white, size: 18), const SizedBox(width: 10), Text('হিজরি: ${HijriCalendar.getHijriDate(sd)}', style: const TextStyle(color: Colors.white))])],
-    ]));
-  }
+if (_showHijriDate) ...[
+  const SizedBox(height: 8),
+  Row(
+    children: [
+      const Icon(Icons.calendar_view_month, color: Colors.white, size: 18),
+      const SizedBox(width: 10),
+      Text(
+        'হিজরি: ${HijriCalendar.getHijriDate(sd, _selectedLanguage)}', // ✅ ভাষা পাস করুন
+        style: const TextStyle(color: Colors.white),
+      ),
+    ],
+  ),
+],
+ ]));
+}
 
   Widget _buildAddReminderButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: ElevatedButton.icon(onPressed: _showReminderInput, icon: const Icon(Icons.add_alert), label: Text(getText('add_reminder')), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 5)));
 

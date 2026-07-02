@@ -13,6 +13,7 @@ import 'screens/lock_screen.dart';
 import 'models/transaction_model.dart';
 import 'models/budget_model.dart';
 import 'models/recurring_transaction_model.dart';
+import 'models/custom_category_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,21 +24,24 @@ void main() async {
 
   await Hive.initFlutter();
 
-  Hive.registerAdapter(TransactionModelAdapter());
-  Hive.registerAdapter(BudgetModelAdapter());
-  Hive.registerAdapter(RecurringTransactionModelAdapter());
+  // ✅ সমাধান: অ্যাডাপ্টার রেজিস্টার করার আগে চেক করা
+  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(TransactionModelAdapter());
+  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(BudgetModelAdapter());
+  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(RecurringTransactionModelAdapter());
+  if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(CustomCategoryAdapter());
 
-  await Hive.openBox<TransactionModel>('transactions');
-  await Hive.openBox<BudgetModel>('budgets');
-  await Hive.openBox<RecurringTransactionModel>('recurring');
-  await Hive.openBox('settings');
+  // Hive Box ওপেন করার আগে চেক করা
+  if (!Hive.isBoxOpen('transactions')) await Hive.openBox<TransactionModel>('transactions');
+  if (!Hive.isBoxOpen('budgets')) await Hive.openBox<BudgetModel>('budgets');
+  if (!Hive.isBoxOpen('recurring')) await Hive.openBox<RecurringTransactionModel>('recurring');
+  if (!Hive.isBoxOpen('custom_categories')) await Hive.openBox<CustomCategory>('custom_categories');
+  if (!Hive.isBoxOpen('settings')) await Hive.openBox('settings');
 
   await LocalDatabaseService().init();
 
   tz.initializeTimeZones();
   await NotificationService.initialize();
 
-  // ✅ প্রথম লঞ্চ চেক করুন
   final prefs = await SharedPreferences.getInstance();
   final bool isFirstLaunch = prefs.getBool('first_launch') ?? true;
 

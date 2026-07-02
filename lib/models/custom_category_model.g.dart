@@ -1,52 +1,46 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'budget_model.dart';
+part of 'custom_category_model.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class BudgetModelAdapter extends TypeAdapter<BudgetModel> {
+class CustomCategoryAdapter extends TypeAdapter<CustomCategory> {
   @override
-  final int typeId = 1;
+  final int typeId = 3;
 
   @override
-  BudgetModel read(BinaryReader reader) {
+  CustomCategory read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return BudgetModel(
+    return CustomCategory(
       id: fields[0] as String,
-      category: fields[1] as String,
-      budgetAmount: fields[2] as double,
-      spentAmount: fields[3] as double,
-      period: fields[4] as String,
-      month: fields[5] as String,
-      isActive: fields[6] as bool,
-      type: fields[7] as String?,
+      nameKey: fields[1] as String,
+      iconCode: fields[2] as int,
+      colorValue: fields[3] as int,
+      isPredefined: fields[4] as bool,
+      type: fields[5] as String?,
     );
   }
 
   @override
-  void write(BinaryWriter writer, BudgetModel obj) {
+  void write(BinaryWriter writer, CustomCategory obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.category)
+      ..write(obj.nameKey)
       ..writeByte(2)
-      ..write(obj.budgetAmount)
+      ..write(obj.iconCode)
       ..writeByte(3)
-      ..write(obj.spentAmount)
+      ..write(obj.colorValue)
       ..writeByte(4)
-      ..write(obj.period)
+      ..write(obj.isPredefined)
       ..writeByte(5)
-      ..write(obj.month)
-      ..writeByte(6)
-      ..write(obj.isActive)
-      ..writeByte(7)
       ..write(obj.type);
   }
 
@@ -56,7 +50,7 @@ class BudgetModelAdapter extends TypeAdapter<BudgetModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is BudgetModelAdapter &&
+      other is CustomCategoryAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

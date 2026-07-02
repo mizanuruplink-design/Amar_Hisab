@@ -4,19 +4,17 @@ import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../services/local_database_service.dart';
 import '../models/recurring_transaction_model.dart';
+import '../services/category_service.dart';
+import '../widgets/category_dropdown.dart';
 
 class RecurringScreen extends StatefulWidget {
   final String selectedLanguage;
   final Map<String, Map<String, String>> localizedText;
-  final List<Map<String, dynamic>> incomeCategories;
-  final List<Map<String, dynamic>> expenseCategories;
 
   const RecurringScreen({
     super.key,
     required this.selectedLanguage,
     required this.localizedText,
-    required this.incomeCategories,
-    required this.expenseCategories,
   });
 
   @override
@@ -25,8 +23,9 @@ class RecurringScreen extends StatefulWidget {
 
 class _RecurringScreenState extends State<RecurringScreen> {
   final LocalDatabaseService _db = LocalDatabaseService();
+  final CategoryService _categoryService = CategoryService();
 
-  // ==================== DIGIT CONVERSION HELPERS ====================
+  // ==================== DIGIT CONVERSION ====================
   String _convertToEnglishDigits(String input) {
     const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
     const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -61,137 +60,130 @@ class _RecurringScreenState extends State<RecurringScreen> {
 
   // ==================== HELPERS ====================
   IconData _getCategoryIcon(String categoryKey, String type) {
-    final List<Map<String, dynamic>> categories =
-        type == 'Income' ? widget.incomeCategories : widget.expenseCategories;
-    final cat = categories.firstWhere(
-          (c) => c['key'] == categoryKey,
-      orElse: () => {'icon': Icons.category, 'color': Colors.grey},
-    );
-    return cat['icon'] as IconData;
+    final allCats = _categoryService.allCategories;
+    final matching = allCats.where((c) => c['key'] == categoryKey).toList();
+    if (matching.isNotEmpty) {
+      return matching.first['icon'] as IconData? ?? Icons.category;
+    }
+    return Icons.category;
   }
 
   Color _getCategoryColor(String categoryKey, String type) {
-    final List<Map<String, dynamic>> categories =
-        type == 'Income' ? widget.incomeCategories : widget.expenseCategories;
-    final cat = categories.firstWhere(
-          (c) => c['key'] == categoryKey,
-      orElse: () => {'icon': Icons.category, 'color': Colors.grey},
-    );
-    return cat['color'] as Color;
+    final allCats = _categoryService.allCategories;
+    final matching = allCats.where((c) => c['key'] == categoryKey).toList();
+    if (matching.isNotEmpty) {
+      return matching.first['color'] as Color? ?? Colors.grey;
+    }
+    return Colors.grey;
   }
 
   String getText(String key) {
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
 
-    // Fallback (many keys already covered; keep minimal)
-    switch (key) {
-      case 'recurring_transactions':
-        if (widget.selectedLanguage == 'bn') return 'রিকারিং ট্রানজেকশন';
-        if (widget.selectedLanguage == 'ar') return 'المعاملات المتكررة';
-        return 'Recurring Transactions';
-      case 'add_recurring':
-        if (widget.selectedLanguage == 'bn') return 'রিকারিং যোগ করুন';
-        if (widget.selectedLanguage == 'ar') return 'إضافة معاملة متكررة';
-        return 'Add Recurring';
-      case 'no_recurring':
-        if (widget.selectedLanguage == 'bn') return 'কোনো রিকারিং ট্রানজেকশন নেই';
-        if (widget.selectedLanguage == 'ar') return 'لا توجد معاملات متكررة';
-        return 'No recurring transactions';
-      case 'add_new_hint':
-        if (widget.selectedLanguage == 'bn') return 'নতুন যোগ করতে + বাটনে ক্লিক করুন';
-        if (widget.selectedLanguage == 'ar') return 'انقر على زر + لإضافة جديدة';
-        return 'Click + button to add new';
-      case 'next_due':
-        if (widget.selectedLanguage == 'bn') return 'পরবর্তী';
-        if (widget.selectedLanguage == 'ar') return 'الاستحقاق القادم';
-        return 'Next Due';
-      case 'daily':
-        if (widget.selectedLanguage == 'bn') return 'দৈনিক';
-        if (widget.selectedLanguage == 'ar') return 'يومياً';
-        return 'Daily';
-      case 'weekly':
-        if (widget.selectedLanguage == 'bn') return 'সাপ্তাহিক';
-        if (widget.selectedLanguage == 'ar') return 'أسبوعياً';
-        return 'Weekly';
-      case 'monthly':
-        if (widget.selectedLanguage == 'bn') return 'মাসিক';
-        if (widget.selectedLanguage == 'ar') return 'شهرياً';
-        return 'Monthly';
-      case 'yearly':
-        if (widget.selectedLanguage == 'bn') return 'বার্ষিক';
-        if (widget.selectedLanguage == 'ar') return 'سنوياً';
-        return 'Yearly';
-      case 'type':
-        if (widget.selectedLanguage == 'bn') return 'টাইপ';
-        if (widget.selectedLanguage == 'ar') return 'النوع';
-        return 'Type';
-      case 'income':
-        if (widget.selectedLanguage == 'bn') return 'আয়';
-        if (widget.selectedLanguage == 'ar') return 'دخل';
-        return 'Income';
-      case 'expense':
-        if (widget.selectedLanguage == 'bn') return 'ব্যয়';
-        if (widget.selectedLanguage == 'ar') return 'مصروف';
-        return 'Expense';
-      case 'amount':
-        if (widget.selectedLanguage == 'bn') return 'টাকা';
-        if (widget.selectedLanguage == 'ar') return 'المبلغ';
-        return 'Amount';
-      case 'description':
-        if (widget.selectedLanguage == 'bn') return 'বিবরণ';
-        if (widget.selectedLanguage == 'ar') return 'الوصف';
-        return 'Description';
-      case 'category':
-        if (widget.selectedLanguage == 'bn') return 'ক্যাটাগরি';
-        if (widget.selectedLanguage == 'ar') return 'الفئة';
-        return 'Category';
-      case 'frequency':
-        if (widget.selectedLanguage == 'bn') return 'ফ্রিকোয়েন্সি';
-        if (widget.selectedLanguage == 'ar') return 'التكرار';
-        return 'Frequency';
-      case 'start_date':
-        if (widget.selectedLanguage == 'bn') return 'শুরুর তারিখ';
-        if (widget.selectedLanguage == 'ar') return 'تاريخ البدء';
-        return 'Start Date';
-      case 'add':
-        if (widget.selectedLanguage == 'bn') return 'যোগ করুন';
-        if (widget.selectedLanguage == 'ar') return 'إضافة';
-        return 'Add';
-      case 'cancel':
-        if (widget.selectedLanguage == 'bn') return 'বাতিল';
-        if (widget.selectedLanguage == 'ar') return 'إلغاء';
-        return 'Cancel';
-      case 'added_successfully':
-        if (widget.selectedLanguage == 'bn') return 'সফলভাবে যোগ করা হয়েছে';
-        if (widget.selectedLanguage == 'ar') return 'تمت الإضافة بنجاح';
-        return 'Added successfully';
-      case 'delete':
-        if (widget.selectedLanguage == 'bn') return 'মুছুন';
-        if (widget.selectedLanguage == 'ar') return 'حذف';
-        return 'Delete';
-      case 'delete_recurring_confirm':
-        if (widget.selectedLanguage == 'bn') return 'আপনি কি নিশ্চিতভাবে মুছতে চান?';
-        if (widget.selectedLanguage == 'ar') return 'هل أنت متأكد من الحذف؟';
-        return 'Are you sure you want to delete?';
-      case 'deleted_successfully':
-        if (widget.selectedLanguage == 'bn') return 'মুছে ফেলা হয়েছে';
-        if (widget.selectedLanguage == 'ar') return 'تم الحذف بنجاح';
-        return 'Deleted successfully';
-      case 'yes':
-        if (widget.selectedLanguage == 'bn') return 'হ্যাঁ';
-        if (widget.selectedLanguage == 'ar') return 'نعم';
-        return 'Yes';
-      case 'no':
-        if (widget.selectedLanguage == 'bn') return 'না';
-        if (widget.selectedLanguage == 'ar') return 'لا';
-        return 'No';
-      default:
-        return widget.localizedText['bn']?[key] ?? key;
+    // Fallback (including new keys)
+    final fallbacks = {
+      'recurring_transactions': 'Recurring Transactions',
+      'add_recurring': 'Add Recurring',
+      'no_recurring': 'No recurring transactions',
+      'add_new_hint': 'Click + button to add new',
+      'next_due': 'Next Due',
+      'daily': 'Daily',
+      'weekly': 'Weekly',
+      'monthly': 'Monthly',
+      'yearly': 'Yearly',
+      'type': 'Type',
+      'income': 'Income',
+      'expense': 'Expense',
+      'amount': 'Amount',
+      'description': 'Description',
+      'category': 'Category',
+      'frequency': 'Frequency',
+      'start_date': 'Start Date',
+      'add': 'Add',
+      'cancel': 'Cancel',
+      'added_successfully': 'Added successfully',
+      'delete': 'Delete',
+      'delete_recurring_confirm': 'Are you sure you want to delete?',
+      'deleted_successfully': 'Deleted successfully',
+      'yes': 'Yes',
+      'no': 'No',
+    };
+    if (fallbacks.containsKey(key)) {
+      final val = fallbacks[key]!;
+      if (widget.selectedLanguage == 'bn') {
+        switch (key) {
+          case 'recurring_transactions': return 'রিকারিং ট্রানজেকশন';
+          case 'add_recurring': return 'রিকারিং যোগ করুন';
+          case 'no_recurring': return 'কোনো রিকারিং ট্রানজেকশন নেই';
+          case 'add_new_hint': return 'নতুন যোগ করতে + বাটনে ক্লিক করুন';
+          case 'next_due': return 'পরবর্তী';
+          case 'daily': return 'দৈনিক';
+          case 'weekly': return 'সাপ্তাহিক';
+          case 'monthly': return 'মাসিক';
+          case 'yearly': return 'বার্ষিক';
+          case 'type': return 'টাইপ';
+          case 'income': return 'আয়';
+          case 'expense': return 'ব্যয়';
+          case 'amount': return 'টাকা';
+          case 'description': return 'বিবরণ';
+          case 'category': return 'ক্যাটাগরি';
+          case 'frequency': return 'ফ্রিকোয়েন্সি';
+          case 'start_date': return 'শুরুর তারিখ';
+          case 'add': return 'যোগ করুন';
+          case 'cancel': return 'বাতিল';
+          case 'added_successfully': return 'সফলভাবে যোগ করা হয়েছে';
+          case 'delete': return 'মুছুন';
+          case 'delete_recurring_confirm': return 'আপনি কি নিশ্চিতভাবে মুছতে চান?';
+          case 'deleted_successfully': return 'মুছে ফেলা হয়েছে';
+          case 'yes': return 'হ্যাঁ';
+          case 'no': return 'না';
+        }
+      } else if (widget.selectedLanguage == 'ar') {
+        switch (key) {
+          case 'recurring_transactions': return 'المعاملات المتكررة';
+          case 'add_recurring': return 'إضافة معاملة متكررة';
+          case 'no_recurring': return 'لا توجد معاملات متكررة';
+          case 'add_new_hint': return 'انقر على زر + لإضافة جديدة';
+          case 'next_due': return 'الاستحقاق القادم';
+          case 'daily': return 'يومياً';
+          case 'weekly': return 'أسبوعياً';
+          case 'monthly': return 'شهرياً';
+          case 'yearly': return 'سنوياً';
+          case 'type': return 'النوع';
+          case 'income': return 'دخل';
+          case 'expense': return 'مصروف';
+          case 'amount': return 'المبلغ';
+          case 'description': return 'الوصف';
+          case 'category': return 'الفئة';
+          case 'frequency': return 'التكرار';
+          case 'start_date': return 'تاريخ البدء';
+          case 'add': return 'إضافة';
+          case 'cancel': return 'إلغاء';
+          case 'added_successfully': return 'تمت الإضافة بنجاح';
+          case 'delete': return 'حذف';
+          case 'delete_recurring_confirm': return 'هل أنت متأكد من الحذف؟';
+          case 'deleted_successfully': return 'تم الحذف بنجاح';
+          case 'yes': return 'نعم';
+          case 'no': return 'لا';
+        }
+      }
+      return val;
     }
+    return widget.localizedText['bn']?[key] ?? key;
   }
 
-  String getCategoryName(String key) => getText(key);
+  String getCategoryName(String key) {
+    final allCats = _categoryService.allCategories;
+    final cat = allCats.firstWhere(
+      (c) => c['key'] == key,
+      orElse: () => <String, dynamic>{},
+    );
+    if (cat != null && cat['isCustom'] == true) {
+      return cat['key']; // custom name
+    }
+    return getText(key);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +254,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${_formatAmount(rt.amount)} • $freqText', // ✅ ডিজিট কনভার্ট
+                '${_formatAmount(rt.amount)} • $freqText',
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
               Text(
@@ -325,7 +317,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Amount field (বাংলা/আরবি ডিজিট সাপোর্ট)
+                // Amount field
                 TextField(
                   controller: amtCtrl,
                   keyboardType: TextInputType.text,
@@ -356,38 +348,20 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Category dropdown
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selCat,
-                      isExpanded: true,
-                      hint: Text(getText('category')),
-                      items: (selType == 'Income'
-                          ? widget.incomeCategories
-                          : widget.expenseCategories).map<DropdownMenuItem<String>>((cat) {
-                        return DropdownMenuItem<String>(
-                          value: cat['key'] as String,
-                          child: Row(
-                            children: [
-                              Icon(cat['icon'] as IconData, size: 20, color: cat['color'] as Color),
-                              const SizedBox(width: 10),
-                              Text(getCategoryName(cat['key'] as String)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (String? v) {
-                        if (v != null) setDialogState(() => selCat = v);
-                      },
-                    ),
-                  ),
-                ),
+                // ✅ Category dropdown with "Add New" feature - FIXED
+               CategoryDropdown(
+                 selectedValue: selCat,
+                 onChanged: (newValue) => setState(() => selCat = newValue),
+                 hintText: getText('select_category'),
+                 showAddNew: true,
+                 filterType: selType,   // ← 'Income' বা 'Expense' (বর্তমান সিলেক্টেড টাইপ)
+                 getTranslatedName: (key) => getCategoryName(key),
+                 addNewCategoryText: getText('add_new_category'),
+                 dialogTitle: getText('add_new_category_dialog_title'),
+                 categoryNameLabel: getText('category_name'),
+                 addButtonText: getText('add'),
+                 cancelButtonText: getText('cancel'),
+               ),
                 const SizedBox(height: 12),
                 // Frequency dropdown
                 Container(
@@ -414,7 +388,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Start date picker (locale added)
+                // Start date picker
                 InkWell(
                   onTap: () async {
                     DateTime? p = await showDatePicker(
@@ -422,7 +396,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                       initialDate: selDate,
                       firstDate: DateTime(2020),
                       lastDate: DateTime(2030),
-                      locale: Locale(widget.selectedLanguage), // ✅ ভাষা সাপোর্ট
+                      locale: Locale(widget.selectedLanguage),
                     );
                     if (p != null) setDialogState(() => selDate = p);
                   },
@@ -473,7 +447,10 @@ class _RecurringScreenState extends State<RecurringScreen> {
                   }
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+                foregroundColor: Colors.white,
+              ),
               child: Text(getText('add')),
             ),
           ],
