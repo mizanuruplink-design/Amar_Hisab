@@ -365,6 +365,8 @@ class _RecurringScreenState extends State<RecurringScreen> {
                  deleteCategoryText: getText('delete_category'),
                  deleteConfirmText: getText('delete_category_confirm'),
                  categoryExistsText: getText('category_exists'),
+                 addSuccessText: getText('category_added'),
+                 deleteSuccessText: getText('category_deleted'),
                ),
                 const SizedBox(height: 12),
                 // Frequency dropdown

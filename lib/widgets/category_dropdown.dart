@@ -18,6 +18,8 @@ class CategoryDropdown extends StatefulWidget {
   final String? deleteCategoryText;
   final String? deleteConfirmText;
   final String? categoryExistsText;
+  final String? addSuccessText;      // ✅ NEW
+  final String? deleteSuccessText;   // ✅ NEW
 
   const CategoryDropdown({
     super.key,
@@ -37,6 +39,8 @@ class CategoryDropdown extends StatefulWidget {
     this.deleteCategoryText,
     this.deleteConfirmText,
     this.categoryExistsText,
+    this.addSuccessText,
+    this.deleteSuccessText,
   });
 
   @override
@@ -48,7 +52,6 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   List<Map<String, dynamic>> _filteredCategories = [];
   bool _isLoading = true;
 
-  // Category type mapping for predefined keys
   final Map<String, String> _categoryTypeMap = {
     'gas_bill': 'Expense', 'house_rent': 'Expense', 'internet_bill': 'Expense',
     'water_bill': 'Expense', 'transport': 'Expense', 'grocery': 'Expense',
@@ -106,10 +109,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     return key;
   }
 
-  // ==================== ICON SUGGESTION ENGINE ====================
+  // ==================== ICON SUGGESTION ====================
   IconData _suggestIcon(String name) {
     final lower = name.toLowerCase();
-    // Food & Drink
     if (lower.contains('fish') || lower.contains('মাছ') || lower.contains('سمك')) return Icons.set_meal;
     if (lower.contains('meat') || lower.contains('মাংস') || lower.contains('لحم')) return Icons.kebab_dining;
     if (lower.contains('veg') || lower.contains('শাক') || lower.contains('সবজি') || lower.contains('خضار')) return Icons.eco;
@@ -119,45 +121,35 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     if (lower.contains('coffee') || lower.contains('কফি') || lower.contains('قهوة')) return Icons.coffee;
     if (lower.contains('cake') || lower.contains('কেক') || lower.contains('كعكة')) return Icons.cake;
     if (lower.contains('ice') || lower.contains('আইসক্রিম') || lower.contains('آيس')) return Icons.icecream;
-    // Medicine & Health
     if (lower.contains('medicine') || lower.contains('ঔষধ') || lower.contains('دواء') ||
         lower.contains('medical') || lower.contains('health') || lower.contains('স্বাস্থ্য') || lower.contains('صحة')) {
       return Icons.local_pharmacy;
     }
-    // Clothing
     if (lower.contains('cloth') || lower.contains('কাপড়') || lower.contains('ملابس') ||
         lower.contains('dress') || lower.contains('জামা') || lower.contains('ثوب')) {
       return Icons.checkroom;
     }
-    // Work & Salary
     if (lower.contains('salary') || lower.contains('বেতন') || lower.contains('راتب') ||
         lower.contains('income') || lower.contains('আয়') || lower.contains('دخل')) {
       return Icons.work;
     }
     if (lower.contains('business') || lower.contains('ব্যবসা') || lower.contains('أعمال')) return Icons.store;
-    // Home
     if (lower.contains('rent') || lower.contains('ভাড়া') || lower.contains('إيجار')) return Icons.house;
     if (lower.contains('home') || lower.contains('বাড়ি') || lower.contains('منزل')) return Icons.home;
-    // Transport
     if (lower.contains('bus') || lower.contains('বাস') || lower.contains('حافلة')) return Icons.directions_bus;
     if (lower.contains('car') || lower.contains('গাড়ি') || lower.contains('سيارة')) return Icons.directions_car;
     if (lower.contains('bike') || lower.contains('বাইক') || lower.contains('دراجة')) return Icons.directions_bike;
     if (lower.contains('train') || lower.contains('ট্রেন') || lower.contains('قطار')) return Icons.directions_railway;
-    // Education
     if (lower.contains('school') || lower.contains('স্কুল') || lower.contains('مدرسة') ||
         lower.contains('education') || lower.contains('শিক্ষা') || lower.contains('تعليم')) {
       return Icons.school;
     }
-    // Shopping
     if (lower.contains('grocery') || lower.contains('মুদি') || lower.contains('بقالة')) return Icons.shopping_cart;
     if (lower.contains('market') || lower.contains('বাজার') || lower.contains('سوق')) return Icons.storefront;
-    // Entertainment
     if (lower.contains('movie') || lower.contains('সিনেমা') || lower.contains('فيلم')) return Icons.movie;
     if (lower.contains('music') || lower.contains('গান') || lower.contains('موسيقى')) return Icons.music_note;
     if (lower.contains('game') || lower.contains('গেম') || lower.contains('لعبة')) return Icons.gamepad;
-    // Pets
     if (lower.contains('pet') || lower.contains('পোষা') || lower.contains('حيوان')) return Icons.pets;
-    // Default
     return Icons.category;
   }
 
@@ -243,11 +235,18 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   }
 
   void _confirmDeleteCategory(String id, String name) {
+    final String confirmMessage;
+    if (widget.deleteConfirmText != null) {
+      confirmMessage = widget.deleteConfirmText!.replaceAll('{name}', name);
+    } else {
+      confirmMessage = 'Are you sure you want to delete "$name"?';
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(widget.deleteCategoryText ?? 'Delete Category'),
-        content: Text('${widget.deleteConfirmText ?? 'Are you sure you want to delete'} "$name"?'),
+        content: Text(confirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -263,62 +262,52 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                   widget.onChanged(_filteredCategories.first['key'] as String);
                 }
               }
+              // ✅ Use translated delete success text
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Category deleted'), backgroundColor: Colors.red),
+                SnackBar(
+                  content: Text(widget.deleteSuccessText ?? 'Category deleted'),
+                  backgroundColor: Colors.red,
+                ),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Delete'),
+            child: Text(widget.deleteCategoryText ?? 'Delete'),
           ),
         ],
       ),
     );
   }
 
-  // ==================== ADD CATEGORY DIALOG (with smaller icons + suggestion) ====================
+  // ==================== ADD CATEGORY ====================
   void _showAddCategoryDialog() {
     final nameController = TextEditingController();
     IconData selectedIcon = Icons.category;
     Color selectedColor = Colors.blue;
 
-    // Full icon list (all new icons included)
     List<IconData> iconList = [
-      // Common
       Icons.category, Icons.label, Icons.bookmark, Icons.star, Icons.favorite,
-      // Work & Business
       Icons.work, Icons.business, Icons.business_center, Icons.store, Icons.storefront,
-      // Shopping
       Icons.shopping_bag, Icons.shopping_cart, Icons.shopping_basket,
-      // Food & Drink (fish, meat, vegetable)
       Icons.fastfood, Icons.restaurant, Icons.lunch_dining, Icons.dinner_dining,
       Icons.icecream, Icons.cake, Icons.coffee,
-      Icons.ramen_dining, Icons.takeout_dining, Icons.kebab_dining, // meat
-      Icons.eco, Icons.local_florist, Icons.grass, // vegetable
-      Icons.bakery_dining, Icons.set_meal, // fish & bakery
-      // Home & Living
+      Icons.ramen_dining, Icons.takeout_dining, Icons.kebab_dining,
+      Icons.eco, Icons.local_florist, Icons.grass,
+      Icons.bakery_dining, Icons.set_meal,
       Icons.home, Icons.house, Icons.apartment, Icons.cottage, Icons.garage,
-      // Transport
       Icons.directions_bus, Icons.directions_car, Icons.directions_bike,
       Icons.directions_railway, Icons.flight, Icons.directions_boat, Icons.local_taxi,
-      // Education
       Icons.school, Icons.book, Icons.library_books, Icons.menu_book, Icons.auto_stories,
-      // Health & Medicine
       Icons.health_and_safety, Icons.local_hospital, Icons.local_pharmacy,
       Icons.medical_services, Icons.healing, Icons.fitness_center,
-      // Entertainment
       Icons.tv, Icons.movie, Icons.music_note, Icons.theater_comedy,
       Icons.sports_soccer, Icons.sports_basketball, Icons.sports_cricket,
       Icons.videogame_asset, Icons.gamepad,
-      // Money & Finance
       Icons.money, Icons.attach_money, Icons.money_off, Icons.credit_card,
       Icons.payment, Icons.account_balance, Icons.account_balance_wallet,
       Icons.savings, Icons.trending_up, Icons.trending_down, Icons.bar_chart,
-      // Communication
       Icons.phone_android, Icons.phone_iphone, Icons.laptop, Icons.computer,
       Icons.wifi, Icons.router, Icons.signal_cellular_alt,
-      // Clothing
       Icons.checkroom, Icons.face_retouching_natural,
-      // Miscellaneous
       Icons.pets, Icons.emoji_emotions, Icons.beach_access, Icons.pool,
       Icons.casino, Icons.more_horiz,
     ];
@@ -342,7 +331,6 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Category name with auto‑suggestion
                   TextField(
                     controller: nameController,
                     onChanged: (value) {
@@ -366,7 +354,6 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                   const SizedBox(height: 15),
                   Text('Select Icon', style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  // Small icon grid (8 columns)
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -455,12 +442,19 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                   await _loadCategories();
                   Navigator.pop(context);
                   widget.onChanged(name);
+                  // ✅ Use translated add success text
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Category added'), backgroundColor: Colors.green),
+                    SnackBar(
+                      content: Text(widget.addSuccessText ?? 'Category added'),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(widget.categoryExistsText ?? 'Category already exists!'), backgroundColor: Colors.red),
+                    SnackBar(
+                      content: Text(widget.categoryExistsText ?? 'Category already exists!'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               },
@@ -472,7 +466,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     );
   }
 
-  // ==================== DROPDOWN ITEMS (with pencil icon for custom) ====================
+  // ==================== DROPDOWN ITEMS ====================
   List<DropdownMenuItem<String>> _buildDropdownItems() {
     final items = <DropdownMenuItem<String>>[];
     for (var cat in _filteredCategories) {

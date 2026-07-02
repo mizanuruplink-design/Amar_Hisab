@@ -816,6 +816,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   deleteCategoryText: getText('delete_category'),
                   deleteConfirmText: getText('delete_category_confirm'),
                   categoryExistsText: getText('category_exists'),
+                  addSuccessText: getText('category_added'),
+                  deleteSuccessText: getText('category_deleted'),
                 ),
                 const SizedBox(height: 15),
 
@@ -929,6 +931,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   categoryNameLabel: getText('category_name'),
                   addButtonText: getText('add'),
                   cancelButtonText: getText('cancel'),
+                  editCategoryText: getText('edit_category'),
+                  deleteCategoryText: getText('delete_category'),   // <-- THIS IS THE FIX
+                  deleteConfirmText: getText('delete_category_confirm'),
+                  categoryExistsText: getText('category_exists'),
+                  addSuccessText: getText('category_added'),
+                  deleteSuccessText: getText('category_deleted'),
                 ),
                 const SizedBox(height: 15),
                 TextField(
