@@ -67,6 +67,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final translated = widget.localizedText[widget.selectedLanguage]?[key];
     if (translated != null && translated.isNotEmpty) return translated;
 
+    // Fallback map with all keys (same as before, but I've added missing ones)
     final fallbacks = {
       'budget_management': 'Budget Management',
       'add_budget': 'Add Budget',
@@ -113,118 +114,135 @@ class _BudgetScreenState extends State<BudgetScreen> {
       'net_deficit': 'Net Deficit',
       'total_income': 'Total Income',
       'total_expense': 'Total Expense',
+      // Added for popup menu and statuses
+      'edit_budget_label': 'Edit Budget',
+      'delete_budget_label': 'Delete Budget',
+      'status_overspent': 'Overspent',
+      'status_warning': 'Warning',
+      'status_half_used': 'Half Used',
+      'status_safe': 'Safe',
     };
 
-    if (fallbacks.containsKey(key)) {
-      final val = fallbacks[key]!;
-      if (widget.selectedLanguage == 'bn') {
-        switch (key) {
-          case 'budget_management': return 'বাজেট ম্যানেজমেন্ট';
-          case 'add_budget': return 'বাজেট যোগ করুন';
-          case 'total_budget_overview': return 'মোট বাজেটের সারাংশ';
-          case 'category_budget': return 'ক্যাটাগরি অনুযায়ী বাজেট';
-          case 'budget_amount': return 'বাজেটের পরিমাণ';
-          case 'select_category': return 'ক্যাটাগরি নির্বাচন করুন';
-          case 'monthly': return 'মাসিক';
-          case 'weekly': return 'সাপ্তাহিক';
-          case 'yearly': return 'বার্ষিক';
-          case 'add': return 'যোগ করুন';
-          case 'cancel': return 'বাতিল';
-          case 'edit': return 'সম্পাদনা';
-          case 'delete': return 'মুছুন';
-          case 'budget': return 'বাজেট';
-          case 'remaining': return 'বাকি';
-          case 'used': return 'ব্যবহৃত';
-          case 'budget_exceeded': return 'বাজেট অতিক্রম';
-          case 'overspent': return 'অতিরিক্ত খরচ';
-          case 'warning': return 'সতর্কতা';
-          case 'half_used': return 'অর্ধেক ব্যবহৃত';
-          case 'safe': return 'নিরাপদ';
-          case 'no_budget_set': return 'কোনো বাজেট সেট করা নেই';
-          case 'click_to_add_budget': return 'বাজেট যোগ করতে ক্লিক করুন';
-          case 'no_budget_this_month': return 'এই মাসের কোনো বাজেট নেই';
-          case 'budget_added_success': return 'বাজেট সফলভাবে যোগ করা হয়েছে';
-          case 'budget_updated_success': return 'বাজেট আপডেট করা হয়েছে';
-          case 'budget_deleted_success': return 'বাজেট মুছে ফেলা হয়েছে';
-          case 'edit_budget': return 'বাজেট সম্পাদনা';
-          case 'delete_budget': return 'বাজেট মুছুন';
-          case 'delete_budget_confirm': return 'আপনি কি বাজেটটি মুছতে চান?';
-          case 'yes': return 'হ্যাঁ';
-          case 'no': return 'না';
-          case 'update': return 'আপডেট';
-          case 'period': return 'মেয়াদ';
-          case 'add_new_category': return 'নতুন ক্যাটাগরি যোগ করুন';
-          case 'add_new_category_dialog_title': return 'নতুন ক্যাটাগরি যোগ করুন';
-          case 'category_name': return 'ক্যাটাগরির নাম';
-          case 'income': return 'আয়';
-          case 'expense': return 'ব্যয়';
-          case 'opening_balance': return 'শুরুর ব্যালেন্স';
-          case 'closing_balance': return 'শেষের ব্যালেন্স';
-          case 'net_savings': return 'সঞ্চয়';
-          case 'net_deficit': return 'ঘাটতি';
-          case 'total_income': return 'মোট আয়';
-          case 'total_expense': return 'মোট ব্যয়';
-        }
-      } else if (widget.selectedLanguage == 'ar') {
-        switch (key) {
-          case 'budget_management': return 'إدارة الميزانية';
-          case 'add_budget': return 'إضافة ميزانية';
-          case 'total_budget_overview': return 'نظرة عامة على إجمالي الميزانية';
-          case 'category_budget': return 'الميزانية حسب الفئة';
-          case 'budget_amount': return 'مبلغ الميزانية';
-          case 'select_category': return 'اختر الفئة';
-          case 'monthly': return 'شهرياً';
-          case 'weekly': return 'أسبوعياً';
-          case 'yearly': return 'سنوياً';
-          case 'add': return 'إضافة';
-          case 'cancel': return 'إلغاء';
-          case 'edit': return 'تعديل';
-          case 'delete': return 'حذف';
-          case 'budget': return 'الميزانية';
-          case 'remaining': return 'المتبقي';
-          case 'used': return 'المستخدم';
-          case 'budget_exceeded': return 'تجاوز الميزانية';
-          case 'overspent': return 'إنفاق زائد';
-          case 'warning': return 'تحذير';
-          case 'half_used': return 'نصف المستخدم';
-          case 'safe': return 'آمن';
-          case 'no_budget_set': return 'لم يتم تعيين ميزانية';
-          case 'click_to_add_budget': return 'انقر لإضافة ميزانية';
-          case 'no_budget_this_month': return 'لا توجد ميزانية لهذا الشهر';
-          case 'budget_added_success': return 'تمت إضافة الميزانية بنجاح';
-          case 'budget_updated_success': return 'تم تحديث الميزانية';
-          case 'budget_deleted_success': return 'تم حذف الميزانية';
-          case 'edit_budget': return 'تحرير الميزانية';
-          case 'delete_budget': return 'حذف الميزانية';
-          case 'delete_budget_confirm': return 'هل تريد حذف هذه الميزانية؟';
-          case 'yes': return 'نعم';
-          case 'no': return 'لا';
-          case 'update': return 'تحديث';
-          case 'period': return 'الفترة';
-          case 'add_new_category': return 'إضافة فئة جديدة';
-          case 'add_new_category_dialog_title': return 'إضافة فئة جديدة';
-          case 'category_name': return 'اسم الفئة';
-          case 'income': return 'دخل';
-          case 'expense': return 'مصروف';
-          case 'opening_balance': return 'الرصيد الافتتاحي';
-          case 'closing_balance': return 'الرصيد الختامي';
-          case 'net_savings': return 'صافي الادخار';
-          case 'net_deficit': return 'العجز الصافي';
-          case 'total_income': return 'إجمالي الدخل';
-          case 'total_expense': return 'إجمالي المصروفات';
-        }
+    // Bengali and Arabic overrides (I'll keep only the ones not in fallback)
+    if (widget.selectedLanguage == 'bn') {
+      switch (key) {
+        case 'budget_management': return 'বাজেট ম্যানেজমেন্ট';
+        case 'add_budget': return 'বাজেট যোগ করুন';
+        case 'total_budget_overview': return 'মোট বাজেটের সারাংশ';
+        case 'category_budget': return 'ক্যাটাগরি অনুযায়ী বাজেট';
+        case 'budget_amount': return 'বাজেটের পরিমাণ';
+        case 'select_category': return 'ক্যাটাগরি নির্বাচন করুন';
+        case 'monthly': return 'মাসিক';
+        case 'weekly': return 'সাপ্তাহিক';
+        case 'yearly': return 'বার্ষিক';
+        case 'add': return 'যোগ করুন';
+        case 'cancel': return 'বাতিল';
+        case 'edit': return 'সম্পাদনা';
+        case 'delete': return 'মুছুন';
+        case 'budget': return 'বাজেট';
+        case 'remaining': return 'বাকি';
+        case 'used': return 'ব্যবহৃত';
+        case 'budget_exceeded': return 'বাজেট অতিক্রম';
+        case 'overspent': return 'অতিরিক্ত খরচ';
+        case 'warning': return 'সতর্কতা';
+        case 'half_used': return 'অর্ধেক ব্যবহৃত';
+        case 'safe': return 'নিরাপদ';
+        case 'no_budget_set': return 'কোনো বাজেট সেট করা নেই';
+        case 'click_to_add_budget': return 'বাজেট যোগ করতে ক্লিক করুন';
+        case 'no_budget_this_month': return 'এই মাসের কোনো বাজেট নেই';
+        case 'budget_added_success': return 'বাজেট সফলভাবে যোগ করা হয়েছে';
+        case 'budget_updated_success': return 'বাজেট আপডেট করা হয়েছে';
+        case 'budget_deleted_success': return 'বাজেট মুছে ফেলা হয়েছে';
+        case 'edit_budget': return 'বাজেট সম্পাদনা';
+        case 'delete_budget': return 'বাজেট মুছুন';
+        case 'delete_budget_confirm': return 'আপনি কি বাজেটটি মুছতে চান?';
+        case 'yes': return 'হ্যাঁ';
+        case 'no': return 'না';
+        case 'update': return 'আপডেট';
+        case 'period': return 'মেয়াদ';
+        case 'add_new_category': return 'নতুন ক্যাটাগরি যোগ করুন';
+        case 'add_new_category_dialog_title': return 'নতুন ক্যাটাগরি যোগ করুন';
+        case 'category_name': return 'ক্যাটাগরির নাম';
+        case 'income': return 'আয়';
+        case 'expense': return 'ব্যয়';
+        case 'opening_balance': return 'শুরুর ব্যালেন্স';
+        case 'closing_balance': return 'শেষের ব্যালেন্স';
+        case 'net_savings': return 'সঞ্চয়';
+        case 'net_deficit': return 'ঘাটতি';
+        case 'total_income': return 'মোট আয়';
+        case 'total_expense': return 'মোট ব্যয়';
+        case 'edit_budget_label': return 'বাজেট সম্পাদনা';
+        case 'delete_budget_label': return 'বাজেট মুছুন';
+        case 'status_overspent': return 'অতিরিক্ত খরচ';
+        case 'status_warning': return 'সতর্কতা';
+        case 'status_half_used': return 'অর্ধেক ব্যবহৃত';
+        case 'status_safe': return 'নিরাপদ';
       }
-      return val;
+    } else if (widget.selectedLanguage == 'ar') {
+      switch (key) {
+        case 'budget_management': return 'إدارة الميزانية';
+        case 'add_budget': return 'إضافة ميزانية';
+        case 'total_budget_overview': return 'نظرة عامة على إجمالي الميزانية';
+        case 'category_budget': return 'الميزانية حسب الفئة';
+        case 'budget_amount': return 'مبلغ الميزانية';
+        case 'select_category': return 'اختر الفئة';
+        case 'monthly': return 'شهرياً';
+        case 'weekly': return 'أسبوعياً';
+        case 'yearly': return 'سنوياً';
+        case 'add': return 'إضافة';
+        case 'cancel': return 'إلغاء';
+        case 'edit': return 'تعديل';
+        case 'delete': return 'حذف';
+        case 'budget': return 'الميزانية';
+        case 'remaining': return 'المتبقي';
+        case 'used': return 'المستخدم';
+        case 'budget_exceeded': return 'تجاوز الميزانية';
+        case 'overspent': return 'إنفاق زائد';
+        case 'warning': return 'تحذير';
+        case 'half_used': return 'نصف المستخدم';
+        case 'safe': return 'آمن';
+        case 'no_budget_set': return 'لم يتم تعيين ميزانية';
+        case 'click_to_add_budget': return 'انقر لإضافة ميزانية';
+        case 'no_budget_this_month': return 'لا توجد ميزانية لهذا الشهر';
+        case 'budget_added_success': return 'تمت إضافة الميزانية بنجاح';
+        case 'budget_updated_success': return 'تم تحديث الميزانية';
+        case 'budget_deleted_success': return 'تم حذف الميزانية';
+        case 'edit_budget': return 'تحرير الميزانية';
+        case 'delete_budget': return 'حذف الميزانية';
+        case 'delete_budget_confirm': return 'هل تريد حذف هذه الميزانية؟';
+        case 'yes': return 'نعم';
+        case 'no': return 'لا';
+        case 'update': return 'تحديث';
+        case 'period': return 'الفترة';
+        case 'add_new_category': return 'إضافة فئة جديدة';
+        case 'add_new_category_dialog_title': return 'إضافة فئة جديدة';
+        case 'category_name': return 'اسم الفئة';
+        case 'income': return 'دخل';
+        case 'expense': return 'مصروف';
+        case 'opening_balance': return 'الرصيد الافتتاحي';
+        case 'closing_balance': return 'الرصيد الختامي';
+        case 'net_savings': return 'صافي الادخار';
+        case 'net_deficit': return 'العجز الصافي';
+        case 'total_income': return 'إجمالي الدخل';
+        case 'total_expense': return 'إجمالي المصروفات';
+        case 'edit_budget_label': return 'تحرير الميزانية';
+        case 'delete_budget_label': return 'حذف الميزانية';
+        case 'status_overspent': return 'إنفاق زائد';
+        case 'status_warning': return 'تحذير';
+        case 'status_half_used': return 'نصف المستخدم';
+        case 'status_safe': return 'آمن';
+      }
     }
 
-    return widget.localizedText['bn']?[key] ?? key;
+    // Fallback to English
+    return fallbacks[key] ?? key;
   }
 
   String getCategoryName(String key) {
-    if (key == null || key.isEmpty) return getText('other');
+    if (key.isEmpty) return getText('other');
     final allCats = _categoryService.allCategories;
     final cat = allCats.firstWhere(
-      (c) => c['key'] == key,
+          (c) => c['key'] == key,
       orElse: () => <String, dynamic>{},
     );
     if (cat.isNotEmpty && cat['isCustom'] == true) {
@@ -241,7 +259,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       int month = int.parse(parts[1]);
       DateTime date = DateTime(year, month);
       String locale = widget.selectedLanguage == 'bn' ? 'bn_BD' :
-          widget.selectedLanguage == 'ar' ? 'ar_SA' : 'en_US';
+      widget.selectedLanguage == 'ar' ? 'ar_SA' : 'en_US';
       return DateFormat('MMMM yyyy', locale).format(date);
     } catch (e) {
       return yearMonth;
@@ -254,31 +272,27 @@ class _BudgetScreenState extends State<BudgetScreen> {
     double totalIncome = 0.0;
     double totalExpense = 0.0;
 
-    // Parse month to DateTime range
     final parts = month.split('-');
     final year = int.parse(parts[0]);
     final monthNum = int.parse(parts[1]);
     final startDate = DateTime(year, monthNum, 1);
-    final endDate = DateTime(year, monthNum + 1, 1); // first day of next month
+    final endDate = DateTime(year, monthNum + 1, 1);
 
     for (var tx in txBox.values) {
       if (tx.type == 'Note' || tx.type == 'Reminder') continue;
-      // Parse tx.date (format: dd/MM/yyyy hh:mm a)
       try {
-        final dateStr = tx.date.split(' ')[0]; // get dd/MM/yyyy part
+        final dateStr = tx.date.split(' ')[0];
         final date = DateFormat('dd/MM/yyyy').parse(dateStr);
         if (date.compareTo(startDate) >= 0 && date.compareTo(endDate) < 0) {
           if (tx.type == 'Income') totalIncome += tx.amount;
           else if (tx.type == 'Expense') totalExpense += tx.amount;
         }
-        // For opening balance: transactions before startDate
         if (date.compareTo(startDate) < 0) {
           if (tx.type == 'Income') openingBalance += tx.amount;
           else if (tx.type == 'Expense') openingBalance -= tx.amount;
-          // also add Savings? Actually Savings are not income/expense; we can treat them as income for balance? Better to treat Savings as positive.
           else if (tx.type == 'Savings') openingBalance += tx.amount;
-          else if (tx.type == 'Debt') openingBalance -= tx.amount; // debt is negative
-          else if (tx.type == 'Credit') openingBalance += tx.amount; // credit is positive
+          else if (tx.type == 'Debt') openingBalance -= tx.amount;
+          else if (tx.type == 'Credit') openingBalance += tx.amount;
         }
       } catch (_) {}
     }
@@ -455,7 +469,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   // ==================== SUMMARY CARD ====================
   Widget _buildSummaryCard(Map<String, double> summary) {
-    final currencySymbol = '৳'; // You can get from settings
+    final currencySymbol = '৳';
     final opening = summary['openingBalance']!;
     final income = summary['totalIncome']!;
     final expense = summary['totalExpense']!;
@@ -595,8 +609,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
   // ==================== WIDGETS ====================
   Widget _buildOverviewCard(double totalBudget, double totalSpent, double percentage) {
     Color statusColor = percentage >= 100 ? Colors.red :
-        percentage >= 80 ? Colors.orange :
-        Colors.green;
+    percentage >= 80 ? Colors.orange :
+    Colors.green;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -642,7 +656,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   Widget _buildBudgetCard(BudgetModel budget) {
     final allCats = _categoryService.allCategories;
     var category = allCats.firstWhere(
-      (c) => c['key'] == budget.category,
+          (c) => c['key'] == budget.category,
       orElse: () => {
         'key': 'other',
         'icon': Icons.more_horiz,
@@ -653,8 +667,28 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
 
     Color progressColor = budget.isOverBudget ? Colors.red :
-        budget.spentPercentage >= 80 ? Colors.orange :
-        Colors.green;
+    budget.spentPercentage >= 80 ? Colors.orange :
+    Colors.green;
+
+    String statusKey;
+    switch (budget.statusText) {
+      case 'অতিরিক্ত খরচ':
+      case 'Overspent':
+        statusKey = 'status_overspent';
+        break;
+      case 'সতর্কতা':
+      case 'Warning':
+        statusKey = 'status_warning';
+        break;
+      case 'অর্ধেক ব্যবহৃত':
+      case 'Half Used':
+        statusKey = 'status_half_used';
+        break;
+      case 'নিরাপদ':
+      case 'Safe':
+      default:
+        statusKey = 'status_safe';
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -692,7 +726,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   children: [
                     Text(_formatAmount(budget.spentAmount),
                         style: TextStyle(fontWeight: FontWeight.bold, color: progressColor)),
-                    Text(getBudgetStatusText(budget.statusText),
+                    Text(getText(statusKey),
                         style: TextStyle(fontSize: 11, color: progressColor)),
                   ],
                 ),
@@ -702,20 +736,20 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     if (value == 'delete') _confirmDeleteBudget(budget.id);
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem<String>(
+                    PopupMenuItem<String>(
                       value: 'edit',
                       child: Row(children: [
-                        Icon(Icons.edit, size: 18),
-                        SizedBox(width: 8),
-                        Text('Edit'),
+                        const Icon(Icons.edit, size: 18),
+                        const SizedBox(width: 8),
+                        Text(getText('edit_budget_label')),
                       ]),
                     ),
-                    const PopupMenuItem<String>(
+                    PopupMenuItem<String>(
                       value: 'delete',
                       child: Row(children: [
-                        Icon(Icons.delete, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
+                        const Icon(Icons.delete, size: 18, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(getText('delete_budget_label'), style: const TextStyle(color: Colors.red)),
                       ]),
                     ),
                   ],
@@ -769,21 +803,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  String getBudgetStatusText(String status) {
-    switch (status) {
-      case 'অতিরিক্ত খরচ':
-        return getText('overspent');
-      case 'সতর্কতা':
-        return getText('warning');
-      case 'অর্ধেক ব্যবহৃত':
-        return getText('half_used');
-      case 'নিরাপদ':
-        return getText('safe');
-      default:
-        return status;
-    }
-  }
-
   // ==================== BUDGET DIALOGS ====================
   void _showAddBudgetDialog() {
     String selectedCategory = _budgetType == 'Income' ? 'salary' : 'gas_bill';
@@ -820,7 +839,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   deleteSuccessText: getText('category_deleted'),
                 ),
                 const SizedBox(height: 15),
-
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.text,
@@ -841,7 +859,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   ),
                 ),
                 const SizedBox(height: 15),
-
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -932,7 +949,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   addButtonText: getText('add'),
                   cancelButtonText: getText('cancel'),
                   editCategoryText: getText('edit_category'),
-                  deleteCategoryText: getText('delete_category'),   // <-- THIS IS THE FIX
+                  deleteCategoryText: getText('delete_category'),
                   deleteConfirmText: getText('delete_category_confirm'),
                   categoryExistsText: getText('category_exists'),
                   addSuccessText: getText('category_added'),

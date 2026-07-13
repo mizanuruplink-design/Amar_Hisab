@@ -28,10 +28,9 @@ import 'security_screen.dart';
 import 'budget_screen.dart';
 import '../models/budget_model.dart';
 import '../models/recurring_transaction_model.dart';
-import '../models/custom_category_model.dart';        // ✅ নতুন
-import '../services/category_service.dart';          // ✅ নতুন
-import '../widgets/category_dropdown.dart';          // ✅ নতুন
-
+import '../models/custom_category_model.dart';
+import '../services/category_service.dart';
+import '../widgets/category_dropdown.dart';
 
 // ==================== Helper Classes ====================
 class HijriCalendar {
@@ -74,14 +73,13 @@ class HijriCalendar {
   static String getHijriDate(DateTime date, String language) {
     int jdn = _gregorianToJDN(date);
 
-    // 🔥 দিনের অফসেট অ্যাডজাস্ট করুন (প্রয়োজনে -1 বা +1 দিন)
-    int adjustment = 0; // ০ রেখেছি, যদি ১ দিন কম/বেশি হয় তাহলে adjustment = 1 বা -1 দিন
+    int adjustment = 0;
 
     int hijriYear = ((jdn - 1948440 + 0.5) / 354.367).floor();
     if (hijriYear < 1) hijriYear = 1;
 
     int firstDayJDN = _hijriToJDN(hijriYear);
-    int dayOfYear = (jdn - firstDayJDN).toInt() + adjustment; // ✅ adjustment যোগ
+    int dayOfYear = (jdn - firstDayJDN).toInt() + adjustment;
 
     List<int> monthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29];
     int month = 1;
@@ -120,24 +118,20 @@ class BengaliCalendar {
 
   static String getBengaliDate(DateTime date) {
     int year = date.year;
-    // বাংলা নববর্ষ ১৪ এপ্রিল (গ্রেগরিয়ান)
     DateTime bengaliNewYear = DateTime(year, 4, 14);
     int daysDiff = date.difference(bengaliNewYear).inDays;
     int bengaliYear;
-    int dayOfYear; // ০-ভিত্তিক দিন সংখ্যা
+    int dayOfYear;
 
     if (daysDiff >= 0) {
-      // তারিখটি ১৪ এপ্রিলের পরে বা সমান
       bengaliYear = year - 593;
       dayOfYear = daysDiff;
     } else {
-      // তারিখটি ১৪ এপ্রিলের আগে – পূর্ববর্তী বাংলা বছরের অংশ
       bengaliYear = year - 594;
       DateTime prevNewYear = DateTime(year - 1, 4, 14);
       dayOfYear = date.difference(prevNewYear).inDays;
     }
 
-    // বাংলা মাসের দিনসংখ্যা (প্রথম ৫ মাস ৩১ দিন, বাকি ৩০ দিন)
     List<int> monthLengths = [31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 30, 30];
     int monthIndex = 0;
     int day = dayOfYear;
@@ -145,7 +139,7 @@ class BengaliCalendar {
     for (int i = 0; i < monthLengths.length; i++) {
       if (day < monthLengths[i]) {
         monthIndex = i + 1;
-        day = day + 1; // ১-ভিত্তিক দিনে রূপান্তর
+        day = day + 1;
         break;
       }
       day -= monthLengths[i];
@@ -167,6 +161,7 @@ class BengaliCalendar {
     return days[weekday] ?? '';
   }
 }
+
 class BDHolidays {
   static Map<String, String> holidays = {
     '21/02': 'শহীদ দিবস', '17/03': 'বঙ্গবন্ধুর জন্মদিন', '26/03': 'স্বাধীনতা দিবস',
@@ -220,6 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _notebookMode = 0;
   bool _isNoteEditorOpen = false;
   bool _isDrawingEditorOpen = false;
+
   // ==================== ডেনা/পাওনার শেষ তারিখ ====================
   DateTime? _lastDebtDate;
   DateTime? _lastCreditDate;
@@ -242,829 +238,829 @@ class _HomeScreenState extends State<HomeScreen> {
   Locale _getTimePickerLocale() {
     switch (_selectedLanguage) {
       case 'bn':
-        return const Locale('bn', 'BD'); // বাংলা ১২-ঘন্টা
+        return const Locale('bn', 'BD');
       case 'ar':
-        return const Locale('ar', 'SA'); // আরবি ১২-ঘন্টা
+        return const Locale('ar', 'SA');
       default:
-        return const Locale('en', 'US'); // ইংরেজি ১২-ঘন্টা
+        return const Locale('en', 'US');
     }
   }
 
- String _getFormattedAppTitle() {
-   final appName = getText('app_title');
-   // সব প্ল্যাটফর্মের জন্য একটি ইমোজি যোগ করুন
-   return '📊 $appName';
- }
+  String _getFormattedAppTitle() {
+    final appName = getText('app_title');
+    return '📊 $appName';
+  }
 
- Future<TimeOfDay?> _show12HourTimePicker(BuildContext context, {required TimeOfDay initialTime}) {
-   return showTimePicker(
-     context: context,
-     initialTime: initialTime,
-     builder: (context, child) {
-       return MediaQuery(
-         data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-         child: Localizations.override(
-           context: context,
-           locale: const Locale('en', 'US'), // ← ১২-ঘন্টা ফোর্স
-           child: child!,
-         ),
-       );
-     },
-   );
- }
+  Future<TimeOfDay?> _show12HourTimePicker(BuildContext context, {required TimeOfDay initialTime}) {
+    return showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+          child: Localizations.override(
+            context: context,
+            locale: const Locale('en', 'US'),
+            child: child!,
+          ),
+        );
+      },
+    );
+  }
+
   // ==================== REMOTE NOTICES ====================
   List<RemoteNotice> _remoteNotices = [];
 
   // ==================== LOCALIZATION ====================
-   Map<String, Map<String, String>> _localizedText = {
-     'bn': {
-       'app_title': 'আমার হিসাব',
-       'home': 'হোম',
-       'calendar': 'ক্যালেন্ডার',
-       'notice': 'নোটিশ',
-       'notebook': 'নোটবুক',
-       'profile': 'প্রোফাইল',
-       'income': 'আয়',
-       'expense': 'ব্যয়',
-       'savings': 'সঞ্চয়',
-       'debt': 'দেনা',          // ✅ Changed
-       'credit': 'পাওনা',        // ✅ Changed
-       'monthly_stats': 'মাসিক পরিসংখ্যান',
-       'monthly_report': 'মাসিক রিপোর্ট',
-       'select_month': 'মাস নির্বাচন করুন',
-       'balance': 'ব্যালেন্স',
-       'income_expense_stats': 'আয়-ব্যয় পরিসংখ্যান',
-       'other_accounts': 'অন্যান্য হিসাব',
-       'recent_transactions': 'সাম্প্রতিক লেনদেন',
-       'daily': 'দৈনিক',
-       'monthly': 'মাসিক',
-       'yearly': 'বাৎসরিক',
-       'no_transactions': 'কোনো লেনদেন নেই',
-       'add_income': 'আয় যোগ করুন',
-       'add_expense': 'ব্যয় যোগ করুন',
-       'add_reminder': 'রিমাইন্ডার যোগ করুন',
-       'no_reminders': 'কোনো রিমাইন্ডার নেই',
-       'no_notices': 'কোনো নোটিশ নেই',
-       'no_notes': 'কোনো নোট নেই',
-       'no_drawing': 'কোনো ড্রয়িং নেই',
-       'add_note': 'নতুন নোট',
-       'add_drawing': 'ড্রয়িং যোগ করুন',
-       'text_note': 'নোট',
-       'drawing': 'ড্রয়িং',
-       'archive': 'আর্কাইভ',
-       'yes': 'হ্যাঁ',
-       'no': 'না',
-       'save': 'সেভ',
-       'cancel': 'বাতিল',
-       'amount': 'টাকা',
-       'description': 'বিবরণ',
-       'title': 'শিরোনাম',
-       'date': 'তারিখ',
-       'time': 'সময়',
-       'logout': 'লগ আউট',
-       'settings': 'সেটিংস',
-       'language': 'ভাষা',
-       'currency': 'কারেন্সি',
-       'dark_mode': 'ডার্ক মোড',
-       'user_name': 'নাম',
-       'change_photo': 'ছবি পরিবর্তন',
-       'take_photo': 'ক্যামেরা',
-       'choose_gallery': 'গ্যালারি',
-       'edit': 'এডিট',
-       'delete': 'ডিলিট',
-       'ok': 'ঠিক আছে',
-       'select_category': 'ক্যাটাগরি',
-       'amount_error': 'টাকা লিখুন',
-       'salary': 'বেতন',
-       'business': 'ব্যবসা',
-       'house_rent': 'বাড়ি ভাড়া',
-       'other': 'অন্যান্য',
-       'gas_bill': 'গ্যাস বিল',
-       'electricity_bill': 'বিদ্যুৎ বিল',
-       'internet_bill': 'ইন্টারনেট',
-       'water_bill': 'পানি বিল',
-       'transport': 'যাতায়াত',
-       'grocery': 'বাজার',
-       'education': 'শিক্ষা',
-       'medical': 'চিকিৎসা',
-       'food': 'খাবার',
-       'mobile_bill': 'মোবাইল',
-       'entertainment': 'বিনোদন',
-       'government_holiday': 'সরকারি ছুটি',
-       'holidays': 'ছুটি',
-       'notification_scheduled': 'নোটিফিকেশন সেট',
-       'budget_management': 'বাজেট',
-       'monthly_budget': 'মাসিক বাজেট',
-       'budget_spent': 'খরচ',
-       'total_budget': 'মোট বাজেট',
-       'used': 'ব্যবহৃত',
-       'remaining': 'বাকি',
-       'budget_exceeded': 'বাজেট অতিক্রম',
-       'recurring_transactions': 'রিকারিং',
-       'export_report': 'এক্সপোর্ট',
-       'security_settings': 'সিকিউরিটি',
-       'change_settings': 'সেটিংস পরিবর্তন',
-       'delete_confirm': 'আপনি কি নিশ্চিত?',
-       'show_hijri': 'হিজরি দেখান',
-       'show_bengali': 'বাংলা দেখান',
-       'calendar_settings': 'পঞ্জিকা সেটিংস',
-       'set_pin': 'পিন সেট করুন',
-       'new_pin': 'নতুন পিন',
-       'confirm_pin': 'পিন নিশ্চিত করুন',
-       'disable_lock': 'লক বন্ধ করুন',
-       'disable_lock_confirm': 'আপনি কি লক সিস্টেম বন্ধ করতে চান?',
-       'app_lock_desc': 'অ্যাপ খুলতে পিন/বায়োমেট্রিক লাগবে',
-       'lock_type': 'লক টাইপ',
-       'pin_only': 'শুধুমাত্র পিন',
-       'biometric_only': 'শুধুমাত্র বায়োমেট্রিক',
-       'pin_and_biometric': 'পিন ও বায়োমেট্রিক',
-       'change_pin': 'পিন পরিবর্তন করুন',
-       'about_app': 'অ্যাপ সম্পর্কে',
-       'app_description': 'আপনার দৈনন্দিন আয়-ব্যয় এবং লেনদেনের হিসাব রাখার সহজ অ্যাপ। অফলাইন, ব্যাকআপ ও সুরক্ষা সুবিধা সহ।',
-       'privacy_policy': 'গোপনীয়তা নীতি',
-       'terms_of_service': 'সেবার শর্তাবলী',
-       'pin_set_success': 'পিন সফলভাবে সেট করা হয়েছে',
-       'pin_mismatch': 'পিন মেলেনি, আবার চেষ্টা করুন',
-       'lock_disabled': 'লক বন্ধ করা হয়েছে',
-       'faq_title': '🙋‍♂️ সাধারণ জিজ্ঞাসা',
-       'faq_q1': 'অ্যাপটি মূলত কী কী কাজে ব্যবহার করা যাবে?',
-       'faq_a1': 'এই অ্যাপটি আপনার দৈনন্দিন জীবনের অল-ইন-ওয়ান অ্যাসিস্ট্যান্ট। আপনি এখানে ৪টি প্রধান সুবিধা পাবেন:\n\n📊 হিসাব-নিকাশ: আয়-ব্যয়ের হিসাব রাখতে পারেন।\n📓 নোটবুক ও ড্রয়িং: গুরুত্বপূর্ণ তথ্য লিখতে ও আঁকতে পারেন।\n⏰ রিমাইন্ডার: কাজ বা বিলের তারিখ মনে করিয়ে দেবে।\n💰 বাজেট: মাসিক বা সাপ্তাহিক বাজেট সেট করে খরচ নিয়ন্ত্রণ করতে পারেন।',
-       'faq_q2': 'অ্যাপটি ব্যবহার করতে কি ইন্টারনেট লাগবে?',
-       'faq_a2': 'অ্যাপটি অনলাইন ও অফলাইন দুভাবেই কাজ করে। ইন্টারনেট না থাকলেও লেনদেন, নোট ও রিমাইন্ডার যোগ করতে পারবেন। পরে ইন্টারনেট এলে স্বয়ংক্রিয়ভাবে ক্লাউডে ব্যাকআপ হবে।',
-       'faq_q3': 'অ্যাপ আনইনস্টল হয়ে গেলে কি আমার ডেটা ফিরে পাবো?',
-       'faq_a3': 'অ্যাপটি যদি গুগল ড্রাইভে ব্যাকআপ নেওয়া না থাকে, তবে অ্যাপ আনইনস্টল বা ফোন রিসেট দিলে লোকাল ডেটা সম্পূর্ণ ডিলিট হয়ে যাবে। যেহেতু আমরা কোনো ইউজার ডেটা সার্ভারে রাখি না, তাই ডেটা হারিয়ে গেলে তা রিকভার করার কোনো সুযোগ আমাদের কাছে নেই।',
-       'faq_q4': 'রিমাইন্ডার ফিচারটি কীভাবে কাজ করে?',
-       'faq_a4': 'আপনি নির্দিষ্ট দিন ও সময়ে কাজের রিমাইন্ডার সেট করতে পারেন। সেই সময় পুশ নোটিফিকেশনের মাধ্যমে অ্যাপ আপনাকে মনে করিয়ে দেবে।',
-       'faq_q5': 'বাজেট ফিচারটির সুবিধা কী?',
-       'faq_a5': 'ক্যাটাগরি ভিত্তিক সর্বোচ্চ খরচের সীমা নির্ধারণ করে আপনি অতিরিক্ত খরচ নিয়ন্ত্রণ করতে পারবেন। এটি সঞ্চয় করতে সাহায্য করে।',
-       'faq_q6': 'নোটবুকে কি ছবি বা ড্রয়িং যোগ করা যায়?',
-       'faq_a6': 'হ্যাঁ। আপনি টেক্সট নোটের সাথে ক্যামেরা বা গ্যালারি থেকে ছবি যোগ করতে পারেন এবং আঙ্গুল দিয়ে স্কেচ বা ড্রয়িং করতে পারেন।',
-       'pin_required_first': 'পিন সেট না থাকলে লক চালু করা যাবে না। আগে পিন সেট করুন।',
-       'pin_required_for_biometric': 'বায়োমেট্রিক ব্যবহার করতে আগে পিন সেট করুন।',
-       'pin_changed_success': 'পিন সফলভাবে পরিবর্তিত হয়েছে',
-       'enter_old_pin': 'পুরনো পিন দিন',
-       'old_pin': 'বর্তমান পিন',
-       'wrong_old_pin': 'পুরনো পিন ভুল, আবার চেষ্টা করুন',
-       'verify': 'যাচাই করুন',
-       'no_internet': 'ইন্টারনেট সংযোগ নেই। নেটওয়ার্ক চেক করুন।',
-       'checking_updates': 'আপডেট চেক করা হচ্ছে...',
-       'update_check_error': 'আপডেট চেক করা যায়নি। ইন্টারনেট সংযোগ নিশ্চিত করুন।',
-       'update_unable': 'ভার্সন তথ্য পাওয়া যায়নি। পরে আবার চেষ্টা করুন।',
-       'already_latest': 'আপনি সর্বশেষ ভার্সনে আছেন',
-       'update_available': 'নতুন আপডেট পাওয়া গেছে!',
-       'new_version_msg': 'নতুন ভার্সন উপলব্ধ:',
-       'later': 'পরে দেখুন',
-       'update_now': 'এখন আপডেট করুন',
-       'cannot_open_url': 'ইউআরএল খোলা যায়নি',
-       'current_version': 'বর্তমান ভার্সন:',
-       'developer': 'ডেভেলপার',
-       'support': 'সাপোর্ট',
-       'all_rights_reserved': 'সর্বস্বত্ব সংরক্ষিত',
-       'check_updates_title': 'আপডেট চেক করুন',
-       'app_lock_enabled': 'অ্যাপ লক চালু করা হয়েছে',
-       'pin_code': 'পিন কোড',
-       'change_pin_button': 'পিন কোড পরিবর্তন করুন',
-       'setup_pin_button': 'পিন কোড সেটআপ করুন',
-       'biometric_lock': 'বায়োমেট্রিক লক',
-       'biometric_only': 'শুধুমাত্র বায়োমেট্রিক',
-       'pin_and_biometric': 'পিন + বায়োমেট্রিক',
-       'lock_type_changed': 'লক টাইপ পরিবর্তন করা হয়েছে',
-       'close': 'বন্ধ করুন',
-       'editing': 'এডিটিং',
-       'yearly_stats': 'বার্ষিক পরিসংখ্যান',
-       'year_report': 'সালের রিপোর্ট',
-       'income_expense_ratio': 'আয়-ব্যয়ের অনুপাত',
-       'income_label': 'আয়',
-       'expense_label': 'ব্যয়',
-       'month': 'মাস',
-       'total_label': 'মোট:',
-       'drawing_create': 'ড্রয়িং তৈরি করুন',
-       'drawing_edit': 'ড্রয়িং এডিট',
-       'drawing_saved': 'ড্রয়িং সেভ হয়েছে',
-       'write_note_hint': 'নোট লিখুন...',
-       'enable_pin_code': 'পিন কোড সক্রিয় করুন',
-       'change_pin_code': 'পিন কোড পরিবর্তন করুন',
-       'disable_pin_code': 'পিন কোড নিষ্ক্রিয় করুন',
-       'disable_pin_confirm_title': 'পিন কোড নিষ্ক্রিয় করুন',
-       'pin_disabled': 'পিন কোড নিষ্ক্রিয় করা হয়েছে',
-       'biometric_options': 'বায়োমেট্রিক অপশন',
-       'daily_stats': 'দৈনিক পরিসংখ্যান',
-       'all': 'সব',
-       'total_income': 'মোট আয়',
-       'total_expense': 'মোট ব্যয়',
-       'transaction_history': 'লেনদেন ইতিহাস',
-       'pdf': 'পিডিএফ',
-       'select_date': 'নির্বাচন করুন',
-       'select_time': 'নির্বাচন করুন',
-       'saving': 'সেভ হচ্ছে...',
-       'daily_report': 'দৈনিক রিপোর্ট',
-       'export_success': 'এক্সপোর্ট সফল',
-       'pdf_created_message': 'পিডিএফ ফাইল তৈরি হয়েছে। আপনি শেয়ার বা প্রিন্ট করতে পারেন।',
-       'share': 'শেয়ার',
-       'print': 'প্রিন্ট',
-       'pdf_failed': 'পিডিএফ তৈরি করতে ব্যর্থ',
-       'reminder_debt_payment': 'ঋণ পরিশোধের কথা মনে করিয়ে দিন',
-       'from_date': 'থেকে',
-       'to_date': 'পর্যন্ত',
-       'start_date_before_end_date': 'শুরুর তারিখ শেষ তারিখের আগে হতে হবে',
-       'end_date_after_start_date': 'শেষ তারিখ শুরুর তারিখের পরে হতে হবে',
-       'good_morning': 'শুভ সকাল',
-       'good_afternoon': 'শুভ অপরাহ্ন',
-       'good_evening': 'শুভ সন্ধ্যা',
-       'good_night': 'শুভ রাত্রি',
-       'edit_reminder': 'রিমাইন্ডার সম্পাদনা',
-       'reminder_updated': 'রিমাইন্ডার আপডেট করা হয়েছে',
-       'reminder_comment': 'মন্তব্য',
-       'enter_comment': 'মন্তব্য লিখুন...',
-       'reminder_completed': 'সম্পন্ন',
-       'mark_done': 'সম্পন্ন করুন',
-       'snooze': 'পিছিয়ে দিন',
-       'snooze_1h': '১ ঘন্টা',
-       'snooze_1d': '১ দিন',
-       'snooze_1w': '১ সপ্তাহ',
-       'time_left': 'বাকি সময়',
-       'overdue': 'মেয়াদ উত্তীর্ণ',
-       'in_days': '%d দিন বাকি',
-       'in_hours': '%d ঘন্টা বাকি',
-       'in_minutes': '%d মিনিট বাকি',
-       'cash': 'নগদ',
-       'bank': 'ব্যাংক',
-       'savings_type': 'সঞ্চয়ের ধরন',
-       'gallery': 'গ্যালারি',
-       'camera': 'ক্যামেরা',
-       'backup': 'ব্যাকআপ',
-       'restore': 'রিস্টোর',
-       'restore_confirmation': 'সব ডাটা রিস্টোর করলে বর্তমান ডাটা মুছে যাবে। চালিয়ে যেতে চান?',
-       'translating': 'অনুবাদ করা হচ্ছে...',
-       'failed': 'ব্যর্থ',
-       'google_drive_backup': 'গুগল ড্রাইভে ব্যাকআপ',
-       'google_drive_restore': 'গুগল ড্রাইভ থেকে রিস্টোর',
-       'sign_in_google': 'গুগলে সাইন ইন করুন',
-       'daily_reminder_title': 'দৈনিক হিসাব রিমাইন্ডার',
-       'set_daily_reminder': 'দৈনিক রিমাইন্ডার সেট করুন',
-       'reminder_set': 'রিমাইন্ডার সেট করা হয়েছে',
-       'miscellaneous_notices': 'বিবিধ নোটিশ',
-       'reminders': 'রিমাইন্ডার',
-       'morning_reminder_title': '🌅 শুভ সকাল',
-       'morning_reminder_body': 'শুভ সকাল! আজকের নতুন দিনে আপনার আয়-ব্যয়ের হিসাব আপডেট করুন। সুন্দর একটি দিন কাটুক!',
-       'evening_reminder_title': '🌇 শুভ বিকাল',
-       'evening_reminder_body': 'শুভ বিকাল! দিনের অর্ধেক পেরিয়ে গেছে। আজকের আয়-ব্যয়ের হিসাব একবার চেক করে নিন।',
-       'night_reminder_title': '🌙 শুভ রাত্রি',
-       'night_reminder_body': 'শুভ রাত্রি! আজকের দিনের সব লেনদেন শেষ করুন। আগামীকালের জন্য প্রস্তুত হন।',
-       'backup_success': 'ব্যাকআপ সফল!',
-       'backup_location': 'ফাইলের অবস্থান:',
-       'backup_share_message': 'আমার হিসাব ব্যাকআপ ফাইল শেয়ার করুন',
-       'please_wait': 'দয়া করে অপেক্ষা করুন...',
-       'saving': 'সেভ হচ্ছে...',
-       'share': 'শেয়ার',
-       'close': 'বন্ধ করুন',
-       'restore_success': 'রিস্টোর সফল!',
-       'restore': 'রিস্টোর',
-       'restore_confirmation': 'সব ডাটা রিস্টোর করলে বর্তমান ডাটা মুছে যাবে। চালিয়ে যেতে চান?',
-       'ok': 'ঠিক আছে',
-       'yes': 'হ্যাঁ',
-       'no': 'না',
-       'please_wait': 'দয়া করে অপেক্ষা করুন...',
-       'change_photo': 'ছবি পরিবর্তন',
-       'take_photo': 'ক্যামেরা',
-       'choose_gallery': 'গ্যালারি',
-       'remove_photo': 'ছবি সরান',
-       'cancel': 'বাতিল',
-       'profile_pic_removed': 'প্রোফাইল পিকচার রিমুভ করা হয়েছে',
-       'default_user': 'ব্যবহারকারী',
-       'refresh': 'রিফ্রেশ',
-       'notices_refreshed': 'নোটিশ রিফ্রেশ করা হয়েছে',
-       'add_new_category': 'নতুন ক্যাটাগরি যোগ করুন',
-       'add_new_category_dialog_title': 'নতুন ক্যাটাগরি যোগ করুন',
-       'category_name': 'ক্যাটাগরির নাম',
-       'add': 'যোগ করুন',
-       'edit_category': 'ক্যাটাগরি সম্পাদনা',
-       'delete_category': 'ক্যাটাগরি মুছুন',
-       'delete_category_confirm': 'আপনি কি "{name}" ক্যাটাগরিটি মুছতে চান?',
-       'category_exists': 'এই নামে একটি ক্যাটাগরি ইতিমধ্যে আছে!',
-       'category_added': 'ক্যাটাগরি যোগ করা হয়েছে',
-       'category_deleted': 'ক্যাটাগরি মুছে ফেলা হয়েছে',
-     },
-     'en': {
-       'app_title': 'My Accounting',
-       'home': 'Home',
-       'calendar': 'Calendar',
-       'notice': 'Notice',
-       'notebook': 'Notebook',
-       'profile': 'Profile',
-       'income': 'Income',
-       'expense': 'Expense',
-       'savings': 'Savings',
-       'debt': 'Payable',
-       'credit': 'Receivable',
-       'monthly_stats': 'Monthly Statistics',
-       'monthly_report': 'Monthly Report',
-       'select_month': 'Select month',
-       'balance': 'Balance',
-       'income_expense_stats': 'Stats',
-       'other_accounts': 'Other',
-       'recent_transactions': 'Recent',
-       'daily': 'Daily',
-       'monthly': 'Monthly',
-       'yearly': 'Yearly',
-       'no_transactions': 'No transactions',
-       'add_income': 'Add Income',
-       'add_expense': 'Add Expense',
-       'add_reminder': 'Add Reminder',
-       'no_reminders': 'No reminders',
-       'no_notices': 'No notices',
-       'no_notes': 'No notes',
-       'no_drawing': 'No drawings',
-       'add_note': 'New Note',
-       'add_drawing': 'Add Drawing',
-       'text_note': 'Note',
-       'drawing': 'Drawing',
-       'archive': 'Archive',
-       'yes': 'Yes',
-       'no': 'No',
-       'save': 'Save',
-       'cancel': 'Cancel',
-       'amount': 'Amount',
-       'description': 'Description',
-       'title': 'Title',
-       'date': 'Date',
-       'time': 'Time',
-       'logout': 'Logout',
-       'settings': 'Settings',
-       'language': 'Language',
-       'currency': 'Currency',
-       'dark_mode': 'Dark Mode',
-       'user_name': 'Name',
-       'change_photo': 'Change Photo',
-       'take_photo': 'Camera',
-       'choose_gallery': 'Gallery',
-       'edit': 'Edit',
-       'delete': 'Delete',
-       'ok': 'OK',
-       'select_category': 'Category',
-       'amount_error': 'Enter amount',
-       'salary': 'Salary',
-       'business': 'Business',
-       'house_rent': 'House Rent',
-       'other': 'Other',
-       'gas_bill': 'Gas Bill',
-       'electricity_bill': 'Electricity Bill',
-       'internet_bill': 'Internet',
-       'water_bill': 'Water',
-       'transport': 'Transport',
-       'grocery': 'Grocery',
-       'education': 'Education',
-       'medical': 'Medical',
-       'food': 'Food',
-       'mobile_bill': 'Mobile',
-       'entertainment': 'Entertainment',
-       'government_holiday': 'Holiday',
-       'holidays': 'Holidays',
-       'notification_scheduled': 'Notification',
-       'budget_management': 'Budget',
-       'monthly_budget': 'Monthly Budget',
-       'budget_spent': 'Spent',
-       'total_budget': 'Total Budget',
-       'used': 'Used',
-       'remaining': 'Remaining',
-       'budget_exceeded': 'Exceeded',
-       'recurring_transactions': 'Recurring',
-       'export_report': 'Export',
-       'security_settings': 'Security',
-       'change_settings': 'Change Settings',
-       'delete_confirm': 'Are you sure?',
-       'show_hijri': 'Show Hijri',
-       'show_bengali': 'Show Bengali',
-       'calendar_settings': 'Calendar Settings',
-       'set_pin': 'Set PIN',
-       'new_pin': 'New PIN',
-       'confirm_pin': 'Confirm PIN',
-       'disable_lock': 'Disable Lock',
-       'pin_required_first': 'Cannot enable lock without a PIN. Please set a PIN first.',
-       'pin_required_for_biometric': 'Please set a PIN first to use biometric.',
-       'pin_changed_success': 'PIN changed successfully',
-       'enter_old_pin': 'Enter old PIN',
-       'old_pin': 'Current PIN',
-       'wrong_old_pin': 'Wrong old PIN, try again',
-       'verify': 'Verify',
-       'no_internet': 'No internet connection. Please check your network.',
-       'checking_updates': 'Checking for updates...',
-       'update_check_error': 'Could not check for updates. Please ensure you have an internet connection.',
-       'update_unable': 'Unable to get version info. Please try again later.',
-       'already_latest': 'You are on the latest version',
-       'update_available': 'Update Available!',
-       'new_version_msg': 'A new version is available:',
-       'later': 'Later',
-       'enable_pin_code': 'Enable PIN Code',
-       'change_pin_code': 'Change PIN Code',
-       'disable_pin_code': 'Disable PIN Code',
-       'disable_pin_confirm_title': 'Disable PIN Code',
-       'pin_disabled': 'PIN code disabled',
-       'biometric_options': 'Biometric Options',
-       'update_now': 'Update Now',
-       'cannot_open_url': 'Cannot open URL',
-       'current_version': 'Current version:',
-       'developer': 'Developer',
-       'support': 'Support',
-       'all_rights_reserved': 'All rights reserved',
-       'check_updates_title': 'Check for Updates',
-       'app_lock_enabled': 'App lock enabled',
-       'pin_code': 'PIN Code',
-       'change_pin_button': 'Change PIN Code',
-       'setup_pin_button': 'Setup PIN Code',
-       'biometric_lock': 'Biometric Lock',
-       'biometric_only': 'Biometric Only',
-       'pin_and_biometric': 'PIN + Biometric',
-       'lock_type_changed': 'Lock type changed',
-       'disable_lock_confirm': 'Do you want to disable the lock system?',
-       'app_lock_desc': 'Require PIN/Biometric to open the app',
-       'lock_type': 'Lock Type',
-       'pin_only': 'PIN only',
-       'pin_and_biometric': 'PIN & Biometric',
-       'change_pin': 'Change PIN',
-       'about_app': 'About App',
-       'app_description': 'A simple app to track your daily income, expenses and transactions with offline support, backup and security features.',
-       'privacy_policy': 'Privacy Policy',
-       'terms_of_service': 'Terms of Service',
-       'pin_set_success': 'PIN set successfully',
-       'pin_mismatch': 'PIN mismatch, try again',
-       'lock_disabled': 'Lock disabled',
-       'faq_title': '🙋‍♂️ Frequently Asked Questions',
-       'faq_q1': 'What are the main features of this app?',
-       'faq_a1': 'This app is your all-in-one assistant. It offers 4 main features:\n\n📊 Income/Expense Tracking\n📓 Notebook & Drawing\n⏰ Reminders\n💰 Budget Planning',
-       'faq_q2': 'Do I need internet to use the app?',
-       'faq_a2': 'The app works online and offline. Without internet, you can still add transactions, notes and reminders. When you go online, everything syncs automatically to the cloud.',
-       'faq_q3': 'What happens if I uninstall the app?',
-       'faq_a3': 'If you have not backed up to Google Drive, uninstalling or resetting your phone will permanently delete local data. Since we do not store user data on servers, lost data cannot be recovered.',
-       'faq_q4': 'How does the reminder feature work?',
-       'faq_a4': 'You can set a reminder for any task with a specific date and time. At the scheduled time, the app will notify you via push notification.',
-       'faq_q5': 'What is the benefit of the budget feature?',
-       'faq_a5': 'You can set spending limits per category to control your expenses. This helps you save money.',
-       'faq_q6': 'Can I add images or drawings to my notes?',
-       'faq_a6': 'Yes. You can attach images from camera/gallery and also draw or sketch on the canvas inside the notebook.',
-       'close': 'Close',
-       'editing': 'Editing',
-       'yearly_stats': 'Yearly Statistics',
-       'year_report': 'Year Report',
-       'income_expense_ratio': 'Income-Expense Ratio',
-       'income_label': 'Income',
-       'expense_label': 'Expense',
-       'month': 'Month',
-       'total_label': 'Total:',
-       'drawing_create': 'Create Drawing',
-       'drawing_edit': 'Edit Drawing',
-       'drawing_saved': 'Drawing saved',
-       'write_note_hint': 'Write a note...',
-       'daily_stats': 'Daily Statistics',
-       'all': 'All',
-       'total_income': 'Total Income',
-       'total_expense': 'Total Expense',
-       'transaction_history': 'Transaction History',
-       'pdf': 'PDF',
-       'saving': 'Saving...',
-       'daily_report': 'Daily Report',
-       'export_success': 'Export Successful',
-       'pdf_created_message': 'PDF file created. You can share or print it.',
-       'share': 'Share',
-       'print': 'Print',
-       'pdf_failed': 'Failed to create PDF',
-       'reminder_debt_payment': 'Reminder: Payable payment',
-       'from_date': 'From',
-       'to_date': 'To',
-       'start_date_before_end_date': 'Start date must be before end date',
-       'end_date_after_start_date': 'End date must be after start date',
-       'good_morning': 'Good Morning',
-       'good_afternoon': 'Good Afternoon',
-       'good_evening': 'Good Evening',
-       'good_night': 'Good Night',
-       'edit_reminder': 'Edit Reminder',
-       'reminder_updated': 'Reminder updated',
-       'reminder_comment': 'Comment',
-       'enter_comment': 'Enter comment...',
-       'reminder_completed': 'Completed',
-       'mark_done': 'Mark Done',
-       'snooze': 'Snooze',
-       'snooze_1h': '1 hour',
-       'snooze_1d': '1 day',
-       'snooze_1w': '1 week',
-       'time_left': 'Time left',
-       'overdue': 'Overdue',
-       'in_days': '%d days left',
-       'in_hours': '%d hours left',
-       'in_minutes': '%d minutes left',
-       'cash': 'Cash',
-       'bank': 'Bank',
-       'savings_type': 'Savings Type',
-       'gallery': 'Gallery',
-       'camera': 'Camera',
-       'backup': 'Backup',
-       'restore': 'Restore',
-       'restore_confirmation': 'Restoring will overwrite all current data. Continue?',
-       'translating': 'Translating...',
-       'failed': 'Failed',
-       'google_drive_backup': 'Backup to Google Drive',
-       'google_drive_restore': 'Restore from Google Drive',
-       'sign_in_google': 'Sign in with Google',
-       'daily_reminder_title': 'Daily Accounting Reminder',
-       'set_daily_reminder': 'Set Daily Reminder',
-       'reminder_set': 'Reminder set',
-       'miscellaneous_notices': 'Miscellaneous Notices',
-       'reminders': 'Reminders',
-       'morning_reminder_title': '🌅 Good Morning',
-       'morning_reminder_body': 'Good morning! Update your income & expense records for today. Have a great day!',
-       'evening_reminder_title': '🌇 Good Afternoon',
-       'evening_reminder_body': 'Good afternoon! Half the day is over. Review your financial summary now.',
-       'night_reminder_title': '🌙 Good Night',
-       'night_reminder_body': 'Good night! Finalize today\'s transactions and get ready for tomorrow.',
-       'backup_success': 'Backup Successful!',
-       'backup_location': 'File location:',
-       'backup_share_message': 'Share Amar Hisab backup file',
-       'please_wait': 'Please wait...',
-       'saving': 'Saving...',
-       'share': 'Share',
-       'close': 'Close',
-       'restore_success': 'Restore Successful!',
-       'restore': 'Restore',
-       'restore_confirmation': 'Restoring will overwrite all current data. Continue?',
-       'ok': 'OK',
-       'yes': 'Yes',
-       'no': 'No',
-       'please_wait': 'Please wait...',
-       'change_photo': 'Change Photo',
-       'take_photo': 'Camera',
-       'choose_gallery': 'Gallery',
-       'remove_photo': 'Remove Photo',
-       'cancel': 'Cancel',
-       'profile_pic_removed': 'Profile picture removed',
-       'default_user': 'User',
-       'refresh': 'Refresh',
-       'notices_refreshed': 'Notices refreshed',
-       'add_new_category': 'Add New Category',
-       'add_new_category_dialog_title': 'Add New Category',
-       'category_name': 'Category Name',
-       'add': 'Add',
-       'edit_category': 'Edit Category',
-       'delete_category': 'Delete Category',
-       'delete_category_confirm': 'Are you sure you want to delete "{name}"?',
-       'category_exists': 'A category with this name already exists!',
-       'category_added': 'Category added',
-       'category_deleted': 'Category deleted',
-     },
-     'ar': {
-       'app_title': 'محاسبتي',
-       'home': 'الرئيسية',
-       'calendar': 'التقويم',
-       'notice': 'الإشعارات',
-       'notebook': 'دفتر الملاحظات',
-       'profile': 'الملف الشخصي',
-       'income': 'دخل',
-       'expense': 'مصروف',
-       'savings': 'مدخرات',
-       'debt': 'مستحق الدفع',
-       'credit': 'مستحق القبض',
-       'monthly_stats': 'الإحصائيات الشهرية',
-       'monthly_report': 'تقرير شهري',
-       'select_month': 'اختر الشهر',
-       'balance': 'رصيد',
-       'income_expense_stats': 'إحصائيات',
-       'other_accounts': 'أخرى',
-       'recent_transactions': 'الأخيرة',
-       'daily': 'يومي',
-       'monthly': 'شهري',
-       'yearly': 'سنوي',
-       'no_transactions': 'لا معاملات',
-       'add_income': 'إضافة دخل',
-       'add_expense': 'إضافة مصروف',
-       'add_reminder': 'إضافة تذكير',
-       'no_reminders': 'لا تذكيرات',
-       'no_notices': 'لا إشعارات',
-       'no_notes': 'لا ملاحظات',
-       'no_drawing': 'لا توجد رسومات',
-       'add_note': 'ملاحظة جديدة',
-       'add_drawing': 'إضافة رسم',
-       'text_note': 'ملاحظة',
-       'drawing': 'رسم',
-       'archive': 'أرشفة',
-       'yes': 'نعم',
-       'no': 'لا',
-       'save': 'حفظ',
-       'cancel': 'إلغاء',
-       'amount': 'المبلغ',
-       'description': 'الوصف',
-       'title': 'العنوان',
-       'date': 'التاريخ',
-       'time': 'الوقت',
-       'logout': 'خروج',
-       'settings': 'إعدادات',
-       'language': 'اللغة',
-       'currency': 'العملة',
-       'dark_mode': 'داكن',
-       'user_name': 'الاسم',
-       'change_photo': 'تغيير الصورة',
-       'take_photo': 'كاميرا',
-       'choose_gallery': 'معرض',
-       'edit': 'تعديل',
-       'delete': 'حذف',
-       'ok': 'حسنا',
-       'select_category': 'الفئة',
-       'amount_error': 'أدخل المبلغ',
-       'salary': 'راتب',
-       'business': 'عمل',
-       'house_rent': 'إيجار',
-       'other': 'آخر',
-       'gas_bill': 'غاز',
-       'electricity_bill': 'فاتورة الكهرباء',
-       'internet_bill': 'إنترنت',
-       'water_bill': 'ماء',
-       'transport': 'نقل',
-       'grocery': 'بقالة',
-       'education': 'تعليم',
-       'medical': 'طبي',
-       'food': 'طعام',
-       'mobile_bill': 'جوال',
-       'entertainment': 'ترفيه',
-       'government_holiday': 'عطلة',
-       'holidays': 'عطل',
-       'notification_scheduled': 'إشعار',
-       'budget_management': 'ميزانية',
-       'monthly_budget': 'شهري',
-       'budget_spent': 'أنفق',
-       'total_budget': 'الإجمالي',
-       'used': 'مستخدم',
-       'remaining': 'متبقي',
-       'budget_exceeded': 'تجاوز',
-       'recurring_transactions': 'متكرر',
-       'export_report': 'تصدير',
-       'security_settings': 'أمان',
-       'change_settings': 'تغيير',
-       'delete_confirm': 'هل أنت متأكد؟',
-       'show_hijri': 'إظهار الهجري',
-       'show_bengali': 'إظهار البنغالي',
-       'calendar_settings': 'إعدادات التقويم',
-       'set_pin': 'تعيين الرمز',
-       'new_pin': 'رمز جديد',
-       'confirm_pin': 'تأكيد الرمز',
-       'disable_lock': 'تعطيل القفل',
-       'pin_required_first': 'لا يمكن تمكين القفل بدون رمز PIN. يرجى تعيين رمز PIN أولاً.',
-       'pin_required_for_biometric': 'يرجى تعيين رمز PIN أولاً لاستخدام القياسات الحيوية.',
-       'pin_changed_success': 'تم تغيير الرمز بنجاح',
-       'enter_old_pin': 'أدخل الرمز القديم',
-       'old_pin': 'الرمز الحالي',
-       'wrong_old_pin': 'الرمز القديم خاطئ، حاول مرة أخرى',
-       'verify': 'تحقق',
-       'no_internet': 'لا يوجد اتصال بالإنترنت. يرجى التحقق من شبكتك.',
-       'checking_updates': 'جارٍ التحقق من التحديثات...',
-       'update_check_error': 'تعذر التحقق من التحديثات. يرجى التأكد من وجود اتصال بالإنترنت.',
-       'update_unable': 'تعذر الحصول على معلومات الإصدار. يرجى المحاولة لاحقًا.',
-       'already_latest': 'أنت على أحدث إصدار',
-       'update_available': 'تحديث متوفر!',
-       'new_version_msg': 'إصدار جديد متاح:',
-       'later': 'لاحقًا',
-       'enable_pin_code': 'تفعيل رمز PIN',
-       'change_pin_code': 'تغيير رمز PIN',
-       'disable_pin_code': 'تعطيل رمز PIN',
-       'disable_pin_confirm_title': 'تعطيل رمز PIN',
-       'pin_disabled': 'تم تعطيل رمز PIN',
-       'biometric_options': 'خيارات القياسات الحيوية',
-       'update_now': 'تحديث الآن',
-       'cannot_open_url': 'لا يمكن فتح الرابط',
-       'current_version': 'الإصدار الحالي:',
-       'developer': 'المطور',
-       'support': 'الدعم',
-       'all_rights_reserved': 'جميع الحقوق محفوظة',
-       'check_updates_title': 'التحقق من التحديثات',
-       'app_lock_enabled': 'تم تمكين قفل التطبيق',
-       'pin_code': 'رمز PIN',
-       'change_pin_button': 'تغيير رمز PIN',
-       'setup_pin_button': 'إعداد رمز PIN',
-       'biometric_lock': 'قفل القياسات الحيوية',
-       'biometric_only': 'القياسات الحيوية فقط',
-       'pin_and_biometric': 'PIN + القياسات الحيوية',
-       'lock_type_changed': 'تم تغيير نوع القفل',
-       'disable_lock_confirm': 'هل تريد تعطيل نظام القفل؟',
-       'app_lock_desc': 'مطلوب رمز أو بصمة لفتح التطبيق',
-       'lock_type': 'نوع القفل',
-       'pin_only': 'رمز فقط',
-       'pin_and_biometric': 'الرمز والبصمة',
-       'change_pin': 'تغيير الرمز',
-       'about_app': 'عن التطبيق',
-       'app_description': 'تطبيق بسيط لتتبع دخلك ونفقاتك اليومية مع دعم غير متصل بالإنترنت والنسخ الاحتياطي وميزات الأمان.',
-       'privacy_policy': 'سياسة الخصوصية',
-       'terms_of_service': 'شروط الخدمة',
-       'pin_set_success': 'تم تعيين الرمز بنجاح',
-       'pin_mismatch': 'الرمز غير متطابق، حاول مرة أخرى',
-       'lock_disabled': 'تم تعطيل القفل',
-       'faq_title': '🙋‍♂️ الأسئلة الشائعة',
-       'faq_q1': 'ما هي الميزات الرئيسية لهذا التطبيق؟',
-       'faq_a1': 'هذا التطبيق هو مساعد شامل. يوفر 4 ميزات رئيسية:\n\n📊 تتبع الدخل والمصروفات\n📓 دفتر الملاحظات والرسم\n⏰ تذكيرات\n💰 تخطيط الميزانية',
-       'faq_q2': 'هل أحتاج إلى الإنترنت لاستخدام التطبيق؟',
-       'faq_a2': 'التطبيق يعمل عبر الإنترنت وغير متصل. بدون إنترنت، لا يزال بإمكانك إضافة المعاملات والملاحظات والتذكيرات. عندما تتصل بالإنترنت، تتم مزامنة كل شيء تلقائياً مع السحابة.',
-       'faq_q3': 'ماذا يحدث إذا قمت بإلغاء تثبيت التطبيق؟',
-       'faq_a3': 'إذا لم تقم بعمل نسخة احتياطية على Google Drive، فإن إلغاء التثبيت أو إعادة ضبط الهاتف سيؤدي إلى حذف البيانات المحلية بالكامل. نظرًا لأننا لا نخزن بيانات المستخدم على الخوادم، فلا يمكن استرداد البيانات المفقودة.',
-       'faq_q4': 'كيف تعمل ميزة التذكير؟',
-       'faq_a4': 'يمكنك تعيين تذكير لأي مهمة بتاريخ ووقت محددين. في الوقت المحدد، سيقوم التطبيق بإعلامك عبر إشعار.',
-       'faq_q5': 'ما فائدة ميزة الميزانية؟',
-       'faq_a5': 'يمكنك تعيين حدود الإنفاق لكل فئة للتحكم في نفقاتك. هذا يساعدك على توفير المال.',
-       'faq_q6': 'هل يمكنني إضافة صور أو رسومات إلى ملاحظاتي؟',
-       'faq_a6': 'نعم. يمكنك إرفاق صور من الكاميرا / المعرض وكذلك الرسم أو التخطيط على اللوحة داخل دفتر الملاحظات.',
-       'close': 'إغلاق',
-       'editing': 'تحرير',
-       'drawing_create': 'إنشاء رسم',
-       'drawing_edit': 'تحرير الرسم',
-       'drawing_saved': 'تم حفظ الرسم',
-       'write_note_hint': 'اكتب ملاحظة...',
-       'daily_stats': 'الإحصائيات اليومية',
-       'all': 'الكل',
-       'total_income': 'إجمالي الدخل',
-       'total_expense': 'إجمالي المصروفات',
-       'transaction_history': 'سجل المعاملات',
-       'pdf': 'PDF',
-       'saving': 'جاري الحفظ...',
-       'daily_report': 'تقرير يومي',
-       'export_success': 'تم التصدير بنجاح',
-       'pdf_created_message': 'تم إنشاء ملف PDF. يمكنك مشاركته أو طباعته.',
-       'share': 'مشاركة',
-       'print': 'طباعة',
-       'pdf_failed': 'فشل إنشاء PDF',
-       'reminder_debt_payment': 'تذكير: دفع المستحق',
-       'good_morning': 'صباح الخير',
-       'good_afternoon': 'مساء الخير',
-       'good_evening': 'مساء الخير',
-       'good_night': 'تصبح على خير',
-       'edit_reminder': 'تحرير التذكير',
-       'reminder_updated': 'تم تحديث التذكير',
-       'reminder_comment': 'تعليق',
-       'enter_comment': 'أدخل تعليقاً...',
-       'reminder_completed': 'مكتمل',
-       'mark_done': 'تحديد كمكتمل',
-       'snooze': 'تأجيل',
-       'snooze_1h': 'ساعة واحدة',
-       'snooze_1d': 'يوم واحد',
-       'snooze_1w': 'أسبوع واحد',
-       'time_left': 'الوقت المتبقي',
-       'overdue': 'متأخر',
-       'in_days': 'متبقي %d أيام',
-       'in_hours': 'متبقي %d ساعات',
-       'in_minutes': 'متبقي %d دقائق',
-       'cash': 'نقدي',
-       'bank': 'بنك',
-       'savings_type': 'نوع المدخرات',
-       'gallery': 'معرض الصور',
-       'camera': 'الكاميرا',
-       'backup': 'نسخ احتياطي',
-       'restore': 'استعادة',
-       'restore_confirmation': 'سيؤدي الاستعادة إلى استبدال جميع البيانات الحالية. هل تريد المتابعة؟',
-       'translating': 'جاري الترجمة...',
-       'failed': 'فشل',
-       'google_drive_backup': 'نسخ احتياطي إلى جوجل درايف',
-       'google_drive_restore': 'استعادة من جوجل درايف',
-       'sign_in_google': 'تسجيل الدخول بحساب جوجل',
-       'daily_reminder_title': 'تذكير يومي بالمحاسبة',
-       'set_daily_reminder': 'تعيين تذكير يومي',
-       'reminder_set': 'تم تعيين التذكير',
-       'miscellaneous_notices': 'إشعارات متنوعة',
-       'reminders': 'تذكيرات',
-       'morning_reminder_title': '🌅 صباح الخير',
-       'morning_reminder_body': 'صباح الخير! قم بتحديث سجلات الدخل والمصروفات لهذا اليوم. يوم سعيد!',
-       'evening_reminder_title': '🌇 مساء الخير',
-       'evening_reminder_body': 'مساء الخير! مضى نصف اليوم. راجع ملخصك المالي الآن.',
-       'night_reminder_title': '🌙 تصبح على خير',
-       'night_reminder_body': 'تصبح على خير! أنهِ معاملات اليوم واستعد للغد.',
-       'backup_success': 'تم النسخ الاحتياطي بنجاح!',
-       'backup_location': 'موقع الملف:',
-       'backup_share_message': 'مشاركة ملف النسخ الاحتياطي لتطبيق محاسبتي',
-       'please_wait': 'يرجى الانتظار...',
-       'saving': 'جاري الحفظ...',
-       'share': 'مشاركة',
-       'close': 'إغلاق',
-       'restore_success': 'تمت الاستعادة بنجاح!',
-       'restore': 'استعادة',
-       'restore_confirmation': 'سيؤدي الاستعادة إلى استبدال جميع البيانات الحالية. هل تريد المتابعة؟',
-       'ok': 'حسنا',
-       'yes': 'نعم',
-       'no': 'لا',
-       'please_wait': 'يرجى الانتظار...',
-       'change_photo': 'تغيير الصورة',
-       'take_photo': 'كاميرا',
-       'choose_gallery': 'معرض الصور',
-       'remove_photo': 'إزالة الصورة',
-       'cancel': 'إلغاء',
-       'profile_pic_removed': 'تمت إزالة الصورة الشخصية',
-       'default_user': 'مستخدم افتراضي',
-       'refresh': 'تحديث',
-       'notices_refreshed': 'تم تحديث الإشعارات',
-       'add_new_category': 'إضافة فئة جديدة',
-       'add_new_category_dialog_title': 'إضافة فئة جديدة',
-       'category_name': 'اسم الفئة',
-       'add': 'إضافة',
-       'edit_category': 'تعديل الفئة',
-       'delete_category': 'حذف الفئة',
-       'delete_category_confirm': 'هل أنت متأكد من حذف "{name}"؟',
-       'category_exists': 'هناك فئة بهذا الاسم بالفعل!',
-       'category_added': 'تمت إضافة الفئة',
-       'category_deleted': 'تم حذف الفئة',
-     },
-   };
+  Map<String, Map<String, String>> _localizedText = {
+    'bn': {
+      'app_title': 'আমার হিসাব',
+      'home': 'হোম',
+      'calendar': 'ক্যালেন্ডার',
+      'notice': 'নোটিশ',
+      'notebook': 'নোটবুক',
+      'profile': 'প্রোফাইল',
+      'income': 'আয়',
+      'expense': 'ব্যয়',
+      'savings': 'সঞ্চয়',
+      'debt': 'দেনা',
+      'credit': 'পাওনা',
+      'monthly_stats': 'মাসিক পরিসংখ্যান',
+      'monthly_report': 'মাসিক রিপোর্ট',
+      'select_month': 'মাস নির্বাচন করুন',
+      'balance': 'ব্যালেন্স',
+      'income_expense_stats': 'আয়-ব্যয় পরিসংখ্যান',
+      'other_accounts': 'অন্যান্য হিসাব',
+      'recent_transactions': 'সাম্প্রতিক লেনদেন',
+      'daily': 'দৈনিক',
+      'monthly': 'মাসিক',
+      'yearly': 'বাৎসরিক',
+      'no_transactions': 'কোনো লেনদেন নেই',
+      'add_income': 'আয় যোগ করুন',
+      'add_expense': 'ব্যয় যোগ করুন',
+      'add_reminder': 'রিমাইন্ডার যোগ করুন',
+      'no_reminders': 'কোনো রিমাইন্ডার নেই',
+      'no_notices': 'কোনো নোটিশ নেই',
+      'no_notes': 'কোনো নোট নেই',
+      'no_drawing': 'কোনো ড্রয়িং নেই',
+      'add_note': 'নতুন নোট',
+      'add_drawing': 'ড্রয়িং যোগ করুন',
+      'text_note': 'নোট',
+      'drawing': 'ড্রয়িং',
+      'archive': 'আর্কাইভ',
+      'yes': 'হ্যাঁ',
+      'no': 'না',
+      'save': 'সেভ',
+      'cancel': 'বাতিল',
+      'amount': 'টাকা',
+      'description': 'বিবরণ',
+      'title': 'শিরোনাম',
+      'date': 'তারিখ',
+      'time': 'সময়',
+      'logout': 'লগ আউট',
+      'settings': 'সেটিংস',
+      'language': 'ভাষা',
+      'currency': 'কারেন্সি',
+      'dark_mode': 'ডার্ক মোড',
+      'user_name': 'নাম',
+      'change_photo': 'ছবি পরিবর্তন',
+      'take_photo': 'ক্যামেরা',
+      'choose_gallery': 'গ্যালারি',
+      'edit': 'এডিট',
+      'delete': 'ডিলিট',
+      'ok': 'ঠিক আছে',
+      'select_category': 'ক্যাটাগরি',
+      'amount_error': 'টাকা লিখুন',
+      'salary': 'বেতন',
+      'business': 'ব্যবসা',
+      'house_rent': 'বাড়ি ভাড়া',
+      'other': 'অন্যান্য',
+      'gas_bill': 'গ্যাস বিল',
+      'electricity_bill': 'বিদ্যুৎ বিল',
+      'internet_bill': 'ইন্টারনেট',
+      'water_bill': 'পানি বিল',
+      'transport': 'যাতায়াত',
+      'grocery': 'বাজার',
+      'education': 'শিক্ষা',
+      'medical': 'চিকিৎসা',
+      'food': 'খাবার',
+      'mobile_bill': 'মোবাইল',
+      'entertainment': 'বিনোদন',
+      'government_holiday': 'সরকারি ছুটি',
+      'holidays': 'ছুটি',
+      'notification_scheduled': 'নোটিফিকেশন সেট',
+      'budget_management': 'বাজেট',
+      'monthly_budget': 'মাসিক বাজেট',
+      'budget_spent': 'খরচ',
+      'total_budget': 'মোট বাজেট',
+      'used': 'ব্যবহৃত',
+      'remaining': 'বাকি',
+      'budget_exceeded': 'বাজেট অতিক্রম',
+      'recurring_transactions': 'রিকারিং',
+      'export_report': 'এক্সপোর্ট',
+      'security_settings': 'সিকিউরিটি',
+      'change_settings': 'সেটিংস পরিবর্তন',
+      'delete_confirm': 'আপনি কি নিশ্চিত?',
+      'show_hijri': 'হিজরি দেখান',
+      'show_bengali': 'বাংলা দেখান',
+      'calendar_settings': 'পঞ্জিকা সেটিংস',
+      'set_pin': 'পিন সেট করুন',
+      'new_pin': 'নতুন পিন',
+      'confirm_pin': 'পিন নিশ্চিত করুন',
+      'disable_lock': 'লক বন্ধ করুন',
+      'disable_lock_confirm': 'আপনি কি লক সিস্টেম বন্ধ করতে চান?',
+      'app_lock_desc': 'অ্যাপ খুলতে পিন/বায়োমেট্রিক লাগবে',
+      'lock_type': 'লক টাইপ',
+      'pin_only': 'শুধুমাত্র পিন',
+      'biometric_only': 'শুধুমাত্র বায়োমেট্রিক',
+      'pin_and_biometric': 'পিন ও বায়োমেট্রিক',
+      'change_pin': 'পিন পরিবর্তন করুন',
+      'about_app': 'অ্যাপ সম্পর্কে',
+      'app_description': 'আপনার দৈনন্দিন আয়-ব্যয় এবং লেনদেনের হিসাব রাখার সহজ অ্যাপ। অফলাইন, ব্যাকআপ ও সুরক্ষা সুবিধা সহ।',
+      'privacy_policy': 'গোপনীয়তা নীতি',
+      'terms_of_service': 'সেবার শর্তাবলী',
+      'pin_set_success': 'পিন সফলভাবে সেট করা হয়েছে',
+      'pin_mismatch': 'পিন মেলেনি, আবার চেষ্টা করুন',
+      'lock_disabled': 'লক বন্ধ করা হয়েছে',
+      'faq_title': '🙋‍♂️ সাধারণ জিজ্ঞাসা',
+      'faq_q1': 'অ্যাপটি মূলত কী কী কাজে ব্যবহার করা যাবে?',
+      'faq_a1': 'এই অ্যাপটি আপনার দৈনন্দিন জীবনের অল-ইন-ওয়ান অ্যাসিস্ট্যান্ট। আপনি এখানে ৪টি প্রধান সুবিধা পাবেন:\n\n📊 হিসাব-নিকাশ: আয়-ব্যয়ের হিসাব রাখতে পারেন।\n📓 নোটবুক ও ড্রয়িং: গুরুত্বপূর্ণ তথ্য লিখতে ও আঁকতে পারেন।\n⏰ রিমাইন্ডার: কাজ বা বিলের তারিখ মনে করিয়ে দেবে।\n💰 বাজেট: মাসিক বা সাপ্তাহিক বাজেট সেট করে খরচ নিয়ন্ত্রণ করতে পারেন।',
+      'faq_q2': 'অ্যাপটি ব্যবহার করতে কি ইন্টারনেট লাগবে?',
+      'faq_a2': 'অ্যাপটি অনলাইন ও অফলাইন দুভাবেই কাজ করে। ইন্টারনেট না থাকলেও লেনদেন, নোট ও রিমাইন্ডার যোগ করতে পারবেন। পরে ইন্টারনেট এলে স্বয়ংক্রিয়ভাবে ক্লাউডে ব্যাকআপ হবে।',
+      'faq_q3': 'অ্যাপ আনইনস্টল হয়ে গেলে কি আমার ডেটা ফিরে পাবো?',
+      'faq_a3': 'অ্যাপটি যদি গুগল ড্রাইভে ব্যাকআপ নেওয়া না থাকে, তবে অ্যাপ আনইনস্টল বা ফোন রিসেট দিলে লোকাল ডেটা সম্পূর্ণ ডিলিট হয়ে যাবে। যেহেতু আমরা কোনো ইউজার ডেটা সার্ভারে রাখি না, তাই ডেটা হারিয়ে গেলে তা রিকভার করার কোনো সুযোগ আমাদের কাছে নেই।',
+      'faq_q4': 'রিমাইন্ডার ফিচারটি কীভাবে কাজ করে?',
+      'faq_a4': 'আপনি নির্দিষ্ট দিন ও সময়ে কাজের রিমাইন্ডার সেট করতে পারেন। সেই সময় পুশ নোটিফিকেশনের মাধ্যমে অ্যাপ আপনাকে মনে করিয়ে দেবে।',
+      'faq_q5': 'বাজেট ফিচারটির সুবিধা কী?',
+      'faq_a5': 'ক্যাটাগরি ভিত্তিক সর্বোচ্চ খরচের সীমা নির্ধারণ করে আপনি অতিরিক্ত খরচ নিয়ন্ত্রণ করতে পারবেন। এটি সঞ্চয় করতে সাহায্য করে।',
+      'faq_q6': 'নোটবুকে কি ছবি বা ড্রয়িং যোগ করা যায়?',
+      'faq_a6': 'হ্যাঁ। আপনি টেক্সট নোটের সাথে ক্যামেরা বা গ্যালারি থেকে ছবি যোগ করতে পারেন এবং আঙ্গুল দিয়ে স্কেচ বা ড্রয়িং করতে পারেন।',
+      'pin_required_first': 'পিন সেট না থাকলে লক চালু করা যাবে না। আগে পিন সেট করুন।',
+      'pin_required_for_biometric': 'বায়োমেট্রিক ব্যবহার করতে আগে পিন সেট করুন।',
+      'pin_changed_success': 'পিন সফলভাবে পরিবর্তিত হয়েছে',
+      'enter_old_pin': 'পুরনো পিন দিন',
+      'old_pin': 'বর্তমান পিন',
+      'wrong_old_pin': 'পুরনো পিন ভুল, আবার চেষ্টা করুন',
+      'verify': 'যাচাই করুন',
+      'no_internet': 'ইন্টারনেট সংযোগ নেই। নেটওয়ার্ক চেক করুন।',
+      'checking_updates': 'আপডেট চেক করা হচ্ছে...',
+      'update_check_error': 'আপডেট চেক করা যায়নি। ইন্টারনেট সংযোগ নিশ্চিত করুন।',
+      'update_unable': 'ভার্সন তথ্য পাওয়া যায়নি। পরে আবার চেষ্টা করুন।',
+      'already_latest': 'আপনি সর্বশেষ ভার্সনে আছেন',
+      'update_available': 'নতুন আপডেট পাওয়া গেছে!',
+      'new_version_msg': 'নতুন ভার্সন উপলব্ধ:',
+      'later': 'পরে দেখুন',
+      'update_now': 'এখন আপডেট করুন',
+      'cannot_open_url': 'ইউআরএল খোলা যায়নি',
+      'current_version': 'বর্তমান ভার্সন:',
+      'developer': 'ডেভেলপার',
+      'support': 'সাপোর্ট',
+      'all_rights_reserved': 'সর্বস্বত্ব সংরক্ষিত',
+      'check_updates_title': 'আপডেট চেক করুন',
+      'app_lock_enabled': 'অ্যাপ লক চালু করা হয়েছে',
+      'pin_code': 'পিন কোড',
+      'change_pin_button': 'পিন কোড পরিবর্তন করুন',
+      'setup_pin_button': 'পিন কোড সেটআপ করুন',
+      'biometric_lock': 'বায়োমেট্রিক লক',
+      'biometric_only': 'শুধুমাত্র বায়োমেট্রিক',
+      'pin_and_biometric': 'পিন + বায়োমেট্রিক',
+      'lock_type_changed': 'লক টাইপ পরিবর্তন করা হয়েছে',
+      'close': 'বন্ধ করুন',
+      'editing': 'এডিটিং',
+      'yearly_stats': 'বার্ষিক পরিসংখ্যান',
+      'year_report': 'সালের রিপোর্ট',
+      'income_expense_ratio': 'আয়-ব্যয়ের অনুপাত',
+      'income_label': 'আয়',
+      'expense_label': 'ব্যয়',
+      'month': 'মাস',
+      'total_label': 'মোট:',
+      'drawing_create': 'ড্রয়িং তৈরি করুন',
+      'drawing_edit': 'ড্রয়িং এডিট',
+      'drawing_saved': 'ড্রয়িং সেভ হয়েছে',
+      'write_note_hint': 'নোট লিখুন...',
+      'enable_pin_code': 'পিন কোড সক্রিয় করুন',
+      'change_pin_code': 'পিন কোড পরিবর্তন করুন',
+      'disable_pin_code': 'পিন কোড নিষ্ক্রিয় করুন',
+      'disable_pin_confirm_title': 'পিন কোড নিষ্ক্রিয় করুন',
+      'pin_disabled': 'পিন কোড নিষ্ক্রিয় করা হয়েছে',
+      'biometric_options': 'বায়োমেট্রিক অপশন',
+      'daily_stats': 'দৈনিক পরিসংখ্যান',
+      'all': 'সব',
+      'total_income': 'মোট আয়',
+      'total_expense': 'মোট ব্যয়',
+      'transaction_history': 'লেনদেন ইতিহাস',
+      'pdf': 'পিডিএফ',
+      'select_date': 'নির্বাচন করুন',
+      'select_time': 'নির্বাচন করুন',
+      'saving': 'সেভ হচ্ছে...',
+      'daily_report': 'দৈনিক রিপোর্ট',
+      'export_success': 'এক্সপোর্ট সফল',
+      'pdf_created_message': 'পিডিএফ ফাইল তৈরি হয়েছে। আপনি শেয়ার বা প্রিন্ট করতে পারেন।',
+      'share': 'শেয়ার',
+      'print': 'প্রিন্ট',
+      'pdf_failed': 'পিডিএফ তৈরি করতে ব্যর্থ',
+      'reminder_debt_payment': 'ঋণ পরিশোধের কথা মনে করিয়ে দিন',
+      'from_date': 'থেকে',
+      'to_date': 'পর্যন্ত',
+      'start_date_before_end_date': 'শুরুর তারিখ শেষ তারিখের আগে হতে হবে',
+      'end_date_after_start_date': 'শেষ তারিখ শুরুর তারিখের পরে হতে হবে',
+      'good_morning': 'শুভ সকাল',
+      'good_afternoon': 'শুভ অপরাহ্ন',
+      'good_evening': 'শুভ সন্ধ্যা',
+      'good_night': 'শুভ রাত্রি',
+      'edit_reminder': 'রিমাইন্ডার সম্পাদনা',
+      'reminder_updated': 'রিমাইন্ডার আপডেট করা হয়েছে',
+      'reminder_comment': 'মন্তব্য',
+      'enter_comment': 'মন্তব্য লিখুন...',
+      'reminder_completed': 'সম্পন্ন',
+      'mark_done': 'সম্পন্ন করুন',
+      'snooze': 'পিছিয়ে দিন',
+      'snooze_1h': '১ ঘন্টা',
+      'snooze_1d': '১ দিন',
+      'snooze_1w': '১ সপ্তাহ',
+      'time_left': 'বাকি সময়',
+      'overdue': 'মেয়াদ উত্তীর্ণ',
+      'in_days': '%d দিন বাকি',
+      'in_hours': '%d ঘন্টা বাকি',
+      'in_minutes': '%d মিনিট বাকি',
+      'cash': 'নগদ',
+      'bank': 'ব্যাংক',
+      'savings_type': 'সঞ্চয়ের ধরন',
+      'gallery': 'গ্যালারি',
+      'camera': 'ক্যামেরা',
+      'backup': 'ব্যাকআপ',
+      'restore': 'রিস্টোর',
+      'restore_confirmation': 'সব ডাটা রিস্টোর করলে বর্তমান ডাটা মুছে যাবে। চালিয়ে যেতে চান?',
+      'translating': 'অনুবাদ করা হচ্ছে...',
+      'failed': 'ব্যর্থ',
+      'google_drive_backup': 'গুগল ড্রাইভে ব্যাকআপ',
+      'google_drive_restore': 'গুগল ড্রাইভ থেকে রিস্টোর',
+      'sign_in_google': 'গুগলে সাইন ইন করুন',
+      'daily_reminder_title': 'দৈনিক হিসাব রিমাইন্ডার',
+      'set_daily_reminder': 'দৈনিক রিমাইন্ডার সেট করুন',
+      'reminder_set': 'রিমাইন্ডার সেট করা হয়েছে',
+      'miscellaneous_notices': 'বিবিধ নোটিশ',
+      'reminders': 'রিমাইন্ডার',
+      'morning_reminder_title': '🌅 শুভ সকাল',
+      'morning_reminder_body': 'শুভ সকাল! আজকের নতুন দিনে আপনার আয়-ব্যয়ের হিসাব আপডেট করুন। সুন্দর একটি দিন কাটুক!',
+      'evening_reminder_title': '🌇 শুভ বিকাল',
+      'evening_reminder_body': 'শুভ বিকাল! দিনের অর্ধেক পেরিয়ে গেছে। আজকের আয়-ব্যয়ের হিসাব একবার চেক করে নিন।',
+      'night_reminder_title': '🌙 শুভ রাত্রি',
+      'night_reminder_body': 'শুভ রাত্রি! আজকের দিনের সব লেনদেন শেষ করুন। আগামীকালের জন্য প্রস্তুত হন।',
+      'backup_success': 'ব্যাকআপ সফল!',
+      'backup_location': 'ফাইলের অবস্থান:',
+      'backup_share_message': 'আমার হিসাব ব্যাকআপ ফাইল শেয়ার করুন',
+      'please_wait': 'দয়া করে অপেক্ষা করুন...',
+      'saving': 'সেভ হচ্ছে...',
+      'share': 'শেয়ার',
+      'close': 'বন্ধ করুন',
+      'restore_success': 'রিস্টোর সফল!',
+      'restore': 'রিস্টোর',
+      'restore_confirmation': 'সব ডাটা রিস্টোর করলে বর্তমান ডাটা মুছে যাবে। চালিয়ে যেতে চান?',
+      'ok': 'ঠিক আছে',
+      'yes': 'হ্যাঁ',
+      'no': 'না',
+      'please_wait': 'দয়া করে অপেক্ষা করুন...',
+      'change_photo': 'ছবি পরিবর্তন',
+      'take_photo': 'ক্যামেরা',
+      'choose_gallery': 'গ্যালারি',
+      'remove_photo': 'ছবি সরান',
+      'cancel': 'বাতিল',
+      'profile_pic_removed': 'প্রোফাইল পিকচার রিমুভ করা হয়েছে',
+      'default_user': 'ব্যবহারকারী',
+      'refresh': 'রিফ্রেশ',
+      'notices_refreshed': 'নোটিশ রিফ্রেশ করা হয়েছে',
+      'add_new_category': 'নতুন ক্যাটাগরি যোগ করুন',
+      'add_new_category_dialog_title': 'নতুন ক্যাটাগরি যোগ করুন',
+      'category_name': 'ক্যাটাগরির নাম',
+      'add': 'যোগ করুন',
+      'edit_category': 'ক্যাটাগরি সম্পাদনা',
+      'delete_category': 'ক্যাটাগরি মুছুন',
+      'delete_category_confirm': 'আপনি কি "{name}" ক্যাটাগরিটি মুছতে চান?',
+      'category_exists': 'এই নামে একটি ক্যাটাগরি ইতিমধ্যে আছে!',
+      'category_added': 'ক্যাটাগরি যোগ করা হয়েছে',
+      'category_deleted': 'ক্যাটাগরি মুছে ফেলা হয়েছে',
+    },
+    'en': {
+      'app_title': 'My Accounting',
+      'home': 'Home',
+      'calendar': 'Calendar',
+      'notice': 'Notice',
+      'notebook': 'Notebook',
+      'profile': 'Profile',
+      'income': 'Income',
+      'expense': 'Expense',
+      'savings': 'Savings',
+      'debt': 'Payable',
+      'credit': 'Receivable',
+      'monthly_stats': 'Monthly Statistics',
+      'monthly_report': 'Monthly Report',
+      'select_month': 'Select month',
+      'balance': 'Balance',
+      'income_expense_stats': 'Stats',
+      'other_accounts': 'Other',
+      'recent_transactions': 'Recent',
+      'daily': 'Daily',
+      'monthly': 'Monthly',
+      'yearly': 'Yearly',
+      'no_transactions': 'No transactions',
+      'add_income': 'Add Income',
+      'add_expense': 'Add Expense',
+      'add_reminder': 'Add Reminder',
+      'no_reminders': 'No reminders',
+      'no_notices': 'No notices',
+      'no_notes': 'No notes',
+      'no_drawing': 'No drawings',
+      'add_note': 'New Note',
+      'add_drawing': 'Add Drawing',
+      'text_note': 'Note',
+      'drawing': 'Drawing',
+      'archive': 'Archive',
+      'yes': 'Yes',
+      'no': 'No',
+      'save': 'Save',
+      'cancel': 'Cancel',
+      'amount': 'Amount',
+      'description': 'Description',
+      'title': 'Title',
+      'date': 'Date',
+      'time': 'Time',
+      'logout': 'Logout',
+      'settings': 'Settings',
+      'language': 'Language',
+      'currency': 'Currency',
+      'dark_mode': 'Dark Mode',
+      'user_name': 'Name',
+      'change_photo': 'Change Photo',
+      'take_photo': 'Camera',
+      'choose_gallery': 'Gallery',
+      'edit': 'Edit',
+      'delete': 'Delete',
+      'ok': 'OK',
+      'select_category': 'Category',
+      'amount_error': 'Enter amount',
+      'salary': 'Salary',
+      'business': 'Business',
+      'house_rent': 'House Rent',
+      'other': 'Other',
+      'gas_bill': 'Gas Bill',
+      'electricity_bill': 'Electricity Bill',
+      'internet_bill': 'Internet',
+      'water_bill': 'Water',
+      'transport': 'Transport',
+      'grocery': 'Grocery',
+      'education': 'Education',
+      'medical': 'Medical',
+      'food': 'Food',
+      'mobile_bill': 'Mobile',
+      'entertainment': 'Entertainment',
+      'government_holiday': 'Holiday',
+      'holidays': 'Holidays',
+      'notification_scheduled': 'Notification',
+      'budget_management': 'Budget',
+      'monthly_budget': 'Monthly Budget',
+      'budget_spent': 'Spent',
+      'total_budget': 'Total Budget',
+      'used': 'Used',
+      'remaining': 'Remaining',
+      'budget_exceeded': 'Exceeded',
+      'recurring_transactions': 'Recurring',
+      'export_report': 'Export',
+      'security_settings': 'Security',
+      'change_settings': 'Change Settings',
+      'delete_confirm': 'Are you sure?',
+      'show_hijri': 'Show Hijri',
+      'show_bengali': 'Show Bengali',
+      'calendar_settings': 'Calendar Settings',
+      'set_pin': 'Set PIN',
+      'new_pin': 'New PIN',
+      'confirm_pin': 'Confirm PIN',
+      'disable_lock': 'Disable Lock',
+      'pin_required_first': 'Cannot enable lock without a PIN. Please set a PIN first.',
+      'pin_required_for_biometric': 'Please set a PIN first to use biometric.',
+      'pin_changed_success': 'PIN changed successfully',
+      'enter_old_pin': 'Enter old PIN',
+      'old_pin': 'Current PIN',
+      'wrong_old_pin': 'Wrong old PIN, try again',
+      'verify': 'Verify',
+      'no_internet': 'No internet connection. Please check your network.',
+      'checking_updates': 'Checking for updates...',
+      'update_check_error': 'Could not check for updates. Please ensure you have an internet connection.',
+      'update_unable': 'Unable to get version info. Please try again later.',
+      'already_latest': 'You are on the latest version',
+      'update_available': 'Update Available!',
+      'new_version_msg': 'A new version is available:',
+      'later': 'Later',
+      'enable_pin_code': 'Enable PIN Code',
+      'change_pin_code': 'Change PIN Code',
+      'disable_pin_code': 'Disable PIN Code',
+      'disable_pin_confirm_title': 'Disable PIN Code',
+      'pin_disabled': 'PIN code disabled',
+      'biometric_options': 'Biometric Options',
+      'update_now': 'Update Now',
+      'cannot_open_url': 'Cannot open URL',
+      'current_version': 'Current version:',
+      'developer': 'Developer',
+      'support': 'Support',
+      'all_rights_reserved': 'All rights reserved',
+      'check_updates_title': 'Check for Updates',
+      'app_lock_enabled': 'App lock enabled',
+      'pin_code': 'PIN Code',
+      'change_pin_button': 'Change PIN Code',
+      'setup_pin_button': 'Setup PIN Code',
+      'biometric_lock': 'Biometric Lock',
+      'biometric_only': 'Biometric Only',
+      'pin_and_biometric': 'PIN + Biometric',
+      'lock_type_changed': 'Lock type changed',
+      'disable_lock_confirm': 'Do you want to disable the lock system?',
+      'app_lock_desc': 'Require PIN/Biometric to open the app',
+      'lock_type': 'Lock Type',
+      'pin_only': 'PIN only',
+      'pin_and_biometric': 'PIN & Biometric',
+      'change_pin': 'Change PIN',
+      'about_app': 'About App',
+      'app_description': 'A simple app to track your daily income, expenses and transactions with offline support, backup and security features.',
+      'privacy_policy': 'Privacy Policy',
+      'terms_of_service': 'Terms of Service',
+      'pin_set_success': 'PIN set successfully',
+      'pin_mismatch': 'PIN mismatch, try again',
+      'lock_disabled': 'Lock disabled',
+      'faq_title': '🙋‍♂️ Frequently Asked Questions',
+      'faq_q1': 'What are the main features of this app?',
+      'faq_a1': 'This app is your all-in-one assistant. It offers 4 main features:\n\n📊 Income/Expense Tracking\n📓 Notebook & Drawing\n⏰ Reminders\n💰 Budget Planning',
+      'faq_q2': 'Do I need internet to use the app?',
+      'faq_a2': 'The app works online and offline. Without internet, you can still add transactions, notes and reminders. When you go online, everything syncs automatically to the cloud.',
+      'faq_q3': 'What happens if I uninstall the app?',
+      'faq_a3': 'If you have not backed up to Google Drive, uninstalling or resetting your phone will permanently delete local data. Since we do not store user data on servers, lost data cannot be recovered.',
+      'faq_q4': 'How does the reminder feature work?',
+      'faq_a4': 'You can set a reminder for any task with a specific date and time. At the scheduled time, the app will notify you via push notification.',
+      'faq_q5': 'What is the benefit of the budget feature?',
+      'faq_a5': 'You can set spending limits per category to control your expenses. This helps you save money.',
+      'faq_q6': 'Can I add images or drawings to my notes?',
+      'faq_a6': 'Yes. You can attach images from camera/gallery and also draw or sketch on the canvas inside the notebook.',
+      'close': 'Close',
+      'editing': 'Editing',
+      'yearly_stats': 'Yearly Statistics',
+      'year_report': 'Year Report',
+      'income_expense_ratio': 'Income-Expense Ratio',
+      'income_label': 'Income',
+      'expense_label': 'Expense',
+      'month': 'Month',
+      'total_label': 'Total:',
+      'drawing_create': 'Create Drawing',
+      'drawing_edit': 'Edit Drawing',
+      'drawing_saved': 'Drawing saved',
+      'write_note_hint': 'Write a note...',
+      'daily_stats': 'Daily Statistics',
+      'all': 'All',
+      'total_income': 'Total Income',
+      'total_expense': 'Total Expense',
+      'transaction_history': 'Transaction History',
+      'pdf': 'PDF',
+      'saving': 'Saving...',
+      'daily_report': 'Daily Report',
+      'export_success': 'Export Successful',
+      'pdf_created_message': 'PDF file created. You can share or print it.',
+      'share': 'Share',
+      'print': 'Print',
+      'pdf_failed': 'Failed to create PDF',
+      'reminder_debt_payment': 'Reminder: Payable payment',
+      'from_date': 'From',
+      'to_date': 'To',
+      'start_date_before_end_date': 'Start date must be before end date',
+      'end_date_after_start_date': 'End date must be after start date',
+      'good_morning': 'Good Morning',
+      'good_afternoon': 'Good Afternoon',
+      'good_evening': 'Good Evening',
+      'good_night': 'Good Night',
+      'edit_reminder': 'Edit Reminder',
+      'reminder_updated': 'Reminder updated',
+      'reminder_comment': 'Comment',
+      'enter_comment': 'Enter comment...',
+      'reminder_completed': 'Completed',
+      'mark_done': 'Mark Done',
+      'snooze': 'Snooze',
+      'snooze_1h': '1 hour',
+      'snooze_1d': '1 day',
+      'snooze_1w': '1 week',
+      'time_left': 'Time left',
+      'overdue': 'Overdue',
+      'in_days': '%d days left',
+      'in_hours': '%d hours left',
+      'in_minutes': '%d minutes left',
+      'cash': 'Cash',
+      'bank': 'Bank',
+      'savings_type': 'Savings Type',
+      'gallery': 'Gallery',
+      'camera': 'Camera',
+      'backup': 'Backup',
+      'restore': 'Restore',
+      'restore_confirmation': 'Restoring will overwrite all current data. Continue?',
+      'translating': 'Translating...',
+      'failed': 'Failed',
+      'google_drive_backup': 'Backup to Google Drive',
+      'google_drive_restore': 'Restore from Google Drive',
+      'sign_in_google': 'Sign in with Google',
+      'daily_reminder_title': 'Daily Accounting Reminder',
+      'set_daily_reminder': 'Set Daily Reminder',
+      'reminder_set': 'Reminder set',
+      'miscellaneous_notices': 'Miscellaneous Notices',
+      'reminders': 'Reminders',
+      'morning_reminder_title': '🌅 Good Morning',
+      'morning_reminder_body': 'Good morning! Update your income & expense records for today. Have a great day!',
+      'evening_reminder_title': '🌇 Good Afternoon',
+      'evening_reminder_body': 'Good afternoon! Half the day is over. Review your financial summary now.',
+      'night_reminder_title': '🌙 Good Night',
+      'night_reminder_body': 'Good night! Finalize today\'s transactions and get ready for tomorrow.',
+      'backup_success': 'Backup Successful!',
+      'backup_location': 'File location:',
+      'backup_share_message': 'Share Amar Hisab backup file',
+      'please_wait': 'Please wait...',
+      'saving': 'Saving...',
+      'share': 'Share',
+      'close': 'Close',
+      'restore_success': 'Restore Successful!',
+      'restore': 'Restore',
+      'restore_confirmation': 'Restoring will overwrite all current data. Continue?',
+      'ok': 'OK',
+      'yes': 'Yes',
+      'no': 'No',
+      'please_wait': 'Please wait...',
+      'change_photo': 'Change Photo',
+      'take_photo': 'Camera',
+      'choose_gallery': 'Gallery',
+      'remove_photo': 'Remove Photo',
+      'cancel': 'Cancel',
+      'profile_pic_removed': 'Profile picture removed',
+      'default_user': 'User',
+      'refresh': 'Refresh',
+      'notices_refreshed': 'Notices refreshed',
+      'add_new_category': 'Add New Category',
+      'add_new_category_dialog_title': 'Add New Category',
+      'category_name': 'Category Name',
+      'add': 'Add',
+      'edit_category': 'Edit Category',
+      'delete_category': 'Delete Category',
+      'delete_category_confirm': 'Are you sure you want to delete "{name}"?',
+      'category_exists': 'A category with this name already exists!',
+      'category_added': 'Category added',
+      'category_deleted': 'Category deleted',
+    },
+    'ar': {
+      'app_title': 'محاسبتي',
+      'home': 'الرئيسية',
+      'calendar': 'التقويم',
+      'notice': 'الإشعارات',
+      'notebook': 'دفتر الملاحظات',
+      'profile': 'الملف الشخصي',
+      'income': 'دخل',
+      'expense': 'مصروف',
+      'savings': 'مدخرات',
+      'debt': 'مستحق الدفع',
+      'credit': 'مستحق القبض',
+      'monthly_stats': 'الإحصائيات الشهرية',
+      'monthly_report': 'تقرير شهري',
+      'select_month': 'اختر الشهر',
+      'balance': 'رصيد',
+      'income_expense_stats': 'إحصائيات',
+      'other_accounts': 'أخرى',
+      'recent_transactions': 'الأخيرة',
+      'daily': 'يومي',
+      'monthly': 'شهري',
+      'yearly': 'سنوي',
+      'no_transactions': 'لا معاملات',
+      'add_income': 'إضافة دخل',
+      'add_expense': 'إضافة مصروف',
+      'add_reminder': 'إضافة تذكير',
+      'no_reminders': 'لا تذكيرات',
+      'no_notices': 'لا إشعارات',
+      'no_notes': 'لا ملاحظات',
+      'no_drawing': 'لا توجد رسومات',
+      'add_note': 'ملاحظة جديدة',
+      'add_drawing': 'إضافة رسم',
+      'text_note': 'ملاحظة',
+      'drawing': 'رسم',
+      'archive': 'أرشفة',
+      'yes': 'نعم',
+      'no': 'لا',
+      'save': 'حفظ',
+      'cancel': 'إلغاء',
+      'amount': 'المبلغ',
+      'description': 'الوصف',
+      'title': 'العنوان',
+      'date': 'التاريخ',
+      'time': 'الوقت',
+      'logout': 'خروج',
+      'settings': 'إعدادات',
+      'language': 'اللغة',
+      'currency': 'العملة',
+      'dark_mode': 'داكن',
+      'user_name': 'الاسم',
+      'change_photo': 'تغيير الصورة',
+      'take_photo': 'كاميرا',
+      'choose_gallery': 'معرض',
+      'edit': 'تعديل',
+      'delete': 'حذف',
+      'ok': 'حسنا',
+      'select_category': 'الفئة',
+      'amount_error': 'أدخل المبلغ',
+      'salary': 'راتب',
+      'business': 'عمل',
+      'house_rent': 'إيجار',
+      'other': 'آخر',
+      'gas_bill': 'غاز',
+      'electricity_bill': 'فاتورة الكهرباء',
+      'internet_bill': 'إنترنت',
+      'water_bill': 'ماء',
+      'transport': 'نقل',
+      'grocery': 'بقالة',
+      'education': 'تعليم',
+      'medical': 'طبي',
+      'food': 'طعام',
+      'mobile_bill': 'جوال',
+      'entertainment': 'ترفيه',
+      'government_holiday': 'عطلة',
+      'holidays': 'عطل',
+      'notification_scheduled': 'إشعار',
+      'budget_management': 'ميزانية',
+      'monthly_budget': 'شهري',
+      'budget_spent': 'أنفق',
+      'total_budget': 'الإجمالي',
+      'used': 'مستخدم',
+      'remaining': 'متبقي',
+      'budget_exceeded': 'تجاوز',
+      'recurring_transactions': 'متكرر',
+      'export_report': 'تصدير',
+      'security_settings': 'أمان',
+      'change_settings': 'تغيير',
+      'delete_confirm': 'هل أنت متأكد؟',
+      'show_hijri': 'إظهار الهجري',
+      'show_bengali': 'إظهار البنغالي',
+      'calendar_settings': 'إعدادات التقويم',
+      'set_pin': 'تعيين الرمز',
+      'new_pin': 'رمز جديد',
+      'confirm_pin': 'تأكيد الرمز',
+      'disable_lock': 'تعطيل القفل',
+      'pin_required_first': 'لا يمكن تمكين القفل بدون رمز PIN. يرجى تعيين رمز PIN أولاً.',
+      'pin_required_for_biometric': 'يرجى تعيين رمز PIN أولاً لاستخدام القياسات الحيوية.',
+      'pin_changed_success': 'تم تغيير الرمز بنجاح',
+      'enter_old_pin': 'أدخل الرمز القديم',
+      'old_pin': 'الرمز الحالي',
+      'wrong_old_pin': 'الرمز القديم خاطئ، حاول مرة أخرى',
+      'verify': 'تحقق',
+      'no_internet': 'لا يوجد اتصال بالإنترنت. يرجى التحقق من شبكتك.',
+      'checking_updates': 'جارٍ التحقق من التحديثات...',
+      'update_check_error': 'تعذر التحقق من التحديثات. يرجى التأكد من وجود اتصال بالإنترنت.',
+      'update_unable': 'تعذر الحصول على معلومات الإصدار. يرجى المحاولة لاحقًا.',
+      'already_latest': 'أنت على أحدث إصدار',
+      'update_available': 'تحديث متوفر!',
+      'new_version_msg': 'إصدار جديد متاح:',
+      'later': 'لاحقًا',
+      'enable_pin_code': 'تفعيل رمز PIN',
+      'change_pin_code': 'تغيير رمز PIN',
+      'disable_pin_code': 'تعطيل رمز PIN',
+      'disable_pin_confirm_title': 'تعطيل رمز PIN',
+      'pin_disabled': 'تم تعطيل رمز PIN',
+      'biometric_options': 'خيارات القياسات الحيوية',
+      'update_now': 'تحديث الآن',
+      'cannot_open_url': 'لا يمكن فتح الرابط',
+      'current_version': 'الإصدار الحالي:',
+      'developer': 'المطور',
+      'support': 'الدعم',
+      'all_rights_reserved': 'جميع الحقوق محفوظة',
+      'check_updates_title': 'التحقق من التحديثات',
+      'app_lock_enabled': 'تم تمكين قفل التطبيق',
+      'pin_code': 'رمز PIN',
+      'change_pin_button': 'تغيير رمز PIN',
+      'setup_pin_button': 'إعداد رمز PIN',
+      'biometric_lock': 'قفل القياسات الحيوية',
+      'biometric_only': 'القياسات الحيوية فقط',
+      'pin_and_biometric': 'PIN + القياسات الحيوية',
+      'lock_type_changed': 'تم تغيير نوع القفل',
+      'disable_lock_confirm': 'هل تريد تعطيل نظام القفل؟',
+      'app_lock_desc': 'مطلوب رمز أو بصمة لفتح التطبيق',
+      'lock_type': 'نوع القفل',
+      'pin_only': 'رمز فقط',
+      'pin_and_biometric': 'الرمز والبصمة',
+      'change_pin': 'تغيير الرمز',
+      'about_app': 'عن التطبيق',
+      'app_description': 'تطبيق بسيط لتتبع دخلك ونفقاتك اليومية مع دعم غير متصل بالإنترنت والنسخ الاحتياطي وميزات الأمان.',
+      'privacy_policy': 'سياسة الخصوصية',
+      'terms_of_service': 'شروط الخدمة',
+      'pin_set_success': 'تم تعيين الرمز بنجاح',
+      'pin_mismatch': 'الرمز غير متطابق، حاول مرة أخرى',
+      'lock_disabled': 'تم تعطيل القفل',
+      'faq_title': '🙋‍♂️ الأسئلة الشائعة',
+      'faq_q1': 'ما هي الميزات الرئيسية لهذا التطبيق؟',
+      'faq_a1': 'هذا التطبيق هو مساعد شامل. يوفر 4 ميزات رئيسية:\n\n📊 تتبع الدخل والمصروفات\n📓 دفتر الملاحظات والرسم\n⏰ تذكيرات\n💰 تخطيط الميزانية',
+      'faq_q2': 'هل أحتاج إلى الإنترنت لاستخدام التطبيق؟',
+      'faq_a2': 'التطبيق يعمل عبر الإنترنت وغير متصل. بدون إنترنت، لا يزال بإمكانك إضافة المعاملات والملاحظات والتذكيرات. عندما تتصل بالإنترنت، تتم مزامنة كل شيء تلقائياً مع السحابة.',
+      'faq_q3': 'ماذا يحدث إذا قمت بإلغاء تثبيت التطبيق؟',
+      'faq_a3': 'إذا لم تقم بعمل نسخة احتياطية على Google Drive، فإن إلغاء التثبيت أو إعادة ضبط الهاتف سيؤدي إلى حذف البيانات المحلية بالكامل. نظرًا لأننا لا نخزن بيانات المستخدم على الخوادم، فلا يمكن استرداد البيانات المفقودة.',
+      'faq_q4': 'كيف تعمل ميزة التذكير؟',
+      'faq_a4': 'يمكنك تعيين تذكير لأي مهمة بتاريخ ووقت محددين. في الوقت المحدد، سيقوم التطبيق بإعلامك عبر إشعار.',
+      'faq_q5': 'ما فائدة ميزة الميزانية؟',
+      'faq_a5': 'يمكنك تعيين حدود الإنفاق لكل فئة للتحكم في نفقاتك. هذا يساعدك على توفير المال.',
+      'faq_q6': 'هل يمكنني إضافة صور أو رسومات إلى ملاحظاتي؟',
+      'faq_a6': 'نعم. يمكنك إرفاق صور من الكاميرا / المعرض وكذلك الرسم أو التخطيط على اللوحة داخل دفتر الملاحظات.',
+      'close': 'إغلاق',
+      'editing': 'تحرير',
+      'drawing_create': 'إنشاء رسم',
+      'drawing_edit': 'تحرير الرسم',
+      'drawing_saved': 'تم حفظ الرسم',
+      'write_note_hint': 'اكتب ملاحظة...',
+      'daily_stats': 'الإحصائيات اليومية',
+      'all': 'الكل',
+      'total_income': 'إجمالي الدخل',
+      'total_expense': 'إجمالي المصروفات',
+      'transaction_history': 'سجل المعاملات',
+      'pdf': 'PDF',
+      'saving': 'جاري الحفظ...',
+      'daily_report': 'تقرير يومي',
+      'export_success': 'تم التصدير بنجاح',
+      'pdf_created_message': 'تم إنشاء ملف PDF. يمكنك مشاركته أو طباعته.',
+      'share': 'مشاركة',
+      'print': 'طباعة',
+      'pdf_failed': 'فشل إنشاء PDF',
+      'reminder_debt_payment': 'تذكير: دفع المستحق',
+      'good_morning': 'صباح الخير',
+      'good_afternoon': 'مساء الخير',
+      'good_evening': 'مساء الخير',
+      'good_night': 'تصبح على خير',
+      'edit_reminder': 'تحرير التذكير',
+      'reminder_updated': 'تم تحديث التذكير',
+      'reminder_comment': 'تعليق',
+      'enter_comment': 'أدخل تعليقاً...',
+      'reminder_completed': 'مكتمل',
+      'mark_done': 'تحديد كمكتمل',
+      'snooze': 'تأجيل',
+      'snooze_1h': 'ساعة واحدة',
+      'snooze_1d': 'يوم واحد',
+      'snooze_1w': 'أسبوع واحد',
+      'time_left': 'الوقت المتبقي',
+      'overdue': 'متأخر',
+      'in_days': 'متبقي %d أيام',
+      'in_hours': 'متبقي %d ساعات',
+      'in_minutes': 'متبقي %d دقائق',
+      'cash': 'نقدي',
+      'bank': 'بنك',
+      'savings_type': 'نوع المدخرات',
+      'gallery': 'معرض الصور',
+      'camera': 'الكاميرا',
+      'backup': 'نسخ احتياطي',
+      'restore': 'استعادة',
+      'restore_confirmation': 'سيؤدي الاستعادة إلى استبدال جميع البيانات الحالية. هل تريد المتابعة؟',
+      'translating': 'جاري الترجمة...',
+      'failed': 'فشل',
+      'google_drive_backup': 'نسخ احتياطي إلى جوجل درايف',
+      'google_drive_restore': 'استعادة من جوجل درايف',
+      'sign_in_google': 'تسجيل الدخول بحساب جوجل',
+      'daily_reminder_title': 'تذكير يومي بالمحاسبة',
+      'set_daily_reminder': 'تعيين تذكير يومي',
+      'reminder_set': 'تم تعيين التذكير',
+      'miscellaneous_notices': 'إشعارات متنوعة',
+      'reminders': 'تذكيرات',
+      'morning_reminder_title': '🌅 صباح الخير',
+      'morning_reminder_body': 'صباح الخير! قم بتحديث سجلات الدخل والمصروفات لهذا اليوم. يوم سعيد!',
+      'evening_reminder_title': '🌇 مساء الخير',
+      'evening_reminder_body': 'مساء الخير! مضى نصف اليوم. راجع ملخصك المالي الآن.',
+      'night_reminder_title': '🌙 تصبح على خير',
+      'night_reminder_body': 'تصبح على خير! أنهِ معاملات اليوم واستعد للغد.',
+      'backup_success': 'تم النسخ الاحتياطي بنجاح!',
+      'backup_location': 'موقع الملف:',
+      'backup_share_message': 'مشاركة ملف النسخ الاحتياطي لتطبيق محاسبتي',
+      'please_wait': 'يرجى الانتظار...',
+      'saving': 'جاري الحفظ...',
+      'share': 'مشاركة',
+      'close': 'إغلاق',
+      'restore_success': 'تمت الاستعادة بنجاح!',
+      'restore': 'استعادة',
+      'restore_confirmation': 'سيؤدي الاستعادة إلى استبدال جميع البيانات الحالية. هل تريد المتابعة؟',
+      'ok': 'حسنا',
+      'yes': 'نعم',
+      'no': 'لا',
+      'please_wait': 'يرجى الانتظار...',
+      'change_photo': 'تغيير الصورة',
+      'take_photo': 'كاميرا',
+      'choose_gallery': 'معرض الصور',
+      'remove_photo': 'إزالة الصورة',
+      'cancel': 'إلغاء',
+      'profile_pic_removed': 'تمت إزالة الصورة الشخصية',
+      'default_user': 'مستخدم افتراضي',
+      'refresh': 'تحديث',
+      'notices_refreshed': 'تم تحديث الإشعارات',
+      'add_new_category': 'إضافة فئة جديدة',
+      'add_new_category_dialog_title': 'إضافة فئة جديدة',
+      'category_name': 'اسم الفئة',
+      'add': 'إضافة',
+      'edit_category': 'تعديل الفئة',
+      'delete_category': 'حذف الفئة',
+      'delete_category_confirm': 'هل أنت متأكد من حذف "{name}"؟',
+      'category_exists': 'هناك فئة بهذا الاسم بالفعل!',
+      'category_added': 'تمت إضافة الفئة',
+      'category_deleted': 'تم حذف الفئة',
+    },
+  };
 
   String getText(String key) =>
       _localizedText[_selectedLanguage]?[key] ?? _localizedText['bn']?[key] ?? key;
@@ -1092,14 +1088,14 @@ class _HomeScreenState extends State<HomeScreen> {
     {'key': 'other', 'icon': Icons.more_horiz, 'color': Colors.grey},
   ];
 
-   String getCategoryName(String key) {
-     final allCats = CategoryService().allCategories;
-     final matching = allCats.where((c) => c['key'] == key).toList();
-     if (matching.isNotEmpty && matching.first['isCustom'] == true) {
-       return matching.first['key'];
-     }
-     return getText(key);
-   }
+  String getCategoryName(String key) {
+    final allCats = CategoryService().allCategories;
+    final matching = allCats.where((c) => c['key'] == key).toList();
+    if (matching.isNotEmpty && matching.first['isCustom'] == true) {
+      return matching.first['key'];
+    }
+    return getText(key);
+  }
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay = DateTime.now();
@@ -1161,7 +1157,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   TimeOfDay _parseTimeOfDay(String timeStr) {
     try {
-      // ১. বাংলা/আরবি ডিজিটগুলোকে ইংরেজি ডিজিটে রূপান্তর করুন
       const bengali = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
       const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
       const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -1171,19 +1166,16 @@ class _HomeScreenState extends State<HomeScreen> {
         engStr = engStr.replaceAll(arabic[i], english[i]);
       }
 
-      // ২. ১২-ঘন্টা ফরম্যাট চেষ্টা করুন (যেমন "07:30 PM")
       try {
         final format = DateFormat('h:mm a');
         final date = format.parse(engStr);
         return TimeOfDay(hour: date.hour, minute: date.minute);
       } catch (_) {
-        // ৩. ২৪-ঘন্টা ফরম্যাট চেষ্টা করুন (যেমন "19:30")
         try {
           final format = DateFormat('HH:mm');
           final date = format.parse(engStr);
           return TimeOfDay(hour: date.hour, minute: date.minute);
         } catch (_) {
-          // ৪. কোনো ফরম্যাটই কাজ না করলে বর্তমান সময় রিটার্ন করুন
           return TimeOfDay.now();
         }
       }
@@ -1459,7 +1451,6 @@ class _HomeScreenState extends State<HomeScreen> {
               'রিমাইন্ডার',
               importance: Importance.max,
               priority: Priority.high,
-              //htmlFormatTitle: true,
               actions: [
                 AndroidNotificationAction('done', 'সম্পন্ন করুন'),
                 AndroidNotificationAction('snooze', 'পিছিয়ে দিন'),
@@ -1544,333 +1535,327 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDataFromHive();
     _showSnackBar(getText('reminder_updated'), Colors.orange);
   }
- String _formatTime12Hour(TimeOfDay time, BuildContext context) {
-   // সবসময় ১২-ঘন্টা ফরম্যাটে সময় তৈরি করুন (en_US লোকেল ব্যবহার করে)
-   final now = DateTime(2020, 1, 1, time.hour, time.minute);
-   String formatted = DateFormat('h:mm a', 'en_US').format(now);
 
-   // বাংলা ভাষায় ডিজিটগুলো বাংলায় রূপান্তর করুন
-   if (_selectedLanguage == 'bn') {
-     String toBanglaNum(String input) {
-       const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-       const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-       for (int i = 0; i < en.length; i++) {
-         input = input.replaceAll(en[i], bn[i]);
-       }
-       return input;
-     }
+  String _formatTime12Hour(TimeOfDay time, BuildContext context) {
+    final now = DateTime(2020, 1, 1, time.hour, time.minute);
+    String formatted = DateFormat('h:mm a', 'en_US').format(now);
 
-     // শুধু সংখ্যাগুলোকে বাংলায় রূপান্তর করি, AM/PM অপরিবর্তিত রাখি
-     final parts = formatted.split(' ');
-     if (parts.length == 2) {
-       final timePart = toBanglaNum(parts[0]);
-       return '$timePart ${parts[1]}'; // যেমন: ০৭:৩০ PM
-     }
-     return formatted;
-   }
+    if (_selectedLanguage == 'bn') {
+      String toBanglaNum(String input) {
+        const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+        for (int i = 0; i < en.length; i++) {
+          input = input.replaceAll(en[i], bn[i]);
+        }
+        return input;
+      }
 
-   return formatted; // ইংরেজি/আরবির জন্য ইংরেজি ডিজিটে ১২-ঘন্টা ফরম্যাট
- }
+      final parts = formatted.split(' ');
+      if (parts.length == 2) {
+        final timePart = toBanglaNum(parts[0]);
+        return '$timePart ${parts[1]}';
+      }
+      return formatted;
+    }
+
+    return formatted;
+  }
 
   void _editReminder(String id, String oldNote, String oldDate, String oldTime) {
-      final titleCtrl = TextEditingController(text: oldNote);
-      DateTime selDate = DateFormat('dd/MM/yyyy').parse(oldDate);
-      TimeOfDay selTime = _parseTimeOfDay(oldTime);
+    final titleCtrl = TextEditingController(text: oldNote);
+    DateTime selDate = DateFormat('dd/MM/yyyy').parse(oldDate);
+    TimeOfDay selTime = _parseTimeOfDay(oldTime);
 
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (c) => StatefulBuilder(
-          builder: (c, s) => SingleChildScrollView(
-            child: Container(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(c).viewInsets.bottom,
-                left: 20,
-                right: 20,
-                top: 20,
-              ),
-              decoration: BoxDecoration(
-                color: _isDarkMode ? Colors.grey[850] : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 20),
-                  Text(
-                    getText('edit_reminder'),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => SingleChildScrollView(
+          child: Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(c).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            decoration: BoxDecoration(
+              color: _isDarkMode ? Colors.grey[850] : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 20),
+                Text(
+                  getText('edit_reminder'),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: getText('title'),
+                    border: const OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: titleCtrl,
-                    decoration: InputDecoration(
-                      labelText: getText('title'),
-                      border: const OutlineInputBorder(),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () async {
+                    final p = await showDatePicker(
+                      context: c,
+                      initialDate: selDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2030),
+                      builder: (context, child) {
+                        return Localizations.override(
+                          context: context,
+                          locale: Locale(_selectedLanguage),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (p != null) s(() => selDate = p);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () async {
-                      final p = await showDatePicker(
-                        context: c,
-                        initialDate: selDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2030),
-                        builder: (context, child) {
-                          return Localizations.override(
-                            context: context,
-                            locale: Locale(_selectedLanguage),
-                            child: child!,
-                          );
-                        },
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () async {
+                    final p = await _show12HourTimePicker(c, initialTime: selTime);
+                    if (p != null) s(() => selTime = p);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time),
+                        const SizedBox(width: 10),
+                        Text('${getText('time')}: ${_formatTime12Hour(selTime, c)}'),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (titleCtrl.text.isNotEmpty) {
+                      final newDate = DateFormat('dd/MM/yyyy').format(selDate);
+                      final newTime = _formatTime12Hour(selTime, c);
+
+                      await LocalDatabaseService().updateReminder(
+                        id,
+                        titleCtrl.text,
+                        newDate,
+                        newTime,
                       );
-                      if (p != null) s(() => selDate = p);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today),
-                          const SizedBox(width: 10),
-                          Text(
-                            '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
-                          ),
-                        ],
-                      ),
-                    ),
+                      final newDateTime = DateTime(
+                        selDate.year,
+                        selDate.month,
+                        selDate.day,
+                        selTime.hour,
+                        selTime.minute,
+                      );
+                      await _scheduleNotification(
+                        titleCtrl.text,
+                        newDateTime,
+                        id,
+                        reschedule: true,
+                      );
+                      Navigator.pop(c);
+                      _showSnackBar(getText('reminder_updated'), Colors.green);
+                      _loadDataFromHive();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    minimumSize: const Size(double.infinity, 50),
                   ),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () async {
-                      final p = await _show12HourTimePicker(c, initialTime: selTime);
-                      if (p != null) s(() => selTime = p);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.access_time),
-                          const SizedBox(width: 10),
-                          // 🛠️ এখানে পরিবর্তন করা হয়েছে (UI Display Text)
-                          Text('${getText('time')}: ${_formatTime12Hour(selTime, c)}'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (titleCtrl.text.isNotEmpty) {
-                        final newDate = DateFormat('dd/MM/yyyy').format(selDate);
-                        // 🛠️ এখানে পরিবর্তন করা হয়েছে (Database Save String)
-                        final newTime = _formatTime12Hour(selTime, c);
-
-                        await LocalDatabaseService().updateReminder(
-                          id,
-                          titleCtrl.text,
-                          newDate,
-                          newTime,
-                        );
-                        final newDateTime = DateTime(
-                          selDate.year,
-                          selDate.month,
-                          selDate.day,
-                          selTime.hour,
-                          selTime.minute,
-                        );
-                        await _scheduleNotification(
-                          titleCtrl.text,
-                          newDateTime,
-                          id,
-                          reschedule: true,
-                        );
-                        Navigator.pop(c);
-                        _showSnackBar(getText('reminder_updated'), Colors.green);
-                        _loadDataFromHive();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700,
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    child: Text(getText('save')),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
+                  child: Text(getText('save')),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
   void _showReminderInput() {
-      final titleCtrl = TextEditingController();
-      DateTime selDate = _selectedDay ?? DateTime.now();
-      TimeOfDay selTime = TimeOfDay.now();
+    final titleCtrl = TextEditingController();
+    DateTime selDate = _selectedDay ?? DateTime.now();
+    TimeOfDay selTime = TimeOfDay.now();
 
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (c) => StatefulBuilder(
-          builder: (c, s) => SingleChildScrollView(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-              ),
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(c).viewInsets.bottom,
-                left: 20,
-                right: 20,
-                top: 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    height: 4,
-                    width: 40,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => SingleChildScrollView(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(c).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  getText('add_reminder'),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: getText('title'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.title),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: c,
+                      initialDate: selDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2030),
+                      builder: (context, child) {
+                        return Localizations.override(
+                          context: context,
+                          locale: Locale(_selectedLanguage),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (picked != null) s(() => selDate = picked);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    getText('add_reminder'),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: titleCtrl,
-                    decoration: InputDecoration(
-                      labelText: getText('title'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.title),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () async {
+                    final picked = await _show12HourTimePicker(c, initialTime: selTime);
+                    if (picked != null) s(() => selTime = picked);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time),
+                        const SizedBox(width: 10),
+                        Text('${getText('time')}: ${_formatTime12Hour(selTime, c)}'),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: c,
-                        initialDate: selDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2030),
-                        builder: (context, child) {
-                          return Localizations.override(
-                            context: context,
-                            locale: Locale(_selectedLanguage),
-                            child: child!,
-                          );
-                        },
-                      );
-                      if (picked != null) s(() => selDate = picked);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today),
-                          const SizedBox(width: 10),
-                          Text(
-                            '${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selDate)}',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await _show12HourTimePicker(c, initialTime: selTime);
-                      if (picked != null) s(() => selTime = picked);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.access_time),
-                          const SizedBox(width: 10),
-                          // 🛠️ এখানে পরিবর্তন করা হয়েছে (UI Display Text)
-                          Text('${getText('time')}: ${_formatTime12Hour(selTime, c)}'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (titleCtrl.text.isNotEmpty) {
-                        final rId = DateTime.now().millisecondsSinceEpoch.toString();
-                        // 🛠️ এখানে পরিবর্তন করা হয়েছে (Database Save String)
-                        final timeStr = _formatTime12Hour(selTime, c);
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (titleCtrl.text.isNotEmpty) {
+                      final rId = DateTime.now().millisecondsSinceEpoch.toString();
+                      final timeStr = _formatTime12Hour(selTime, c);
 
-                        final reminderTx = TransactionModel(
-                          id: rId,
-                          amount: 0,
-                          note: titleCtrl.text,
-                          type: 'Reminder',
-                          date: DateFormat('dd/MM/yyyy').format(selDate),
-                          category: '',
-                          isArchived: false,
-                          time: timeStr,
-                        );
-                        LocalDatabaseService().addTransaction(reminderTx);
-                        LocalDatabaseService().updateReminderCompleted(rId, false);
-                        final reminderDateTime = DateTime(
-                          selDate.year,
-                          selDate.month,
-                          selDate.day,
-                          selTime.hour,
-                          selTime.minute,
-                        );
-                        _scheduleNotification(titleCtrl.text, reminderDateTime, rId);
-                        Navigator.pop(c);
-                        _showSnackBar(getText('notification_scheduled'), Colors.green);
-                        _loadDataFromHive();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      getText('save'),
-                      style: const TextStyle(color: Colors.white),
+                      final reminderTx = TransactionModel(
+                        id: rId,
+                        amount: 0,
+                        note: titleCtrl.text,
+                        type: 'Reminder',
+                        date: DateFormat('dd/MM/yyyy').format(selDate),
+                        category: '',
+                        isArchived: false,
+                        time: timeStr,
+                      );
+                      LocalDatabaseService().addTransaction(reminderTx);
+                      LocalDatabaseService().updateReminderCompleted(rId, false);
+                      final reminderDateTime = DateTime(
+                        selDate.year,
+                        selDate.month,
+                        selDate.day,
+                        selTime.hour,
+                        selTime.minute,
+                      );
+                      _scheduleNotification(titleCtrl.text, reminderDateTime, rId);
+                      Navigator.pop(c);
+                      _showSnackBar(getText('notification_scheduled'), Colors.green);
+                      _loadDataFromHive();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                ],
-              ),
+                  child: Text(
+                    getText('save'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
   void _showDebtCreditDialog(String type) {
     final amtCtrl = TextEditingController();
@@ -2023,8 +2008,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           subtitle: Text(
                             reminderDate == null
                                 ? (_selectedLanguage == 'en'
-                                    ? 'Select date'
-                                    : (_selectedLanguage == 'ar' ? 'اختر التاريخ' : 'নির্বাচন করুন'))
+                                ? 'Select date'
+                                : (_selectedLanguage == 'ar' ? 'اختر التاريخ' : 'নির্বাচন করুন'))
                                 : DateFormat('dd/MM/yyyy').format(reminderDate!),
                           ),
                           onTap: () async {
@@ -2052,8 +2037,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           subtitle: Text(
                             reminderTime == null
                                 ? (_selectedLanguage == 'en'
-                                    ? 'Select time'
-                                    : (_selectedLanguage == 'ar' ? 'اختر الوقت' : 'নির্বাচন করুন'))
+                                ? 'Select time'
+                                : (_selectedLanguage == 'ar' ? 'اختر الوقت' : 'নির্বাচন করুন'))
                                 : reminderTime!.format(c),
                           ),
                           onTap: () async {
@@ -2310,7 +2295,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? getText('savings')
                         : noteCtrl.text;
                     finalNote +=
-                        ' [${selectedType == 'cash' ? getText('cash') : getText('bank')}]';
+                    ' [${selectedType == 'cash' ? getText('cash') : getText('bank')}]';
                     final savingsTx = TransactionModel(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
                       amount: amt,
@@ -2352,7 +2337,6 @@ class _HomeScreenState extends State<HomeScreen> {
     String selCat = 'salary';
     DateTime selectedDate = DateTime.now();
 
-    // ✅ get the list of income category keys
     final incomeKeys = incomeCategories.map((cat) => cat['key'] as String).toList();
 
     showModalBottomSheet(
@@ -2429,7 +2413,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onChanged: (newValue) => s(() => selCat = newValue),
                   hintText: getText('select_category'),
                   showAddNew: true,
-                  allowedKeys: incomeKeys,   // ✅ only income categories
+                  allowedKeys: incomeKeys,
                   filterType: 'Income',
                   getTranslatedName: (key) => getCategoryName(key),
                   addNewCategoryText: getText('add_new_category'),
@@ -2443,7 +2427,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   categoryExistsText: getText('category_exists'),
                   addSuccessText: getText('category_added'),
                   deleteSuccessText: getText('category_deleted'),
-
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -2488,138 +2471,137 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
- void _showExpenseDialog() {
-   final amtCtrl = TextEditingController();
-   final noteCtrl = TextEditingController();
-   String selCat = 'gas_bill';
-   DateTime selectedDate = DateTime.now();
+  void _showExpenseDialog() {
+    final amtCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    String selCat = 'gas_bill';
+    DateTime selectedDate = DateTime.now();
 
-   // ✅ get expense keys
-   final expenseKeys = expenseCategories.map((cat) => cat['key'] as String).toList();
+    final expenseKeys = expenseCategories.map((cat) => cat['key'] as String).toList();
 
-   showModalBottomSheet(
-     context: context,
-     isScrollControlled: true,
-     backgroundColor: Colors.transparent,
-     builder: (c) => StatefulBuilder(
-       builder: (c, s) => SingleChildScrollView(
-         child: Container(
-           decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-           padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20),
-           child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-               const SizedBox(height: 20),
-               Text(getText('add_expense'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-               const SizedBox(height: 20),
-               InkWell(
-                 onTap: () async {
-                   final picked = await showDatePicker(
-                     context: c,
-                     initialDate: selectedDate,
-                     firstDate: DateTime(2020),
-                     lastDate: DateTime(2030),
-                     builder: (context, child) => Localizations.override(context: context, locale: Locale(_selectedLanguage), child: child!),
-                   );
-                   if (picked != null) s(() => selectedDate = picked);
-                 },
-                 child: Container(
-                   padding: const EdgeInsets.all(12),
-                   decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(10)),
-                   child: Row(
-                     children: [
-                       const Icon(Icons.calendar_today, size: 18),
-                       const SizedBox(width: 10),
-                       Text('${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
-                     ],
-                   ),
-                 ),
-               ),
-               const SizedBox(height: 12),
-               TextField(
-                 controller: amtCtrl,
-                 keyboardType: TextInputType.text,
-                 inputFormatters: [
-                   FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
-                   TextInputFormatter.withFunction((oldValue, newValue) {
-                     String converted = _convertToScriptDigits(newValue.text);
-                     return newValue.copyWith(text: converted, selection: TextSelection.collapsed(offset: converted.length));
-                   }),
-                 ],
-                 decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)),
-                 autofocus: true,
-               ),
-               const SizedBox(height: 12),
-               TextField(
-                 controller: noteCtrl,
-                 decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note)),
-               ),
-               const SizedBox(height: 12),
-               Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)),
-               const SizedBox(height: 8),
-               CategoryDropdown(
-                 selectedValue: selCat,
-                 onChanged: (newValue) => s(() => selCat = newValue),
-                 hintText: getText('select_category'),
-                 showAddNew: true,
-                 allowedKeys: expenseKeys,   // ✅ only expense categories
-                 filterType: 'Expense',
-                 getTranslatedName: (key) => getCategoryName(key),
-                 addNewCategoryText: getText('add_new_category'),
-                 dialogTitle: getText('add_new_category_dialog_title'),
-                 categoryNameLabel: getText('category_name'),
-                 addButtonText: getText('add'),
-                 cancelButtonText: getText('cancel'),
-                 editCategoryText: getText('edit_category'),
-                 deleteCategoryText: getText('delete_category'),
-                 deleteConfirmText: getText('delete_category_confirm'),
-                 categoryExistsText: getText('category_exists'),
-                 addSuccessText: getText('category_added'),
-                 deleteSuccessText: getText('category_deleted'),
-               ),
-               const SizedBox(height: 20),
-               ElevatedButton(
-                 onPressed: () {
-                   if (amtCtrl.text.trim().isEmpty) {
-                     _showSnackBar(getText('amount_error'), Colors.red);
-                     return;
-                   }
-                   final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
-                   final amt = double.tryParse(rawAmount);
-                   if (amt == null) {
-                     _showSnackBar(getText('amount_error'), Colors.red);
-                     return;
-                   }
-                   final tx = TransactionModel(
-                     id: DateTime.now().millisecondsSinceEpoch.toString(),
-                     amount: amt,
-                     note: noteCtrl.text.isEmpty ? getCategoryName(selCat) : noteCtrl.text,
-                     type: 'Expense',
-                     date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
-                     category: selCat,
-                     isArchived: false,
-                   );
-                   LocalDatabaseService().addTransaction(tx);
-                   Navigator.pop(c);
-                   _showSnackBar('${getText('expense')} ${getText('save')}', Colors.red);
-                   _loadDataFromHive();
-                 },
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: Colors.blue.shade700,
-                   minimumSize: const Size(double.infinity, 50),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                 ),
-                 child: Text(getText('save'), style: const TextStyle(color: Colors.white)),
-               ),
-               const SizedBox(height: 20),
-             ],
-           ),
-         ),
-       ),
-     ),
-   );
- }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => SingleChildScrollView(
+          child: Container(
+            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 20),
+                Text(getText('add_expense'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: c,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                      builder: (context, child) => Localizations.override(context: context, locale: Locale(_selectedLanguage), child: child!),
+                    );
+                    if (picked != null) s(() => selectedDate = picked);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 10),
+                        Text('${getText('date')}: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amtCtrl,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String converted = _convertToScriptDigits(newValue.text);
+                      return newValue.copyWith(text: converted, selection: TextSelection.collapsed(offset: converted.length));
+                    }),
+                  ],
+                  decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note)),
+                ),
+                const SizedBox(height: 12),
+                Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                CategoryDropdown(
+                  selectedValue: selCat,
+                  onChanged: (newValue) => s(() => selCat = newValue),
+                  hintText: getText('select_category'),
+                  showAddNew: true,
+                  allowedKeys: expenseKeys,
+                  filterType: 'Expense',
+                  getTranslatedName: (key) => getCategoryName(key),
+                  addNewCategoryText: getText('add_new_category'),
+                  dialogTitle: getText('add_new_category_dialog_title'),
+                  categoryNameLabel: getText('category_name'),
+                  addButtonText: getText('add'),
+                  cancelButtonText: getText('cancel'),
+                  editCategoryText: getText('edit_category'),
+                  deleteCategoryText: getText('delete_category'),
+                  deleteConfirmText: getText('delete_category_confirm'),
+                  categoryExistsText: getText('category_exists'),
+                  addSuccessText: getText('category_added'),
+                  deleteSuccessText: getText('category_deleted'),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (amtCtrl.text.trim().isEmpty) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    final rawAmount = _convertToEnglishDigits(amtCtrl.text.trim());
+                    final amt = double.tryParse(rawAmount);
+                    if (amt == null) {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                      return;
+                    }
+                    final tx = TransactionModel(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      amount: amt,
+                      note: noteCtrl.text.isEmpty ? getCategoryName(selCat) : noteCtrl.text,
+                      type: 'Expense',
+                      date: DateFormat('dd/MM/yyyy hh:mm a').format(selectedDate),
+                      category: selCat,
+                      isArchived: false,
+                    );
+                    LocalDatabaseService().addTransaction(tx);
+                    Navigator.pop(c);
+                    _showSnackBar('${getText('expense')} ${getText('save')}', Colors.red);
+                    _loadDataFromHive();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(getText('save'), style: const TextStyle(color: Colors.white)),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showSnackBar(String msg, Color color) {
     if (mounted)
@@ -2724,104 +2706,103 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
- void _showEditDialog(Map<String, dynamic> tx) {
-   final amtCtrl = TextEditingController(text: (tx['amount'] ?? '').toString());
-   final noteCtrl = TextEditingController(text: tx['note'] ?? '');
-   String type = tx['type'] ?? 'Income';
-   String catKey = tx['category'] ?? (type == 'Income' ? 'salary' : 'gas_bill');
+  void _showEditDialog(Map<String, dynamic> tx) {
+    final amtCtrl = TextEditingController(text: (tx['amount'] ?? '').toString());
+    final noteCtrl = TextEditingController(text: tx['note'] ?? '');
+    String type = tx['type'] ?? 'Income';
+    String catKey = tx['category'] ?? (type == 'Income' ? 'salary' : 'gas_bill');
 
-   // ✅ get the appropriate keys
-   List<String> allowedKeys;
-   if (type == 'Income') {
-     allowedKeys = incomeCategories.map((cat) => cat['key'] as String).toList();
-   } else {
-     allowedKeys = expenseCategories.map((cat) => cat['key'] as String).toList();
-   }
+    List<String> allowedKeys;
+    if (type == 'Income') {
+      allowedKeys = incomeCategories.map((cat) => cat['key'] as String).toList();
+    } else {
+      allowedKeys = expenseCategories.map((cat) => cat['key'] as String).toList();
+    }
 
-   showModalBottomSheet(
-     context: context,
-     isScrollControlled: true,
-     backgroundColor: Colors.transparent,
-     builder: (c) => StatefulBuilder(
-       builder: (c, s) => SingleChildScrollView(
-         child: Container(
-           decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-           padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20),
-           child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-               const SizedBox(height: 20),
-               Text(getText('edit'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-               const SizedBox(height: 20),
-               TextField(
-                 controller: amtCtrl,
-                 keyboardType: TextInputType.number,
-                 decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)),
-                 autofocus: true,
-               ),
-               const SizedBox(height: 12),
-               TextField(
-                 controller: noteCtrl,
-                 decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note)),
-               ),
-               const SizedBox(height: 12),
-               Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)),
-               const SizedBox(height: 8),
-               CategoryDropdown(
-                 selectedValue: catKey,
-                 onChanged: (newValue) => s(() => catKey = newValue),
-                 hintText: getText('select_category'),
-                 showAddNew: true,
-                 allowedKeys: allowedKeys,   // ✅ filter by type
-                 filterType: type,
-                 getTranslatedName: (key) => getCategoryName(key),
-                 addNewCategoryText: getText('add_new_category'),
-                 dialogTitle: getText('add_new_category_dialog_title'),
-                 categoryNameLabel: getText('category_name'),
-                 addButtonText: getText('add'),
-                 cancelButtonText: getText('cancel'),
-                 editCategoryText: getText('edit_category'),
-                 deleteCategoryText: getText('delete_category'),
-                 deleteConfirmText: getText('delete_category_confirm'),
-                 categoryExistsText: getText('category_exists'),
-                 addSuccessText: getText('category_added'),
-                 deleteSuccessText: getText('category_deleted'),
-               ),
-               const SizedBox(height: 20),
-               ElevatedButton(
-                 onPressed: () {
-                   if (amtCtrl.text.isNotEmpty) {
-                     final amt = double.tryParse(amtCtrl.text);
-                     if (amt != null) {
-                       LocalDatabaseService().updateTransaction(tx['key'], {
-                         'amount': amt,
-                         'note': noteCtrl.text.isEmpty ? getCategoryName(catKey) : noteCtrl.text,
-                         'category': catKey,
-                       });
-                       Navigator.pop(c);
-                       _showSnackBar('${getText('edit')} ${getText('save')}', Colors.green);
-                       _loadDataFromHive();
-                     }
-                   } else {
-                     _showSnackBar(getText('amount_error'), Colors.red);
-                   }
-                 },
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: Colors.blue.shade700,
-                   minimumSize: const Size(double.infinity, 50),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                 ),
-                 child: Text(getText('save'), style: const TextStyle(color: Colors.white)),
-               ),
-               const SizedBox(height: 20),
-             ],
-           ),
-         ),
-       ),
-     ),
-   );
- }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (c) => StatefulBuilder(
+        builder: (c, s) => SingleChildScrollView(
+          child: Container(
+            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, left: 20, right: 20, top: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 20),
+                Text(getText('edit'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: amtCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: getText('amount'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.money)),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: InputDecoration(labelText: getText('description'), border: const OutlineInputBorder(), prefixIcon: const Icon(Icons.note)),
+                ),
+                const SizedBox(height: 12),
+                Text(getText('select_category'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                CategoryDropdown(
+                  selectedValue: catKey,
+                  onChanged: (newValue) => s(() => catKey = newValue),
+                  hintText: getText('select_category'),
+                  showAddNew: true,
+                  allowedKeys: allowedKeys,
+                  filterType: type,
+                  getTranslatedName: (key) => getCategoryName(key),
+                  addNewCategoryText: getText('add_new_category'),
+                  dialogTitle: getText('add_new_category_dialog_title'),
+                  categoryNameLabel: getText('category_name'),
+                  addButtonText: getText('add'),
+                  cancelButtonText: getText('cancel'),
+                  editCategoryText: getText('edit_category'),
+                  deleteCategoryText: getText('delete_category'),
+                  deleteConfirmText: getText('delete_category_confirm'),
+                  categoryExistsText: getText('category_exists'),
+                  addSuccessText: getText('category_added'),
+                  deleteSuccessText: getText('category_deleted'),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (amtCtrl.text.isNotEmpty) {
+                      final amt = double.tryParse(amtCtrl.text);
+                      if (amt != null) {
+                        LocalDatabaseService().updateTransaction(tx['key'], {
+                          'amount': amt,
+                          'note': noteCtrl.text.isEmpty ? getCategoryName(catKey) : noteCtrl.text,
+                          'category': catKey,
+                        });
+                        Navigator.pop(c);
+                        _showSnackBar('${getText('edit')} ${getText('save')}', Colors.green);
+                        _loadDataFromHive();
+                      }
+                    } else {
+                      _showSnackBar(getText('amount_error'), Colors.red);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(getText('save'), style: const TextStyle(color: Colors.white)),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _openSecurityScreen() {
     Navigator.push(
@@ -2951,10 +2932,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final currentHour = prefs.getInt('daily_reminder_hour') ?? 9;
     final currentMinute = prefs.getInt('daily_reminder_minute') ?? 0;
 
-   final time = await _show12HourTimePicker(
-     context,
-     initialTime: TimeOfDay(hour: currentHour, minute: currentMinute),
-   );
+    final time = await _show12HourTimePicker(
+      context,
+      initialTime: TimeOfDay(hour: currentHour, minute: currentMinute),
+    );
 
     if (time != null) {
       await _scheduleDailyReminder(
@@ -2999,16 +2980,14 @@ class _HomeScreenState extends State<HomeScreen> {
         .map((s) => RemoteNotice.fromJson(jsonDecode(s)))
         .toList();
 
-    // তারিখের শুধু দিন-মাস-বছর তুলনা করার ফাংশন
     bool isSameDate(DateTime d1, DateTime d2) {
       return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
     }
 
     bool hasNew = false;
     for (var newNotice in allNotices) {
-      // ✅ তারিখের শুধু ডেট অংশ তুলনা করুন (সময় বাদ)
       if (!existingNotices.any((e) =>
-          e.title == newNotice.title && isSameDate(e.date, newNotice.date))) {
+      e.title == newNotice.title && isSameDate(e.date, newNotice.date))) {
         existingNotices.add(newNotice);
         await _showNoticeNotification(newNotice.title, newNotice.body);
         hasNew = true;
@@ -3022,6 +3001,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _remoteNotices = existingNotices;
     if (mounted) setState(() {});
   }
+
   Future<void> _showNoticeNotification(String title, String body) async {
     const androidDetails = AndroidNotificationDetails(
       'notice_channel',
@@ -5156,62 +5136,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
- Widget _buildFeatureButtonsRow() => Row(
-   children: [
-     Expanded(
-       child: _buildFeatureButton(
-         getText('budget_management'),
-         Icons.account_balance_wallet,
-         Colors.teal,
-         () => Navigator.push(
-           context,
-           MaterialPageRoute(
-             builder: (_) => BudgetScreen(
-               selectedLanguage: _selectedLanguage,
-               localizedText: _localizedText,
-             ),
-           ),
-         ),
-       ),
-     ),
-     const SizedBox(width: 12),
-     Expanded(
-       child: _buildFeatureButton(
-         getText('recurring_transactions'),
-         Icons.repeat,
-         Colors.purple,
-         () => Navigator.push(
-           context,
-           MaterialPageRoute(
-             builder: (_) => RecurringScreen(
-               selectedLanguage: _selectedLanguage,
-               localizedText: _localizedText,
-             ),
-           ),
-         ),
-       ),
-     ),
-     const SizedBox(width: 12),
-     Expanded(
-       child: _buildFeatureButton(
-         getText('export_report'),
-         Icons.download,
-         Colors.indigo,
-         () => Navigator.push(
-           context,
-           MaterialPageRoute(
-             builder: (_) => ExportScreen(
-               selectedLanguage: _selectedLanguage,
-               selectedCurrency: _selectedCurrency,
-               currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳',
-               localizedText: _localizedText,
-             ),
-           ),
-         ),
-       ),
-     ),
-   ],
- );
+  Widget _buildFeatureButtonsRow() => Row(
+    children: [
+      Expanded(
+        child: _buildFeatureButton(
+          getText('budget_management'),
+          Icons.account_balance_wallet,
+          Colors.teal,
+              () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BudgetScreen(
+                selectedLanguage: _selectedLanguage,
+                localizedText: _localizedText,
+              ),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: _buildFeatureButton(
+          getText('recurring_transactions'),
+          Icons.repeat,
+          Colors.purple,
+              () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => RecurringScreen(
+                selectedLanguage: _selectedLanguage,
+                localizedText: _localizedText,
+              ),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: _buildFeatureButton(
+          getText('export_report'),
+          Icons.download,
+          Colors.indigo,
+              () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ExportScreen(
+                selectedLanguage: _selectedLanguage,
+                selectedCurrency: _selectedCurrency,
+                currencySymbol: _currencySymbols[_selectedCurrency] ?? '৳',
+                localizedText: _localizedText,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
 
   Widget _buildFeatureButton(String label, IconData icon, Color color, VoidCallback onTap) => ElevatedButton(onPressed: onTap, style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: color, elevation: 2, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 20), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))]));
 
@@ -5232,246 +5212,179 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // ==================== BUDGET OVERVIEW CARD (FIXED) ====================
   Widget _buildBudgetOverviewCard() {
     String symbol = _currencySymbols[_selectedCurrency] ?? '৳';
-    String cm = DateFormat('yyyy-MM').format(DateTime.now());
-    return FutureBuilder<Map<String, dynamic>>(
-      future: LocalDatabaseService().getBudgetSummary(cm),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox.shrink();
-        double tb = (snap.data!['totalBudget'] ?? 0).toDouble();
-        double ts = (snap.data!['totalSpent'] ?? 0).toDouble();
-        double p = (snap.data!['percentage'] ?? 0).toDouble();
-        if (tb == 0) return const SizedBox.shrink();
-        Color sc = p >= 100 ? Colors.red : p >= 80 ? Colors.orange : Colors.teal;
+    String currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
+
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<BudgetModel>('budgets').listenable(),
+      builder: (context, Box<BudgetModel> budgetBox, _) {
+        final allBudgets = budgetBox.values.toList();
+        // Filter budgets for current month (regardless of type)
+        final monthBudgets = allBudgets.where((b) => b.month == currentMonth).toList();
+
+        if (monthBudgets.isEmpty) {
+          return const SizedBox.shrink(); // hide if no budget
+        }
+
+        double totalBudget = monthBudgets.fold(0, (sum, b) => sum + b.budgetAmount);
+        double totalSpent = monthBudgets.fold(0, (sum, b) => sum + b.spentAmount);
+        double remaining = totalBudget - totalSpent;
+        double percentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+
+        Color statusColor = percentage >= 100 ? Colors.red :
+        percentage >= 80 ? Colors.orange :
+        Colors.teal;
+
         return GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => BudgetScreen(selectedLanguage: _selectedLanguage, localizedText: _localizedText)),
+            MaterialPageRoute(builder: (_) => BudgetScreen(
+              selectedLanguage: _selectedLanguage,
+              localizedText: _localizedText,
+            )),
           ),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [sc.withOpacity(0.8), sc]),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Row(children: [
-                  const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
-                  const SizedBox(width: 10),
-                  Text(getText('monthly_budget'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                ]),
-                const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-              ]),
-              const SizedBox(height: 12),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(_formatAmount(ts), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  Text(getText('budget_spent'), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
-                ]),
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(_formatAmount(tb), style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 18)),
-                  Text(getText('total_budget'), style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-                ]),
-              ]),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(5),
-                child: LinearProgressIndicator(
-                  value: p / 100,
-                  backgroundColor: Colors.white.withOpacity(0.3),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                  minHeight: 8,
-                ),
+              gradient: LinearGradient(
+                colors: [statusColor.withOpacity(0.8), statusColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(height: 5),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('${p.toStringAsFixed(1)}% ${getText('used')}', style: const TextStyle(color: Colors.white, fontSize: 12)),
-                Text('${getText('remaining')}: ${_formatAmount(tb - ts)}', style: const TextStyle(color: Colors.white, fontSize: 12)),
-              ]),
-              if (p >= 100)
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                  child: Row(children: [
-                    const Icon(Icons.warning, color: Colors.white, size: 18),
-                    const SizedBox(width: 5),
-                    Text('${getText('budget_exceeded')}!', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ]),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: statusColor.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
-            ]),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
+                        const SizedBox(width: 10),
+                        Text(
+                          getText('monthly_budget'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _formatAmount(totalSpent),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          getText('budget_spent'),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _formatAmount(totalBudget),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 18,
+                          ),
+                        ),
+                        Text(
+                          getText('total_budget'),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: LinearProgressIndicator(
+                    value: percentage / 100,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${percentage.toStringAsFixed(1)}% ${getText('used')}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                    Text(
+                      '${getText('remaining')}: ${_formatAmount(remaining)}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ],
+                ),
+                if (percentage >= 100)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning, color: Colors.white, size: 18),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${getText('budget_exceeded')}!',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildRestoreLoadingDialog() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              _isDarkMode ? Colors.grey.shade800 : Colors.white,
-              _isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 500),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.orange, Colors.red],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.restore,
-                      color: Colors.white,
-                      size: 48,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            Text(
-              getText('restore'),
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: _isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              getText('please_wait'),
-              style: TextStyle(
-                color: _isDarkMode ? Colors.white70 : Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRestoreSuccessDialog() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.green.shade400,
-              Colors.teal.shade600,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 600),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.restore,
-                      color: Colors.green,
-                      size: 56,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            Text(
-              getText('restore'),
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              getText('restore_success'),
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.teal.shade700,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Text(getText('ok')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  // ==================== CALENDAR BODY ====================
   Widget _buildCalendarBody() {
     DateTime sd = _selectedDay ?? DateTime.now();
     String? holiday = BDHolidays.getHoliday(sd);
@@ -5592,21 +5505,21 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(margin: const EdgeInsets.symmetric(horizontal: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.purple.shade600]), borderRadius: BorderRadius.circular(20)), child: Column(children: [
       Row(children: [const Icon(Icons.calendar_today, color: Colors.white), const SizedBox(width: 10), Text(DateFormat('EEEE, d MMMM yyyy').format(sd), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))]),
       if (_showBengaliDate) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.calendar_month, color: Colors.white, size: 18), const SizedBox(width: 10), Text('বাংলা: ${BengaliCalendar.getBengaliDate(sd)}, ${BengaliCalendar.getBengaliDay(sd.weekday)}', style: const TextStyle(color: Colors.white))])],
-if (_showHijriDate) ...[
-  const SizedBox(height: 8),
-  Row(
-    children: [
-      const Icon(Icons.calendar_view_month, color: Colors.white, size: 18),
-      const SizedBox(width: 10),
-      Text(
-        'হিজরি: ${HijriCalendar.getHijriDate(sd, _selectedLanguage)}', // ✅ ভাষা পাস করুন
-        style: const TextStyle(color: Colors.white),
-      ),
-    ],
-  ),
-],
- ]));
-}
+      if (_showHijriDate) ...[
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Icon(Icons.calendar_view_month, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              'হিজরি: ${HijriCalendar.getHijriDate(sd, _selectedLanguage)}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ],
+    ]));
+  }
 
   Widget _buildAddReminderButton() => Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: ElevatedButton.icon(onPressed: _showReminderInput, icon: const Icon(Icons.add_alert), label: Text(getText('add_reminder')), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 5)));
 
@@ -5882,6 +5795,171 @@ if (_showHijriDate) ...[
               ),
             ),
             const SizedBox(height: 50),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==================== RESTORE LOADING / SUCCESS DIALOGS ====================
+  Widget _buildRestoreLoadingDialog() {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              _isDarkMode ? Colors.grey.shade800 : Colors.white,
+              _isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.orange, Colors.red],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.restore,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Text(
+              getText('restore'),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              getText('please_wait'),
+              style: TextStyle(
+                color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRestoreSuccessDialog() {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.green.shade400,
+              Colors.teal.shade600,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 600),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.restore,
+                      color: Colors.green,
+                      size: 56,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              getText('restore'),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              getText('restore_success'),
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.teal.shade700,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: Text(getText('ok')),
+            ),
           ],
         ),
       ),
