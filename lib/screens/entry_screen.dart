@@ -160,21 +160,21 @@ class _EntryScreenState extends State<EntryScreen> {
     }
   }
 
-  // ==================== DATE/TIME PICKER ====================
+  // ==================== DATE/TIME PICKER (locale removed, now uses screen-wide locale) ====================
   Future<void> _pickDateTime() async {
+    // Locale is now set via Localizations.override wrapping the Scaffold,
+    // so we don't need to pass it explicitly.
     DateTime? date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      locale: Locale(widget.selectedLanguage), // ✅ ভাষা সাপোর্ট
     );
 
     if (date != null) {
       TimeOfDay? time = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.now(),
-        locale: Locale(widget.selectedLanguage), // ✅ ভাষা সাপোর্ট
       );
 
       if (time != null) {
@@ -272,160 +272,166 @@ class _EntryScreenState extends State<EntryScreen> {
   // ==================== BUILD ====================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "${getText('new_entry')} ${_selectedType == 'Income' ? getText('income') : _selectedType == 'Expense' ? getText('expense') : _selectedType == 'Debt' ? getText('debt') : getText('note')}",
+    // 🔥 পুরো Scaffold কে Localizations.override দিয়ে মোড়ানো হয়েছে
+    // যাতে showDatePicker ও showTimePicker স্বয়ংক্রিয়ভাবে সিলেক্টেড ভাষায় দেখায়
+    return Localizations.override(
+      context: context,
+      locale: Locale(widget.selectedLanguage),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            "${getText('new_entry')} ${_selectedType == 'Income' ? getText('income') : _selectedType == 'Expense' ? getText('expense') : _selectedType == 'Debt' ? getText('debt') : getText('note')}",
+          ),
+          backgroundColor: Colors.teal,
+          foregroundColor: Colors.white,
         ),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            // Type selector
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(value: 'Income', label: Text(getText('income'))),
-                  ButtonSegment(value: 'Expense', label: Text(getText('expense'))),
-                  ButtonSegment(value: 'Debt', label: Text(getText('debt'))),
-                  ButtonSegment(value: 'Note', label: Text(getText('note'))),
-                ],
-                selected: {_selectedType},
-                onSelectionChanged: (val) => setState(() => _selectedType = val.first),
-                style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor: Colors.teal,
-                  selectedForegroundColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
-
-            // Amount field (digit conversion)
-            if (_selectedType != 'Note')
-              TextField(
-                controller: _amountController,
-                keyboardType: TextInputType.text,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(
-                    RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              // Type selector
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(value: 'Income', label: Text(getText('income'))),
+                    ButtonSegment(value: 'Expense', label: Text(getText('expense'))),
+                    ButtonSegment(value: 'Debt', label: Text(getText('debt'))),
+                    ButtonSegment(value: 'Note', label: Text(getText('note'))),
+                  ],
+                  selected: {_selectedType},
+                  onSelectionChanged: (val) => setState(() => _selectedType = val.first),
+                  style: SegmentedButton.styleFrom(
+                    selectedBackgroundColor: Colors.teal,
+                    selectedForegroundColor: Colors.white,
                   ),
-                  TextInputFormatter.withFunction((oldValue, newValue) {
-                    String converted = _convertToScriptDigits(newValue.text);
-                    return newValue.copyWith(
-                      text: converted,
-                      selection: TextSelection.collapsed(offset: converted.length),
-                    );
-                  }),
-                ],
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(
-                  labelText: getText('amount'),
-                  prefixText: "৳ ",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
                 ),
               ),
+              const SizedBox(height: 25),
 
-            if (_selectedType == 'Note')
-              TextField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: getText('title'),
-                  hintText: getText('note_title_hint'),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              // Amount field (digit conversion)
+              if (_selectedType != 'Note')
+                TextField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*'),
+                    ),
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String converted = _convertToScriptDigits(newValue.text);
+                      return newValue.copyWith(
+                        text: converted,
+                        selection: TextSelection.collapsed(offset: converted.length),
+                      );
+                    }),
+                  ],
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    labelText: getText('amount'),
+                    prefixText: "৳ ",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
                 ),
-              ),
 
-            const SizedBox(height: 20),
-
-            // Note color picker
-            if (_selectedType == 'Note') ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  getText('choose_note_color'),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+              if (_selectedType == 'Note')
+                TextField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: getText('title'),
+                    hintText: getText('note_title_hint'),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 50,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _noteColors.length,
-                  itemBuilder: (context, index) => GestureDetector(
-                    onTap: () => setState(() => _selectedColor = _noteColors[index]),
-                    child: Container(
-                      width: 45,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: Color(_noteColors[index]),
-                        shape: BoxShape.circle,
-                        border: _selectedColor == _noteColors[index]
-                            ? Border.all(color: Colors.black, width: 3)
-                            : Border.all(color: Colors.grey.shade300),
+
+              const SizedBox(height: 20),
+
+              // Note color picker
+              if (_selectedType == 'Note') ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    getText('choose_note_color'),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 50,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _noteColors.length,
+                    itemBuilder: (context, index) => GestureDetector(
+                      onTap: () => setState(() => _selectedColor = _noteColors[index]),
+                      child: Container(
+                        width: 45,
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: Color(_noteColors[index]),
+                          shape: BoxShape.circle,
+                          border: _selectedColor == _noteColors[index]
+                              ? Border.all(color: Colors.black, width: 3)
+                              : Border.all(color: Colors.grey.shade300),
+                        ),
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+              ],
+
+              // Date/time picker tile
+              ListTile(
+                tileColor: Colors.teal.shade50,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                leading: const Icon(Icons.calendar_today, color: Colors.teal),
+                trailing: const Icon(Icons.access_time, color: Colors.teal),
+                title: Text(
+                  _reminderDateTime == null
+                      ? getText('set_date_time')
+                      : DateFormat('dd MMMM, yyyy - hh:mm a').format(_reminderDateTime!),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                onTap: _pickDateTime,
               ),
+
               const SizedBox(height: 20),
+
+              // Note/description
+              TextField(
+                controller: _noteController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: _selectedType == 'Note'
+                      ? getText('note_details')
+                      : getText('transaction_details'),
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+
+              const SizedBox(height: 35),
+
+              // Save button
+              ElevatedButton.icon(
+                onPressed: _saveEntry,
+                icon: const Icon(Icons.save),
+                label: Text(
+                  getText('save_all'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 60),
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 5,
+                ),
+              ),
             ],
-
-            // Date/time picker tile
-            ListTile(
-              tileColor: Colors.teal.shade50,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              leading: const Icon(Icons.calendar_today, color: Colors.teal),
-              trailing: const Icon(Icons.access_time, color: Colors.teal),
-              title: Text(
-                _reminderDateTime == null
-                    ? getText('set_date_time')
-                    : DateFormat('dd MMMM, yyyy - hh:mm a').format(_reminderDateTime!),
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              onTap: _pickDateTime,
-            ),
-
-            const SizedBox(height: 20),
-
-            // Note/description
-            TextField(
-              controller: _noteController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: _selectedType == 'Note'
-                    ? getText('note_details')
-                    : getText('transaction_details'),
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-
-            const SizedBox(height: 35),
-
-            // Save button
-            ElevatedButton.icon(
-              onPressed: _saveEntry,
-              icon: const Icon(Icons.save),
-              label: Text(
-                getText('save_all'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 60),
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 5,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
