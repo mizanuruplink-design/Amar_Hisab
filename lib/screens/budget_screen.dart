@@ -319,6 +319,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
+      // 🔥 এই একটি লাইন যোগ করলেই কীবোর্ড খুললে মূল স্ক্রিন আর ছোট হবে না, overflow বন্ধ হবে
+      resizeToAvoidBottomInset: false,
       appBar: _buildAppBar(),
       body: Column(
         children: [
@@ -484,54 +486,62 @@ class _BudgetScreenState extends State<BudgetScreen> {
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Padding কমিয়ে 12 করা হয়েছে
         child: Column(
           children: [
+            // 🔥 এখানে Expanded ব্যবহার করা হয়েছে যাতে টেক্সট ভেঙে না যায়
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildSummaryItem(getText('opening_balance'), opening, currencySymbol),
-                _buildSummaryItem(getText('total_income'), income, currencySymbol),
-                _buildSummaryItem(getText('total_expense'), expense, currencySymbol),
+                Expanded(child: _buildSummaryItem(getText('opening_balance'), opening, currencySymbol)),
+                Expanded(child: _buildSummaryItem(getText('total_income'), income, currencySymbol)),
+                Expanded(child: _buildSummaryItem(getText('total_expense'), expense, currencySymbol)),
               ],
             ),
             const Divider(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      getText('closing_balance'),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    Text(
-                      '$currencySymbol ${_formatAmount(closing)}',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: closing >= 0 ? Colors.green : Colors.red,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        getText('closing_balance'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis, // দীর্ঘ টেক্সট কাটা যাবে
                       ),
-                    ),
-                  ],
+                      Text(
+                        '$currencySymbol ${_formatAmount(closing)}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: closing >= 0 ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      netLabel,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    Text(
-                      '$currencySymbol ${_formatAmount(net)}',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: netColor,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        netLabel,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                      Text(
+                        '$currencySymbol ${_formatAmount(net)}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: netColor,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -542,15 +552,23 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   Widget _buildSummaryItem(String label, double value, String symbol) {
+    // FittedBox ব্যবহার করা হয়েছে যাতে ছোট জায়গায় টেক্সট নিজে নিজে ছোট হয়ে যায়
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        Text(
-          '$symbol ${_formatAmount(value)}',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '$symbol ${_formatAmount(value)}',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ),
       ],
     );
@@ -813,73 +831,72 @@ class _BudgetScreenState extends State<BudgetScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          scrollable: true, // 🔥 ম্যাজিক ফিক্স: কীবোর্ড ওপেন হলে স্ক্রল হবে
           title: Text('${_budgetType == 'Income' ? getText('income') : getText('expense')} ${getText('add_budget')}',
               style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CategoryDropdown(
-                  selectedValue: selectedCategory,
-                  onChanged: (newValue) => setDialogState(() => selectedCategory = newValue),
-                  hintText: getText('select_category'),
-                  showAddNew: true,
-                  filterType: _budgetType,
-                  getTranslatedName: (key) => getCategoryName(key),
-                  addNewCategoryText: getText('add_new_category'),
-                  dialogTitle: getText('add_new_category_dialog_title'),
-                  categoryNameLabel: getText('category_name'),
-                  addButtonText: getText('add'),
-                  cancelButtonText: getText('cancel'),
-                  editCategoryText: getText('edit_category'),
-                  deleteCategoryText: getText('delete_category'),
-                  deleteConfirmText: getText('delete_category_confirm'),
-                  categoryExistsText: getText('category_exists'),
-                  addSuccessText: getText('category_added'),
-                  deleteSuccessText: getText('category_deleted'),
+          content: Column( // SingleChildScrollView সরিয়ে সরাসরি Column
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CategoryDropdown(
+                selectedValue: selectedCategory,
+                onChanged: (newValue) => setDialogState(() => selectedCategory = newValue),
+                hintText: getText('select_category'),
+                showAddNew: true,
+                filterType: _budgetType,
+                getTranslatedName: (key) => getCategoryName(key),
+                addNewCategoryText: getText('add_new_category'),
+                dialogTitle: getText('add_new_category_dialog_title'),
+                categoryNameLabel: getText('category_name'),
+                addButtonText: getText('add'),
+                cancelButtonText: getText('cancel'),
+                editCategoryText: getText('edit_category'),
+                deleteCategoryText: getText('delete_category'),
+                deleteConfirmText: getText('delete_category_confirm'),
+                categoryExistsText: getText('category_exists'),
+                addSuccessText: getText('category_added'),
+                deleteSuccessText: getText('category_deleted'),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    String converted = _convertToScriptDigits(newValue.text);
+                    return newValue.copyWith(
+                      text: converted,
+                      selection: TextSelection.collapsed(offset: converted.length),
+                    );
+                  }),
+                ],
+                decoration: InputDecoration(
+                  labelText: getText('budget_amount'),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  prefixIcon: const Icon(Icons.money),
                 ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.text,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
-                    TextInputFormatter.withFunction((oldValue, newValue) {
-                      String converted = _convertToScriptDigits(newValue.text);
-                      return newValue.copyWith(
-                        text: converted,
-                        selection: TextSelection.collapsed(offset: converted.length),
-                      );
-                    }),
-                  ],
-                  decoration: InputDecoration(
-                    labelText: getText('budget_amount'),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    prefixIcon: const Icon(Icons.money),
+              ),
+              const SizedBox(height: 15),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedPeriod,
+                    isExpanded: true,
+                    items: [
+                      DropdownMenuItem(value: 'monthly', child: Text(getText('monthly'))),
+                      DropdownMenuItem(value: 'weekly', child: Text(getText('weekly'))),
+                      DropdownMenuItem(value: 'yearly', child: Text(getText('yearly'))),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedPeriod = v!),
                   ),
                 ),
-                const SizedBox(height: 15),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedPeriod,
-                      isExpanded: true,
-                      items: [
-                        DropdownMenuItem(value: 'monthly', child: Text(getText('monthly'))),
-                        DropdownMenuItem(value: 'weekly', child: Text(getText('weekly'))),
-                        DropdownMenuItem(value: 'yearly', child: Text(getText('yearly'))),
-                      ],
-                      onChanged: (v) => setDialogState(() => selectedPeriod = v!),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(getText('cancel'))),
@@ -930,53 +947,52 @@ class _BudgetScreenState extends State<BudgetScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          scrollable: true, // 🔥 ম্যাজিক ফিক্স
           title: Text('${getText('edit_budget')} - ${budget.type == 'Income' ? getText('income') : getText('expense')}',
               style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CategoryDropdown(
-                  selectedValue: selectedCategory,
-                  onChanged: (newValue) => setDialogState(() => selectedCategory = newValue),
-                  hintText: getText('select_category'),
-                  showAddNew: true,
-                  filterType: budget.type ?? 'Expense',
-                  getTranslatedName: (key) => getCategoryName(key),
-                  addNewCategoryText: getText('add_new_category'),
-                  dialogTitle: getText('add_new_category_dialog_title'),
-                  categoryNameLabel: getText('category_name'),
-                  addButtonText: getText('add'),
-                  cancelButtonText: getText('cancel'),
-                  editCategoryText: getText('edit_category'),
-                  deleteCategoryText: getText('delete_category'),
-                  deleteConfirmText: getText('delete_category_confirm'),
-                  categoryExistsText: getText('category_exists'),
-                  addSuccessText: getText('category_added'),
-                  deleteSuccessText: getText('category_deleted'),
+          content: Column( // SingleChildScrollView সরানো হয়েছে
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CategoryDropdown(
+                selectedValue: selectedCategory,
+                onChanged: (newValue) => setDialogState(() => selectedCategory = newValue),
+                hintText: getText('select_category'),
+                showAddNew: true,
+                filterType: budget.type ?? 'Expense',
+                getTranslatedName: (key) => getCategoryName(key),
+                addNewCategoryText: getText('add_new_category'),
+                dialogTitle: getText('add_new_category_dialog_title'),
+                categoryNameLabel: getText('category_name'),
+                addButtonText: getText('add'),
+                cancelButtonText: getText('cancel'),
+                editCategoryText: getText('edit_category'),
+                deleteCategoryText: getText('delete_category'),
+                deleteConfirmText: getText('delete_category_confirm'),
+                categoryExistsText: getText('category_exists'),
+                addSuccessText: getText('category_added'),
+                deleteSuccessText: getText('category_deleted'),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    String converted = _convertToScriptDigits(newValue.text);
+                    return newValue.copyWith(
+                      text: converted,
+                      selection: TextSelection.collapsed(offset: converted.length),
+                    );
+                  }),
+                ],
+                decoration: InputDecoration(
+                  labelText: getText('budget_amount'),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  prefixIcon: const Icon(Icons.money),
                 ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: amountController,
-                  keyboardType: TextInputType.text,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9০-৯٠-٩]+\.?[0-9০-৯٠-٩]*')),
-                    TextInputFormatter.withFunction((oldValue, newValue) {
-                      String converted = _convertToScriptDigits(newValue.text);
-                      return newValue.copyWith(
-                        text: converted,
-                        selection: TextSelection.collapsed(offset: converted.length),
-                      );
-                    }),
-                  ],
-                  decoration: InputDecoration(
-                    labelText: getText('budget_amount'),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    prefixIcon: const Icon(Icons.money),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(getText('cancel'))),

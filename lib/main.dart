@@ -399,3 +399,80 @@ class _LockWrapperState extends State<LockWrapper> {
     );
   }
 }
+
+// ==================== নতুন যুক্ত করা ম্যাজিক নেভিগেশন বার ====================
+class MagicNavBar extends StatefulWidget {
+  const MagicNavBar({super.key});
+
+  @override
+  State<MagicNavBar> createState() => _MagicNavBarState();
+}
+
+class _MagicNavBarState extends State<MagicNavBar> {
+  int selectedIndex = 0;
+
+  final List<IconData> icons = [
+    Icons.home,
+    Icons.person,
+    Icons.chat_bubble,
+    Icons.camera_alt,
+    Icons.settings,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 350,
+      height: 60,
+      decoration: BoxDecoration(
+        color: isDark ? Colors.black : Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(5, (index) {
+          bool isActive = selectedIndex == index;
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                selectedIndex = index;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOut,
+              transform: Matrix4.translationValues(0, isActive ? -25 : 0, 0),
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: isActive ? const Color(0xFF2ecc71) : Colors.transparent,
+                shape: BoxShape.circle,
+                boxShadow: isActive ? [
+                  BoxShadow(
+                    color: const Color(0xFF2ecc71).withOpacity(0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ] : null,
+              ),
+              child: Icon(
+                icons[index],
+                color: isActive ? Colors.white : (isDark ? Colors.white : Colors.black),
+                size: 24,
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}

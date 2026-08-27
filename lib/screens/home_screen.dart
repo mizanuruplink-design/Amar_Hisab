@@ -31,6 +31,7 @@ import '../models/recurring_transaction_model.dart';
 import '../models/custom_category_model.dart';
 import '../services/category_service.dart';
 import '../widgets/category_dropdown.dart';
+import 'package:open_file/open_file.dart';
 
 // ==================== Helper Classes ====================
 class HijriCalendar {
@@ -72,19 +73,14 @@ class HijriCalendar {
 
   static String getHijriDate(DateTime date, String language) {
     int jdn = _gregorianToJDN(date);
-
     int adjustment = 0;
-
     int hijriYear = ((jdn - 1948440 + 0.5) / 354.367).floor();
     if (hijriYear < 1) hijriYear = 1;
-
     int firstDayJDN = _hijriToJDN(hijriYear);
     int dayOfYear = (jdn - firstDayJDN).toInt() + adjustment;
-
     List<int> monthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29];
     int month = 1;
     int day = dayOfYear;
-
     for (int i = 0; i < monthLengths.length; i++) {
       if (day < monthLengths[i]) {
         month = i + 1;
@@ -93,18 +89,14 @@ class HijriCalendar {
       }
       day -= monthLengths[i];
     }
-
     if (month > 12) {
       month = 1;
       day = 1;
       hijriYear++;
     }
-
     final months = _getMonths(language);
     final monthName = months[month] ?? '';
-
     String suffix = language == 'bn' ? 'হিজরি' : (language == 'ar' ? 'هـ' : 'AH');
-
     return '$day $monthName $hijriYear $suffix';
   }
 }
@@ -122,7 +114,6 @@ class BengaliCalendar {
     int daysDiff = date.difference(bengaliNewYear).inDays;
     int bengaliYear;
     int dayOfYear;
-
     if (daysDiff >= 0) {
       bengaliYear = year - 593;
       dayOfYear = daysDiff;
@@ -131,11 +122,9 @@ class BengaliCalendar {
       DateTime prevNewYear = DateTime(year - 1, 4, 14);
       dayOfYear = date.difference(prevNewYear).inDays;
     }
-
     List<int> monthLengths = [31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 30, 30];
     int monthIndex = 0;
     int day = dayOfYear;
-
     for (int i = 0; i < monthLengths.length; i++) {
       if (day < monthLengths[i]) {
         monthIndex = i + 1;
@@ -144,19 +133,13 @@ class BengaliCalendar {
       }
       day -= monthLengths[i];
     }
-
     return '${day} ${bengaliMonths[monthIndex]} $bengaliYear';
   }
 
   static String getBengaliDay(int weekday) {
     Map<int, String> days = {
-      1: 'সোমবার',
-      2: 'মঙ্গলবার',
-      3: 'বুধবার',
-      4: 'বৃহস্পতিবার',
-      5: 'শুক্রবার',
-      6: 'শনিবার',
-      7: 'রবিবার'
+      1: 'সোমবার', 2: 'মঙ্গলবার', 3: 'বুধবার', 4: 'বৃহস্পতিবার',
+      5: 'শুক্রবার', 6: 'শনিবার', 7: 'রবিবার'
     };
     return days[weekday] ?? '';
   }
@@ -170,7 +153,6 @@ class BDHolidays {
   static String? getHoliday(DateTime date) => holidays[DateFormat('dd/MM').format(date)];
 }
 
-// ==================== Remote Notice Model ====================
 class RemoteNotice {
   final String title;
   final String body;
@@ -192,6 +174,7 @@ class RemoteNotice {
   };
 }
 
+// ==================== HOME SCREEN ====================
 class HomeScreen extends StatefulWidget {
   final String initialLanguage;
   final bool initialDarkMode;
@@ -209,6 +192,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
   // ==================== NOTEBOOK ====================
   List<Map<String, dynamic>> _textNotes = [];
   List<Map<String, dynamic>> _drawingNotes = [];
@@ -237,12 +221,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Locale _getTimePickerLocale() {
     switch (_selectedLanguage) {
-      case 'bn':
-        return const Locale('bn', 'BD');
-      case 'ar':
-        return const Locale('ar', 'SA');
-      default:
-        return const Locale('en', 'US');
+      case 'bn': return const Locale('bn', 'BD');
+      case 'ar': return const Locale('ar', 'SA');
+      default: return const Locale('en', 'US');
     }
   }
 
@@ -3481,7 +3462,55 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // ==================== BACKUP / RESTORE ====================
+  // ==================== BACKUP / RESTORE (FIXED) ====================
+  Future<Directory> _getBackupFolder() async {
+    Directory backupDir;
+
+    if (Platform.isAndroid) {
+      // Public Documents folder — one predictable path, no nested Android/data/... paths
+      backupDir = Directory('/storage/emulated/0/Documents/Amar_Hisab_Backups');
+    } else {
+      // iOS: app's Documents dir (shows in Files app if file sharing is enabled)
+      final appDocDir = await getApplicationDocumentsDirectory();
+      backupDir = Directory('${appDocDir.path}/Amar_Hisab_Backups');
+    }
+
+    try {
+      if (!await backupDir.exists()) {
+        await backupDir.create(recursive: true);
+      }
+      return backupDir;
+    } catch (e) {
+      // Fallback only if the public path can't be written to (e.g. missing permission)
+      print('Could not access $backupDir: $e');
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final fallback = Directory('${appDocDir.path}/Amar_Hisab_Backups');
+      if (!await fallback.exists()) {
+        await fallback.create(recursive: true);
+      }
+      return fallback;
+    }
+  }
+
+  Future<void> _cleanOldBackups(Directory backupDir, {int keepCount = 5}) async {
+    try {
+      final files = await backupDir.list()
+          .where((entity) => entity is File)
+          .map((entity) => entity as File)
+          .toList();
+
+      if (files.length <= keepCount) return;
+
+      files.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+
+      for (var i = keepCount; i < files.length; i++) {
+        await files[i].delete();
+      }
+    } catch (e) {
+      print('Error cleaning old backups: $e');
+    }
+  }
+
   Future<String?> _createLocalBackup({bool silent = false}) async {
     try {
       final txBox = Hive.box<TransactionModel>('transactions');
@@ -3506,22 +3535,14 @@ class _HomeScreenState extends State<HomeScreen> {
       };
 
       final jsonString = jsonEncode(backupData);
-      final fileName = 'amar_hisab_backup_${DateTime.now().millisecondsSinceEpoch}.json';
+      final fileName = 'backup_${DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now())}.json';
 
-      Directory saveDir;
-      if (Platform.isAndroid) {
-        final downloadsDir = Directory('/storage/emulated/0/Download');
-        if (await downloadsDir.exists()) {
-          saveDir = downloadsDir;
-        } else {
-          saveDir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
-        }
-      } else {
-        saveDir = await getApplicationDocumentsDirectory();
-      }
-
-      final file = File('${saveDir.path}/$fileName');
+      final backupDir = await _getBackupFolder();
+      final file = File('${backupDir.path}/$fileName');
       await file.writeAsString(jsonString);
+
+      await _cleanOldBackups(backupDir, keepCount: 5);
+
       return file.path;
     } catch (e) {
       if (!silent) _showSnackBar('${getText('backup')} ${getText('failed')}: $e', Colors.red);
@@ -3529,24 +3550,207 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _backupData() async {
+  Future<void> _openBackupFolder() async {
+    final backupDir = await _getBackupFolder();
+    final files = await backupDir.list()
+        .where((entity) => entity is File)
+        .map((entity) => entity as File)
+        .toList();
+
+    if (files.isNotEmpty) {
+      files.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      final latestFile = files.first.path;
+      final result = await OpenFile.open(latestFile);
+      if (result.type != ResultType.done) {
+        _showFolderPathDialog(backupDir.path);
+      }
+    } else {
+      _showFolderPathDialog(backupDir.path);
+    }
+  }
+
+  void _showFolderPathDialog(String path) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => _buildBackupLoadingDialog(),
+      builder: (ctx) => AlertDialog(
+        title: Text(getText('backup_location')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Backup files are stored at:'),
+            const SizedBox(height: 8),
+            SelectableText(path, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('(You can copy this path and paste it in your file manager.)',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _copyToClipboard(path);
+            },
+            child: const Text('Copy Path'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(getText('close')),
+          ),
+        ],
+      ),
     );
+  }
 
-    final filePath = await _createLocalBackup(silent: false);
-    if (!mounted) return;
-    Navigator.of(context).pop();
+  void _copyToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    _showSnackBar('Path copied to clipboard', Colors.green);
+  }
 
-    if (filePath != null) {
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => _buildBackupSuccessDialog(filePath),
-      );
-    }
+  Widget _buildBackupSuccessDialog(String filePath) {
+    final folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    final fileName = filePath.split('/').last;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.green, Colors.teal],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              getText('backup_success'),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    getText('backup_location'),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '📂 $fileName',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    folderPath,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 11,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.teal.shade700,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: Text(getText('close')),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _openBackupFolder();
+                  },
+                  icon: const Icon(Icons.folder_open, size: 18),
+                  label: const Text('Open File'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.teal.shade700,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await Share.shareXFiles(
+                      [XFile(filePath)],
+                      text: getText('backup_share_message'),
+                    );
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: Text(getText('share')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.teal.shade700,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _copyToClipboard(folderPath);
+              },
+              child: Text(
+                'Copy Path',
+                style: TextStyle(color: Colors.white.withOpacity(0.8)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildBackupLoadingDialog() {
@@ -3626,7 +3830,84 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBackupSuccessDialog(String filePath) {
+  Widget _buildRestoreLoadingDialog() {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              _isDarkMode ? Colors.grey.shade800 : Colors.white,
+              _isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.orange, Colors.red],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.restore,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Text(
+              getText('restore'),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              getText('please_wait'),
+              style: TextStyle(
+                color: _isDarkMode ? Colors.white70 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRestoreSuccessDialog() {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       backgroundColor: Colors.transparent,
@@ -3666,7 +3947,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      Icons.check_circle,
+                      Icons.restore,
                       color: Colors.green,
                       size: 56,
                     ),
@@ -3676,84 +3957,36 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              getText('backup_success'),
+              getText('restore'),
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    getText('backup_location'),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    filePath,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+            const SizedBox(height: 8),
+            Text(
+              getText('restore_success'),
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.teal.shade700,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: Text(getText('close')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.teal.shade700,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await Share.shareXFiles(
-                      [XFile(filePath)],
-                      text: getText('backup_share_message'),
-                    );
-                  },
-                  icon: const Icon(Icons.share, size: 18),
-                  label: Text(getText('share')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.teal.shade700,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
-              ],
+              ),
+              child: Text(getText('ok')),
             ),
           ],
         ),
@@ -3761,6 +3994,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ========== BACKUP TO GOOGLE DRIVE ==========
   Future<void> _backupToGoogleDrive() async {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
@@ -3812,6 +4046,26 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       _showSnackBar('${getText('google_drive_backup')} ${getText('failed')}: $e', Colors.red);
+    }
+  }
+
+  Future<void> _backupData() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _buildBackupLoadingDialog(),
+    );
+
+    final filePath = await _createLocalBackup(silent: false);
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    if (filePath != null) {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _buildBackupSuccessDialog(filePath),
+      );
     }
   }
 
@@ -4830,70 +5084,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildNotebookBody(),
         _buildProfileBody()
       ]),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, -4))
-            ]),
-        child: BottomNavigationBar(
+      // 🔥 এখানে MagicNavigationBar ব্যবহার করা হয়েছে
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: MagicNavigationBar(
           currentIndex: _currentIndex,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          selectedItemColor:
-          isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8),
-          unselectedItemColor:
-          isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.2),
-          unselectedLabelStyle:
-          const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          onTap: (i) => setState(() => _currentIndex = i),
-          items: [
-            BottomNavigationBarItem(
-                icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.home_outlined)),
-                activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.home_rounded)),
-                label: getText('home')),
-            BottomNavigationBarItem(
-                icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.calendar_month_outlined)),
-                activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.calendar_month_rounded)),
-                label: getText('calendar')),
-            BottomNavigationBarItem(
-                icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.notifications_none_rounded)),
-                activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.notifications_rounded)),
-                label: getText('notice')),
-            BottomNavigationBarItem(
-                icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.book_outlined)),
-                activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.book_rounded)),
-                label: getText('notebook')),
-            BottomNavigationBarItem(
-                icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.person_outline_rounded)),
-                activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 4),
-                    child: Icon(Icons.person_rounded)),
-                label: getText('profile')),
-          ],
+          onTap: (index) => setState(() => _currentIndex = index),
+          isDarkMode: isDark,
         ),
       ),
     );
@@ -5212,7 +5409,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // ==================== BUDGET OVERVIEW CARD (FIXED) ====================
+  // ==================== BUDGET OVERVIEW CARD ====================
   Widget _buildBudgetOverviewCard() {
     String symbol = _currencySymbols[_selectedCurrency] ?? '৳';
     String currentMonth = DateFormat('yyyy-MM').format(DateTime.now());
@@ -5221,11 +5418,10 @@ class _HomeScreenState extends State<HomeScreen> {
       valueListenable: Hive.box<BudgetModel>('budgets').listenable(),
       builder: (context, Box<BudgetModel> budgetBox, _) {
         final allBudgets = budgetBox.values.toList();
-        // Filter budgets for current month (regardless of type)
         final monthBudgets = allBudgets.where((b) => b.month == currentMonth).toList();
 
         if (monthBudgets.isEmpty) {
-          return const SizedBox.shrink(); // hide if no budget
+          return const SizedBox.shrink();
         }
 
         double totalBudget = monthBudgets.fold(0, (sum, b) => sum + b.budgetAmount);
@@ -5800,175 +5996,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // ==================== RESTORE LOADING / SUCCESS DIALOGS ====================
-  Widget _buildRestoreLoadingDialog() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              _isDarkMode ? Colors.grey.shade800 : Colors.white,
-              _isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 500),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.orange, Colors.red],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.restore,
-                      color: Colors.white,
-                      size: 48,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            Text(
-              getText('restore'),
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: _isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              getText('please_wait'),
-              style: TextStyle(
-                color: _isDarkMode ? Colors.white70 : Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRestoreSuccessDialog() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.green.shade400,
-              Colors.teal.shade600,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 600),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.restore,
-                      color: Colors.green,
-                      size: 56,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            Text(
-              getText('restore'),
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              getText('restore_success'),
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.teal.shade700,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Text(getText('ok')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ==================== HELPER CLASSES ====================
-class AnimatedBorderCard extends StatefulWidget {
+class AnimatedBorderCard extends StatelessWidget {
   final Widget child;
   final Color baseColor;
 
@@ -5979,63 +6010,28 @@ class AnimatedBorderCard extends StatefulWidget {
   });
 
   @override
-  State<AnimatedBorderCard> createState() => _AnimatedBorderCardState();
-}
-
-class _AnimatedBorderCardState extends State<AnimatedBorderCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, _) {
-        final opacity = 0.3 + (_animation.value * 0.4);
-        final borderWidth = 1.5 + (_animation.value * 1.5);
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                widget.baseColor.withOpacity(0.9),
-                widget.baseColor,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: widget.baseColor.withOpacity(opacity),
-                blurRadius: 12 + (_animation.value * 8),
-                offset: Offset(0, 4 + (_animation.value * 4)),
-              ),
-            ],
-            border: Border.all(
-              color: widget.baseColor.withOpacity(0.8),
-              width: borderWidth,
-            ),
+    // স্থির (Static) গ্রেডিয়েন্ট, কোনো লুপিং অ্যানিমেশন নেই
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            baseColor.withOpacity(0.9),
+            baseColor,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: baseColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          child: widget.child,
-        );
-      },
+        ],
+      ),
+      child: child,
     );
   }
 }
@@ -6123,4 +6119,135 @@ class NotepadLinesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ==================== MagicNavigationBar (Modern & Fast) ====================
+class MagicNavigationBar extends StatelessWidget {
+  final int currentIndex;
+  final Function(int) onTap;
+  final bool isDarkMode;
+
+  const MagicNavigationBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+    required this.isDarkMode,
+  });
+
+  final List<Map<String, dynamic>> _menuItems = const [
+    {'icon': Icons.home_outlined, 'label': 'হোম'},
+    {'icon': Icons.calendar_month_outlined, 'label': 'ক্যালেন্ডার'},
+    {'icon': Icons.notifications_none_outlined, 'label': 'নোটিশ'},
+    {'icon': Icons.book_outlined, 'label': 'নোটবুক'},
+    {'icon': Icons.person_outline_outlined, 'label': 'প্রোফাইল'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    // RepaintBoundary নেভিগেশন বারের অ্যানিমেশনকে আলাদা করে দেয়, ফলে বাকি অ্যাপ ল্যাগ করে না
+    return RepaintBoundary(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: List.generate(_menuItems.length, (index) {
+            return _MagicNavButton(
+              index: index,
+              selectedIndex: currentIndex,
+              onTap: () => onTap(index),
+              icon: _menuItems[index]['icon'],
+              label: _menuItems[index]['label'],
+              isDarkMode: isDarkMode,
+            );
+          }),
+        ),
+      ),
+    );
+  }
+}
+
+class _MagicNavButton extends StatelessWidget {
+  final int index;
+  final int selectedIndex;
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+  final bool isDarkMode;
+
+  const _MagicNavButton({
+    required this.index,
+    required this.selectedIndex,
+    required this.onTap,
+    required this.icon,
+    required this.label,
+    required this.isDarkMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isSelected = index == selectedIndex;
+
+    final Color activeColor = const Color(0xFF2ecc71);
+    final Color iconColor = isSelected
+        ? Colors.white
+        : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600);
+    final Color textColor = isSelected
+        ? (isDarkMode ? Colors.white : Colors.blue.shade700)
+        : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // AnimatedSlide দ্রুত এবং স্মুথ উপরে ওঠার জন্য ব্যবহার করা হয়েছে
+          AnimatedSlide(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack, // হালকা বাউন্স ইফেক্ট
+            offset: isSelected ? const Offset(0, -0.5) : Offset.zero,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: isSelected ? activeColor : Colors.transparent,
+                shape: BoxShape.circle,
+                boxShadow: isSelected
+                    ? [
+                  BoxShadow(
+                    color: activeColor.withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+                    : null,
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
