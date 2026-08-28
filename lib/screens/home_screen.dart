@@ -67,37 +67,28 @@ class HijriCalendar {
     return d + ((153 * m2 + 2) ~/ 5) + 365 * y2 + (y2 ~/ 4) - (y2 ~/ 100) + (y2 ~/ 400) - 32045;
   }
 
-  static int _hijriToJDN(int year) {
-    return (1948440 + ((year - 1) * 354.367)).floor();
-  }
-
   static String getHijriDate(DateTime date, String language) {
     int jdn = _gregorianToJDN(date);
-    int adjustment = 0;
-    int hijriYear = ((jdn - 1948440 + 0.5) / 354.367).floor();
-    if (hijriYear < 1) hijriYear = 1;
-    int firstDayJDN = _hijriToJDN(hijriYear);
-    int dayOfYear = (jdn - firstDayJDN).toInt() + adjustment;
-    List<int> monthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29];
-    int month = 1;
-    int day = dayOfYear;
-    for (int i = 0; i < monthLengths.length; i++) {
-      if (day < monthLengths[i]) {
-        month = i + 1;
-        day = day + 1;
-        break;
-      }
-      day -= monthLengths[i];
+
+    // স্ট্যান্ডার্ড সিভিল (Kuwaiti) অ্যালগরিদম
+    int l = jdn - 1948440 + 10632;
+    int n = (l - 1) ~/ 10631;
+    l = l - 10631 * n + 354;
+    int j = ((10985 - l) ~/ 5316) * ((50 * l) ~/ 17719) + (l ~/ 5670) * ((43 * l) ~/ 15238);
+    l = l - ((30 - j) ~/ 15) * ((17719 * j) ~/ 50) - (j ~/ 16) * ((15238 * j) ~/ 43) + 29;
+    int month = (24 * l) ~/ 709;
+    int day = l - (709 * month) ~/ 24;
+    int year = 30 * n + j - 30;
+
+    // মাস ও বছরের ভুল ঠেকানো (গাণিতিক রক্ষাকবচ)
+    if (month < 1 || month > 12) {
+      return '';
     }
-    if (month > 12) {
-      month = 1;
-      day = 1;
-      hijriYear++;
-    }
+
     final months = _getMonths(language);
     final monthName = months[month] ?? '';
     String suffix = language == 'bn' ? 'হিজরি' : (language == 'ar' ? 'هـ' : 'AH');
-    return '$day $monthName $hijriYear $suffix';
+    return '$day $monthName $year $suffix';
   }
 }
 

@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace 'com.example.amar_hisab'
-    compileSdk 36   // ⬅️ changed from 35 to 36
+    compileSdk 36   // ✅ প্লাগইনগুলোর কারণে 36-এই থাকতে হবে
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId 'com.example.amar_hisab'
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 36   // optional, but keep consistent
+        targetSdkVersion 36   // ✅ 36-এই রাখুন (এটি ব্যাকওয়ার্ড কম্প্যাটিবল)
         versionCode flutter.versionCode
         versionName flutter.versionName
     }
@@ -35,7 +35,7 @@ android {
             keyPassword "android"
         }
         release {
-            // For testing only – replace before publishing
+            // টেস্টিংয়ের জন্য ডিবাগ কীস্টোর ব্যবহার হচ্ছে
             storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
             storePassword "android"
             keyAlias "androiddebugkey"
@@ -61,10 +61,10 @@ android {
 }
 
 dependencies {
-    // Only keep desugaring – remove all the forced version overrides
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 }
 
 flutter {
     source '../..'
 }
+apply plugin: 'com.google.gms.google-services'
